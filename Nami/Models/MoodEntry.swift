@@ -1,0 +1,52 @@
+//
+//  MoodEntry.swift
+//  Nami
+//
+//  気分記録のデータモデル
+//
+
+import Foundation
+import SwiftData
+
+/// 気分記録エントリ
+/// スコア（1〜maxScore）、任意メモ、写真・ボイスメモパス、記録日時を保持する
+@Model
+class MoodEntry {
+    var id: UUID = UUID()
+    var score: Int = 5      // 1〜maxScore（1=最低、maxScore=最高）
+    var memo: String?       // 任意メモ（最大100文字）
+    var createdAt: Date = Date.now  // 記録日時
+    var maxScore: Int = 10  // 記録時のスコア範囲（デフォルト10、軽量マイグレーション対応）
+    var photoPath: String?  // App Group内の写真相対パス
+    var voiceMemoPath: String?  // App Group内のボイスメモ相対パス
+    var tags: [String] = [] // 感情タグ名の配列（軽量マイグレーション対応）
+    var source: String = "app" // 記録元: "app", "widget", "watch"（軽量マイグレーション対応）
+
+    init(score: Int, maxScore: Int = 10, memo: String? = nil, photoPath: String? = nil, voiceMemoPath: String? = nil, tags: [String] = [], source: String = "app", createdAt: Date = .now) {
+        self.id = UUID()
+        self.score = score
+        self.maxScore = maxScore
+        self.memo = memo
+        self.photoPath = photoPath
+        self.voiceMemoPath = voiceMemoPath
+        self.tags = tags
+        self.source = source
+        self.createdAt = createdAt
+    }
+
+    /// ウィジェットから記録され、メモ・タグ・写真・ボイスメモが未追加のエントリか
+    var needsEnrichment: Bool {
+        source == "widget" && memo == nil && tags.isEmpty && photoPath == nil && voiceMemoPath == nil
+    }
+
+    /// 0.0〜1.0に正規化したスコア（異なるレンジ間の比較用）
+    var normalizedScore: Double {
+        guard maxScore > 1 else { return 1.0 }
+        return Double(score - 1) / Double(maxScore - 1)
+    }
+
+    /// 指定レンジにスケーリングしたスコアを返す
+    func scaledScore(to targetMax: Int) -> Double {
+        return normalizedScore * Double(targetMax - 1) + 1.0
+    }
+}

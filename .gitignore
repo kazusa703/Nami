@@ -1,0 +1,32 @@
+# Xcode
+DerivedData/
+build/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+xcuserdata/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Firebase
+firebase-debug.log
+.firebase/
+
+# CocoaPods / SPM
+Pods/
+.build/
+
+# Secrets / credentials
+*.xcconfig
+!SharedConfig.xcconfig
+
+# App Store Connect
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Claude Code
+.claude/
