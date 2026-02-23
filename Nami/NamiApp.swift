@@ -5,10 +5,10 @@
 //  アプリのエントリポイント
 //
 
-import SwiftUI
-import SwiftData
 import AppTrackingTransparency
 import GoogleMobileAds
+import SwiftData
+import SwiftUI
 
 @main
 struct NamiApp: App {
@@ -18,17 +18,25 @@ struct NamiApp: App {
     @State private var themeManager = ThemeManager()
     /// プレミアム状態マネージャー
     @State private var premiumManager = PremiumManager()
+    /// HealthKitマネージャー
+    @State private var healthKitManager = HealthKitManager()
+    /// アプリのシーンフェーズ
+    @Environment(\.scenePhase) private var scenePhase
 
     /// リマインダーの有効/無効（AppStorageと同期）
     @AppStorage("reminderEnabled") private var reminderEnabled = false
     @AppStorage("reminderHour") private var reminderHour = 21
     @AppStorage("reminderMinute") private var reminderMinute = 0
 
+    /// タグ非アクティブ化シート表示フラグ
+    @State private var showTagDeactivationSheet = false
+
     /// SwiftDataのモデルコンテナ（App Group共有パス）
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             MoodEntry.self,
             EmotionTag.self,
+            TagCategory.self,
         ])
 
         // App Groupの共有コンテナが利用可能か確認
@@ -49,7 +57,7 @@ struct NamiApp: App {
                 schema: schema,
                 url: storeURL,
                 allowsSave: true,
-                cloudKitDatabase: .automatic  // iCloud同期を有効化
+                cloudKitDatabase: .automatic // iCloud同期を有効化
             )
 
             do {
@@ -76,8 +84,36 @@ struct NamiApp: App {
             ContentView()
                 .environment(\.themeManager, themeManager)
                 .environment(\.premiumManager, premiumManager)
+                .environment(\.healthKitManager, healthKitManager)
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        healthKitManager.invalidateTodayCache()
+                    }
+                }
+                .onChange(of: premiumManager.isPremium) { _, isPremium in
+                    if !isPremium {
+                        // プレミアム失効: カスタムタグが上限超えなら選択シートを表示
+                        let context = sharedModelContainer.mainContext
+                        let descriptor = FetchDescriptor<EmotionTag>()
+                        if let allTags = try? context.fetch(descriptor) {
+                            let activeCustomCount = allTags.filter { !$0.isDefault && $0.isActive }.count
+                            if activeCustomCount > premiumManager.freeCustomTagLimit {
+                                showTagDeactivationSheet = true
+                            }
+                        }
+                    }
+                }
+                .sheet(isPresented: $showTagDeactivationSheet) {
+                    TagDeactivationSheet()
+                }
                 .task {
-                    // デフォルト感情タグの初期化
+                    // デバッグビルド時のみ: テストデータ投入
+                    #if DEBUG
+                        DebugDataSeeder.seedIfNeeded(context: sharedModelContainer.mainContext)
+                    #endif
+
+                    // 重複除去 → デフォルト感情タグの初期化
+                    DefaultTags.deduplicateIfNeeded(context: sharedModelContainer.mainContext)
                     DefaultTags.seedIfNeeded(context: sharedModelContainer.mainContext)
 
                     // WatchConnectivityの初期化
@@ -92,6 +128,19 @@ struct NamiApp: App {
                     // UI表示後に少し遅延してダイアログを表示
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         ATTrackingManager.requestTrackingAuthorization { _ in }
+                    }
+
+                    // アプリ起動時: プレミアム失効 & カスタムタグ超過チェック
+                    // （onChange は値の変化時のみ発火するため、起動時にも確認が必要）
+                    if !premiumManager.isPremium {
+                        let context = sharedModelContainer.mainContext
+                        let descriptor = FetchDescriptor<EmotionTag>()
+                        if let allTags = try? context.fetch(descriptor) {
+                            let activeCustomCount = allTags.filter { !$0.isDefault && $0.isActive }.count
+                            if activeCustomCount > premiumManager.freeCustomTagLimit {
+                                showTagDeactivationSheet = true
+                            }
+                        }
                     }
 
                     // アプリ起動時にリマインダーが有効ならスケジュールを再設定
@@ -154,18 +203,43 @@ struct NamiApp: App {
         // SwiftData関連ファイルの拡張子一覧
         let extensions = ["", ".wal", ".shm"]
 
+        // Copy to temp location first, then move atomically
+        let tempDir = newStoreURL.deletingLastPathComponent().appendingPathComponent("migration_temp")
         do {
+            // Clean up any previous failed attempt
+            if fileManager.fileExists(atPath: tempDir.path) {
+                try? fileManager.removeItem(at: tempDir)
+            }
+            try fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
             for ext in extensions {
                 let oldFile = URL(fileURLWithPath: oldStoreURL.path + ext)
-                let newFile = URL(fileURLWithPath: newStoreURL.path + ext)
+                let tempFile = tempDir.appendingPathComponent("Nami.store" + ext)
 
                 if fileManager.fileExists(atPath: oldFile.path) {
-                    try fileManager.copyItem(at: oldFile, to: newFile)
+                    try fileManager.copyItem(at: oldFile, to: tempFile)
                 }
             }
+
+            // All copies succeeded — move to final location
+            for ext in extensions {
+                let tempFile = tempDir.appendingPathComponent("Nami.store" + ext)
+                let newFile = URL(fileURLWithPath: newStoreURL.path + ext)
+                if fileManager.fileExists(atPath: tempFile.path) {
+                    try fileManager.moveItem(at: tempFile, to: newFile)
+                }
+            }
+
+            try? fileManager.removeItem(at: tempDir)
             UserDefaults.standard.set(true, forKey: migrationKey)
             print("SwiftDataストアをApp Groupに移行しました")
         } catch {
+            // Clean up partial migration
+            try? fileManager.removeItem(at: tempDir)
+            for ext in extensions {
+                let newFile = URL(fileURLWithPath: newStoreURL.path + ext)
+                try? fileManager.removeItem(at: newFile)
+            }
             print("SwiftDataストア移行エラー: \(error)")
         }
     }

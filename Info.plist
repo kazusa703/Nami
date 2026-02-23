@@ -13,6 +13,10 @@
 			<string>com.imai.Nami</string>
 		</dict>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>天気データを取得するために現在地を使用します。位置情報は端末内でのみ使用され、外部に送信されません。</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>歩数・睡眠・運動データと気分の関連を分析するために使用します。データは端末内でのみ処理され、外部に送信されません。</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-9569882864362674~3306187437</string>
 	<key>SKAdNetworkItems</key>

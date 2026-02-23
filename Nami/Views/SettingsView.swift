@@ -5,9 +5,10 @@
 //  設定画面 - テーマ切替、記録設定、リマインダー、エクスポート等
 //
 
-import SwiftUI
-import SwiftData
+import CoreLocation
 import StoreKit
+import SwiftData
+import SwiftUI
 import WidgetKit
 
 /// 設定画面
@@ -37,10 +38,19 @@ struct SettingsView: View {
 
     /// スコア範囲上限
     @AppStorage(AppConstants.scoreRangeMaxKey) private var scoreRangeMax: Int = 10
+    /// スコア範囲下限
+    @AppStorage(AppConstants.scoreRangeMinKey) private var scoreRangeMin: Int = 1
     /// スコア入力方式
     @AppStorage(AppConstants.scoreInputTypeKey) private var scoreInputTypeRaw: String = ScoreInputType.buttons.rawValue
     /// ハプティクスの有効/無効
     @AppStorage("hapticEnabled") private var hapticEnabled = true
+    /// 天気自動記録の有効/無効
+    @AppStorage("weatherTrackingEnabled") private var weatherTrackingEnabled = false
+    /// HealthKit連携の有効/無効
+    @AppStorage("healthKitEnabled") private var healthKitEnabled = false
+    /// HealthKit権限拒否アラート
+    @State private var showHealthKitDeniedAlert = false
+    @Environment(\.healthKitManager) private var healthKitManager
 
     /// CSVエクスポートのシェアシート
     @State private var showExportSheet = false
@@ -71,6 +81,12 @@ struct SettingsView: View {
 
                     // 感情タグセクション
                     tagSection(colors: colors)
+
+                    // 天気設定セクション
+                    weatherSection(colors: colors)
+
+                    // ヘルスケア設定セクション
+                    healthKitSection(colors: colors)
 
                     // リマインダーセクション
                     reminderSection()
@@ -104,7 +120,6 @@ struct SettingsView: View {
 
     // MARK: - テーマセクション
 
-    @ViewBuilder
     private func themeSection(colors: ThemeColors) -> some View {
         Section {
             ForEach(AppTheme.allCases) { theme in
@@ -124,7 +139,7 @@ struct SettingsView: View {
                                 LinearGradient(
                                     colors: [
                                         colorScheme == .dark ? themeColors.backgroundStartDark : themeColors.backgroundStartLight,
-                                        colorScheme == .dark ? themeColors.backgroundEndDark : themeColors.backgroundEndLight
+                                        colorScheme == .dark ? themeColors.backgroundEndDark : themeColors.backgroundEndLight,
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -172,7 +187,7 @@ struct SettingsView: View {
     // MARK: - 記録設定セクション
 
     /// スコア範囲変更の確認アラート
-    @State private var pendingScoreRange: Int? = nil
+    @State private var pendingScoreRange: ScoreRange? = nil
     @State private var showRangeChangeAlert = false
     /// スコア範囲の最終変更日（月1回制限用）
     @AppStorage(AppConstants.lastScoreRangeChangeDateKey) private var lastScoreRangeChangeDateInterval: Double = 0
@@ -193,7 +208,6 @@ struct SettingsView: View {
         return max(30 - daysSince, 0)
     }
 
-    @ViewBuilder
     private func recordingSettingsSection(colors: ThemeColors) -> some View {
         Section {
             // 現在のスコア範囲を目立つカードで表示
@@ -201,7 +215,7 @@ struct SettingsView: View {
                 HStack(spacing: 12) {
                     // 現在の範囲を大きく表示
                     VStack(spacing: 2) {
-                        Text("1 〜 \(scoreRangeMax)")
+                        Text("\(scoreRangeMin) 〜 \(scoreRangeMax)")
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(colors.accent)
                         Text("現在のスコア範囲")
@@ -219,21 +233,22 @@ struct SettingsView: View {
                     if canChangeScoreRange {
                         Menu {
                             ForEach(ScoreRange.allCases) { range in
+                                let isCurrent = range.minScore == scoreRangeMin && range.maxScore == scoreRangeMax
                                 Button {
-                                    if range.rawValue != scoreRangeMax {
-                                        pendingScoreRange = range.rawValue
+                                    if !isCurrent {
+                                        pendingScoreRange = range
                                         showRangeChangeAlert = true
                                     }
                                 } label: {
                                     HStack {
                                         Text(range.displayName)
                                         Text(range.description)
-                                        if range.rawValue == scoreRangeMax {
+                                        if isCurrent {
                                             Image(systemName: "checkmark")
                                         }
                                     }
                                 }
-                                .disabled(range.rawValue == scoreRangeMax)
+                                .disabled(isCurrent)
                             }
                         } label: {
                             VStack(spacing: 4) {
@@ -278,7 +293,12 @@ struct SettingsView: View {
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
-                        if !canChangeScoreRange {
+                        if canChangeScoreRange {
+                            Text("変更後30日間は再変更できません。慎重にお選びください。")
+                                .font(.system(.caption2, design: .rounded, weight: .medium))
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
                             Text("スコア範囲は月に1回のみ変更できます。あと\(daysUntilScoreRangeChange)日お待ちください。")
                                 .font(.system(.caption2, design: .rounded, weight: .medium))
                                 .foregroundStyle(.orange)
@@ -329,16 +349,18 @@ struct SettingsView: View {
             Text("記録設定")
         } footer: {
             if scoreRangeMax > 10 {
-                Text("範囲変更後のグラフには、変更地点に赤い縦線が表示されます。")
+                Text("範囲変更後のグラフには、変更地点に縦線が表示されます。")
             }
         }
         .alert("スコア範囲を変更しますか？", isPresented: $showRangeChangeAlert) {
             Button("変更する") {
                 if let newRange = pendingScoreRange {
                     withAnimation {
-                        scoreRangeMax = newRange
+                        scoreRangeMin = newRange.minScore
+                        scoreRangeMax = newRange.maxScore
                     }
-                    AppConstants.sharedUserDefaults.set(newRange, forKey: AppConstants.scoreRangeMaxKey)
+                    AppConstants.sharedUserDefaults.set(newRange.maxScore, forKey: AppConstants.scoreRangeMaxKey)
+                    AppConstants.sharedUserDefaults.set(newRange.minScore, forKey: AppConstants.scoreRangeMinKey)
                     // 変更日を記録（月1回制限用）
                     lastScoreRangeChangeDateInterval = Date().timeIntervalSince1970
                     HapticManager.recordFeedback()
@@ -350,7 +372,7 @@ struct SettingsView: View {
             }
         } message: {
             if let newRange = pendingScoreRange {
-                Text("スコア範囲を「1〜\(scoreRangeMax)」から「1〜\(newRange)」に変更します。\n\n・今後の記録が新しい範囲で保存されます\n・過去の記録は元の範囲のまま保持されます\n・グラフでは異なる範囲のスコアが自動スケーリングされます\n・変更地点にグラフ上で赤い縦線が表示されます")
+                Text("スコア範囲を「\(scoreRangeMin)〜\(scoreRangeMax)」から「\(newRange.minScore)〜\(newRange.maxScore)」に変更します。\n\n・今後の記録が新しい範囲で保存されます\n・過去の記録は元の範囲のまま保持されます\n・グラフでは異なる範囲のスコアが自動スケーリングされます\n・変更地点にグラフ上で縦線が表示されます")
             }
         }
     }
@@ -362,8 +384,7 @@ struct SettingsView: View {
 
     // MARK: - 感情タグセクション
 
-    @ViewBuilder
-    private func tagSection(colors: ThemeColors) -> some View {
+    private func tagSection(colors _: ThemeColors) -> some View {
         Section {
             NavigationLink {
                 TagManagementView()
@@ -378,9 +399,112 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - 天気セクション
+
+    @State private var weatherManager = WeatherManager()
+
+    private func weatherSection(colors _: ThemeColors) -> some View {
+        Section {
+            if premiumManager.isPremium {
+                Toggle(isOn: $weatherTrackingEnabled) {
+                    Label("天気を自動記録", systemImage: "cloud.sun.fill")
+                        .font(.system(.body, design: .rounded))
+                }
+                .onChange(of: weatherTrackingEnabled) { _, newValue in
+                    if newValue {
+                        let status = weatherManager.authorizationStatus
+                        if status == .notDetermined {
+                            weatherManager.requestLocationPermission()
+                        }
+                    }
+                }
+
+                // 位置情報が未許可の場合
+                if weatherTrackingEnabled {
+                    let status = weatherManager.authorizationStatus
+                    if status == .denied || status == .restricted {
+                        HStack(spacing: 10) {
+                            Image(systemName: "location.slash.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("位置情報が許可されていません")
+                                    .font(.system(.caption, design: .rounded, weight: .medium))
+                                Text("天気データの取得には位置情報が必要です")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button("設定を開く") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            }
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                        }
+                    }
+                }
+            } else {
+                HStack(spacing: 10) {
+                    Label("天気を自動記録", systemImage: "cloud.sun.fill")
+                        .font(.system(.body, design: .rounded))
+                    Spacer()
+                    Text("PRO")
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(.orange))
+                        .foregroundStyle(.white)
+                }
+                .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("天気")
+        } footer: {
+            Text("有効にすると、記録時に現在地の天気・気温・気圧を自動で取得します。統計画面で天気と気分の相関を分析できます。")
+        }
+    }
+
+    // MARK: - ヘルスケアセクション
+
+    private func healthKitSection(colors _: ThemeColors) -> some View {
+        Section {
+            Toggle(isOn: $healthKitEnabled) {
+                Label("ヘルスケア連携", systemImage: "heart.text.square")
+                    .font(.system(.body, design: .rounded))
+            }
+            .onChange(of: healthKitEnabled) { _, newValue in
+                if newValue {
+                    Task {
+                        let granted = await healthKitManager.requestAuthorization()
+                        if !granted {
+                            await MainActor.run {
+                                healthKitEnabled = false
+                                showHealthKitDeniedAlert = true
+                            }
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text("ヘルスケア")
+        } footer: {
+            Text("歩数・睡眠・運動量と気分の関連を統計画面で分析できます。データは外部に送信されません。")
+        }
+        .alert("ヘルスケアへのアクセスが許可されていません", isPresented: $showHealthKitDeniedAlert) {
+            Button("設定を開く") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("ヘルスケアデータにアクセスするには、設定 > ヘルスケア > データアクセスとデバイス > Nami で許可してください。")
+        }
+    }
+
     // MARK: - リマインダーセクション
 
-    @ViewBuilder
     private func reminderSection() -> some View {
         Section {
             Toggle(isOn: $reminderEnabled) {
@@ -458,7 +582,6 @@ struct SettingsView: View {
 
     // MARK: - ウィジェットセクション
 
-    @ViewBuilder
     private func widgetSection(colors: ThemeColors) -> some View {
         Section {
             // ウィジェット記録を管理
@@ -555,7 +678,6 @@ struct SettingsView: View {
 
     // MARK: - データセクション
 
-    @ViewBuilder
     private func dataSection() -> some View {
         Section {
             Button {
@@ -596,10 +718,10 @@ struct SettingsView: View {
         for entry in entries {
             // 写真・ボイスメモファイルを削除
             if let photoPath = entry.photoPath {
-                try? FileManager.default.removeItem(atPath: photoPath)
+                MediaManager.deleteMedia(at: photoPath)
             }
             if let voicePath = entry.voiceMemoPath {
-                try? FileManager.default.removeItem(atPath: voicePath)
+                MediaManager.deleteMedia(at: voicePath)
             }
             modelContext.delete(entry)
         }
@@ -609,8 +731,7 @@ struct SettingsView: View {
 
     // MARK: - iCloud同期セクション
 
-    @ViewBuilder
-    private func iCloudSection(colors: ThemeColors) -> some View {
+    private func iCloudSection(colors _: ThemeColors) -> some View {
         Section {
             HStack(spacing: 12) {
                 if FileManager.default.ubiquityIdentityToken != nil {
@@ -644,28 +765,29 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - プレミアムセクション（広告除去）
+    // MARK: - プレミアムセクション
 
-    @ViewBuilder
     private func premiumSection(colors: ThemeColors) -> some View {
         Section {
             if premiumManager.isPremium {
                 // 購入済み表示
-                HStack(spacing: 10) {
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.title2)
-                        .foregroundStyle(colors.accent)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("プレミアム")
-                            .font(.system(.body, design: .rounded, weight: .semibold))
-                        Text("広告は非表示になっています")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                premiumActiveView(colors: colors)
             } else {
-                // 購入ボタン
-                premiumPurchaseButton(colors: colors)
+                // プレミアム特典一覧
+                premiumBenefitsList(colors: colors)
+
+                // 3プラン購入カード（またはローディング）
+                if premiumManager.products.isEmpty && !premiumManager.productFetchFailed {
+                    HStack {
+                        Spacer()
+                        ProgressView("商品情報を読み込み中...")
+                            .font(.system(.caption, design: .rounded))
+                        Spacer()
+                    }
+                    .padding(.vertical, 8)
+                } else {
+                    premiumPlanCards(colors: colors)
+                }
 
                 // 復元ボタン
                 Button {
@@ -685,7 +807,7 @@ struct SettingsView: View {
                 // 商品取得失敗時のリトライ
                 if premiumManager.productFetchFailed {
                     Button {
-                        Task { await premiumManager.fetchProduct() }
+                        Task { await premiumManager.fetchProducts() }
                     } label: {
                         Label("商品情報を再取得", systemImage: "arrow.clockwise")
                             .font(.system(.body, design: .rounded))
@@ -709,15 +831,15 @@ struct SettingsView: View {
         } footer: {
             if !premiumManager.isPremium {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("購入すると、グラフ画面と統計画面の広告が永久に非表示になります。機能制限はありません。")
-                    Text("購入はApple IDに紐付けられ、[利用規約](https://kazusa703.github.io/nami-support/ja/terms.html)と[プライバシーポリシー](https://kazusa703.github.io/nami-support/ja/privacy.html)が適用されます。")
+                    Text("サブスクリプションはApple IDに紐付けられ、いつでもキャンセルできます。買い切りプランは一度の購入で永久に利用できます。")
+                    Text("[利用規約](https://kazusa703.github.io/nami-support/ja/terms.html) ・ [プライバシーポリシー](https://kazusa703.github.io/nami-support/ja/privacy.html)")
                 }
             }
         }
         .alert("購入完了", isPresented: $showPurchaseSuccessAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("プレミアムへのアップグレードありがとうございます！広告は非表示になりました。")
+            Text("プレミアムへのアップグレードありがとうございます！")
         }
         .onChange(of: premiumManager.showPurchaseSuccess) { _, newValue in
             if newValue {
@@ -727,25 +849,159 @@ struct SettingsView: View {
         }
     }
 
-    /// 購入ボタン
+    /// プレミアム有効時の表示
     @ViewBuilder
-    private func premiumPurchaseButton(colors: ThemeColors) -> some View {
-        Button {
-            Task { await premiumManager.purchase() }
-        } label: {
+    private func premiumActiveView(colors: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.title3)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.title2)
                     .foregroundStyle(colors.accent)
-
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("広告を除去")
+                    Text("プレミアム")
                         .font(.system(.body, design: .rounded, weight: .semibold))
-                    if let product = premiumManager.product {
-                        Text(product.displayPrice)
+
+                    if let planType = premiumManager.currentPlanType {
+                        switch planType {
+                        case .monthly:
+                            if let exp = premiumManager.subscriptionExpirationDate {
+                                Text("月額プラン ・ 次回更新: \(exp, format: .dateTime.month().day())")
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("月額プラン")
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        case .yearly:
+                            if let exp = premiumManager.subscriptionExpirationDate {
+                                Text("年額プラン ・ 次回更新: \(exp, format: .dateTime.year().month().day())")
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text("年額プラン")
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        case .lifetime:
+                            Text("買い切りプラン ・ 永久利用")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("有効")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
+                }
+            }
+        }
+
+        // サブスクリプションを管理リンク（買い切り以外）
+        if premiumManager.currentPlanType != .lifetime {
+            Button {
+                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                HStack {
+                    Label("サブスクリプションを管理", systemImage: "gear")
+                        .font(.system(.body, design: .rounded))
+                    Spacer()
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    /// プレミアム特典一覧
+    private func premiumBenefitsList(colors: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("プレミアム特典")
+                .font(.system(.subheadline, design: .rounded, weight: .semibold))
+
+            benefitRow(icon: "xmark.rectangle", text: "広告を完全に非表示", colors: colors)
+            benefitRow(icon: "tag.fill", text: "カスタムタグ無制限", colors: colors)
+            benefitRow(icon: "chart.bar.xaxis", text: "高度な統計を解放", colors: colors)
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// 特典行
+    private func benefitRow(icon: String, text: String, colors: ThemeColors) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(colors.accent)
+                .frame(width: 22)
+            Text(text)
+                .font(.system(.caption, design: .rounded))
+        }
+    }
+
+    /// 3プラン購入カード
+    private func premiumPlanCards(colors: ThemeColors) -> some View {
+        VStack(spacing: 10) {
+            // 月額
+            if let monthly = premiumManager.product(for: PremiumManager.monthlyProductID) {
+                planCard(
+                    product: monthly,
+                    title: "月額",
+                    badge: nil,
+                    colors: colors
+                )
+            }
+
+            // 年額
+            if let yearly = premiumManager.product(for: PremiumManager.yearlyProductID) {
+                planCard(
+                    product: yearly,
+                    title: "年額",
+                    badge: "お得",
+                    colors: colors
+                )
+            }
+
+            // 買い切り
+            if let lifetime = premiumManager.product(for: PremiumManager.lifetimeProductID) {
+                planCard(
+                    product: lifetime,
+                    title: "買い切り",
+                    badge: "一生涯",
+                    colors: colors
+                )
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// 個別プランカード
+    private func planCard(product: Product, title: String, badge: String?, colors: ThemeColors) -> some View {
+        Button {
+            Task { await premiumManager.purchase(product) }
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .font(.system(.body, design: .rounded, weight: .semibold))
+                            .foregroundStyle(.primary)
+
+                        if let badge {
+                            Text(badge)
+                                .font(.system(.caption2, design: .rounded, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(colors.accent))
+                        }
+                    }
+
+                    Text(product.displayPrice + (product.type == .autoRenewable ? " / \(title == "月額" ? "月" : "年")" : ""))
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
@@ -753,19 +1009,28 @@ struct SettingsView: View {
                 if premiumManager.isPurchasing {
                     ProgressView()
                 } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text("購入")
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(colors.accent))
                 }
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemGray6))
+            )
         }
-        .disabled(premiumManager.isPurchasing || premiumManager.product == nil)
+        .buttonStyle(.plain)
+        .disabled(premiumManager.isPurchasing)
     }
 
     // MARK: - アプリ情報セクション
 
-    @ViewBuilder
-    private func aboutSection(colors: ThemeColors) -> some View {
+    private func aboutSection(colors _: ThemeColors) -> some View {
         Section {
             HStack {
                 Text("バージョン")
@@ -817,8 +1082,8 @@ struct SettingsView: View {
 
         let rows = entries.map { entry in
             let date = dateFormatter.string(from: entry.createdAt)
-            let memo = entry.memo?.replacingOccurrences(of: ",", with: "、") ?? ""
-            let tags = entry.tags.joined(separator: "; ")
+            let memo = csvEscape(entry.memo ?? "")
+            let tags = csvEscape(entry.tags.joined(separator: "; "))
             return "\(date),\(entry.score),\(entry.maxScore),\(memo),\(tags)"
         }.joined(separator: "\n")
 
@@ -835,17 +1100,25 @@ struct SettingsView: View {
             showExportErrorAlert = true
         }
     }
+
+    /// Escape a field for RFC 4180 CSV (wrap in quotes if it contains comma, quote, or newline)
+    private func csvEscape(_ field: String) -> String {
+        if field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r") {
+            return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        }
+        return field
+    }
 }
 
 /// UIActivityViewControllerのSwiftUIラッパー
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
+    func makeUIViewController(context _: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+    func updateUIViewController(_: UIActivityViewController, context _: Context) {}
 }
 
 #Preview {
