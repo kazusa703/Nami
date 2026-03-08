@@ -15,6 +15,7 @@ struct CalendarHeatmapView: View {
     let themeColors: ThemeColors
 
     @AppStorage(AppConstants.scoreRangeMaxKey) private var currentMaxScore: Int = 10
+    @AppStorage(AppConstants.scoreRangeMinKey) private var currentMinScore: Int = 1
 
     /// 表示する週数（直近何週分を表示するか）
     @State private var weekCount: Int = 26
@@ -36,12 +37,12 @@ struct CalendarHeatmapView: View {
         let sorted = entries.sorted { $0.createdAt < $1.createdAt }
         guard !sorted.isEmpty else { return [:] }
 
-        // まず実際に記録がある日をセット（正規化スコアで集計）
-        var byDay: [Date: (normalizedScores: [Double], count: Int)] = [:]
+        // まず実際に記録がある日をセット（生スコアで集計）
+        var byDay: [Date: (scores: [Double], count: Int)] = [:]
         for entry in sorted {
             let day = calendar.startOfDay(for: entry.createdAt)
-            var existing = byDay[day] ?? (normalizedScores: [], count: 0)
-            existing.normalizedScores.append(entry.normalizedScore)
+            var existing = byDay[day] ?? (scores: [], count: 0)
+            existing.scores.append(Double(entry.score))
             existing.count += 1
             byDay[day] = existing
         }
@@ -54,25 +55,23 @@ struct CalendarHeatmapView: View {
         }
 
         var result: [Date: (score: Double, maxScore: Int, hasEntry: Bool, entryCount: Int)] = [:]
-        var lastNormalized: Double? = nil
+        var lastScore: Double? = nil
 
         // 全期間の記録で最初より前のものがあれば、その最後の値を初期値にする
         let entriesBefore = sorted.filter { calendar.startOfDay(for: $0.createdAt) < startDate }
         if let last = entriesBefore.last {
-            lastNormalized = last.normalizedScore
+            lastScore = Double(last.score)
         }
 
         // 開始日から今日までの各日を走査
         var current = startDate
         while current <= today {
             if let dayData = byDay[current] {
-                let avgNormalized = dayData.normalizedScores.reduce(0, +) / Double(dayData.normalizedScores.count)
-                let scaledScore = avgNormalized * Double(currentMaxScore - 1) + 1.0
-                result[current] = (score: scaledScore, maxScore: currentMaxScore, hasEntry: true, entryCount: dayData.count)
-                lastNormalized = avgNormalized
-            } else if let carry = lastNormalized {
-                let scaledScore = carry * Double(currentMaxScore - 1) + 1.0
-                result[current] = (score: scaledScore, maxScore: currentMaxScore, hasEntry: false, entryCount: 0)
+                let avgScore = dayData.scores.reduce(0, +) / Double(dayData.scores.count)
+                result[current] = (score: avgScore, maxScore: currentMaxScore, hasEntry: true, entryCount: dayData.count)
+                lastScore = avgScore
+            } else if let carry = lastScore {
+                result[current] = (score: carry, maxScore: currentMaxScore, hasEntry: false, entryCount: 0)
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: current) else { break }
             current = next
@@ -101,7 +100,7 @@ struct CalendarHeatmapView: View {
 
         while weekStart <= today {
             var week: [Date?] = []
-            for dayOffset in 0..<7 {
+            for dayOffset in 0 ..< 7 {
                 guard let day = calendar.date(byAdding: .day, value: dayOffset, to: weekStart) else {
                     week.append(nil)
                     continue
@@ -255,14 +254,14 @@ struct CalendarHeatmapView: View {
     private var legend: some View {
         HStack(spacing: 5) {
             // 低→高のグラデーション凡例
-            Text("1")
+            Text("\(currentMinScore)")
                 .font(.system(size: 9, weight: .medium, design: .rounded))
                 .foregroundStyle(.tertiary)
 
-            ForEach(1...5, id: \.self) { level in
-                let score = Int(Double(level) / 5.0 * Double(currentMaxScore - 1)) + 1
+            ForEach(1 ... 5, id: \.self) { level in
+                let score = Int(Double(level) / 5.0 * Double(currentMaxScore - currentMinScore)) + currentMinScore
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(themeColors.color(for: score, maxScore: currentMaxScore))
+                    .fill(themeColors.color(for: score, maxScore: currentMaxScore, minScore: currentMinScore))
                     .frame(width: 12, height: 12)
             }
 
@@ -308,7 +307,7 @@ struct CalendarHeatmapView: View {
                         // 月ヘッダーの高さ分の空白
                         Color.clear.frame(width: 20, height: 14)
 
-                        ForEach(0..<7, id: \.self) { row in
+                        ForEach(0 ..< 7, id: \.self) { row in
                             if row % 2 == 0 {
                                 Text(weekdayLabels[row])
                                     .font(.system(size: 9, weight: .medium, design: .rounded))
@@ -326,7 +325,7 @@ struct CalendarHeatmapView: View {
                             VStack(spacing: cellSpacing) {
                                 monthLabel(for: week)
 
-                                ForEach(0..<7, id: \.self) { row in
+                                ForEach(0 ..< 7, id: \.self) { row in
                                     if let date = week[row] {
                                         cellView(for: date, scores: scores)
                                     } else {
@@ -423,8 +422,8 @@ struct CalendarHeatmapView: View {
         guard let data else {
             return Color(.systemGray5).opacity(0.3)
         }
-        let score = max(1, Int(data.score.rounded()))
-        let color = themeColors.color(for: score, maxScore: data.maxScore)
+        let score = max(currentMinScore, Int(data.score.rounded()))
+        let color = themeColors.color(for: score, maxScore: currentMaxScore, minScore: currentMinScore)
         return data.hasEntry ? color : color.opacity(0.35)
     }
 
@@ -445,7 +444,7 @@ struct CalendarHeatmapView: View {
                     // 日付カラーインジケータ
                     if let data {
                         Circle()
-                            .fill(themeColors.color(for: Int(data.score.rounded()), maxScore: currentMaxScore))
+                            .fill(themeColors.color(for: Int(data.score.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                             .frame(width: 8, height: 8)
                     }
 
@@ -479,7 +478,7 @@ struct CalendarHeatmapView: View {
                     VStack(spacing: 2) {
                         Text(String(format: "%.1f", data.score))
                             .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundStyle(themeColors.color(for: Int(data.score.rounded()), maxScore: currentMaxScore))
+                            .foregroundStyle(themeColors.color(for: Int(data.score.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
 
                         if data.hasEntry {
                             Text("\(data.entryCount)件の記録")
@@ -593,7 +592,7 @@ struct CalendarHeatmapView: View {
 #Preview {
     let sampleEntries = [0, 1, 3, 5, 8, 12, 15, 20, 25, 30].map { i in
         MoodEntry(
-            score: Int.random(in: 2...9),
+            score: Int.random(in: 2 ... 9),
             memo: i % 5 == 0 ? "テスト" : nil,
             tags: i % 3 == 0 ? ["嬉しい", "仕事"] : [],
             createdAt: Calendar.current.date(byAdding: .day, value: -i, to: .now)!

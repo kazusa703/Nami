@@ -5,19 +5,19 @@
 //  ボイスメモ録音・再生UI（Apple Voice Memos風デザイン）
 //
 
-import SwiftUI
 import AVFoundation
+import SwiftUI
 
 /// ボイスメモ録音・再生を管理するマネージャー
 @Observable
 class VoiceRecorderManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDelegate {
     /// 録音状態
     enum State {
-        case idle       // 未録音
-        case recording  // 録音中
-        case recorded   // 録音完了
-        case playing    // 再生中
-        case paused     // 再生一時停止
+        case idle // 未録音
+        case recording // 録音中
+        case recorded // 録音完了
+        case playing // 再生中
+        case paused // 再生一時停止
     }
 
     var state: State = .idle
@@ -31,6 +31,8 @@ class VoiceRecorderManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDele
     var currentLevel: CGFloat = 0
     /// 録音中の音量レベル履歴（波形表示用）
     var audioLevels: [CGFloat] = []
+    /// エラーメッセージ（権限拒否や録音失敗時）
+    var errorMessage: String?
 
     private var audioRecorder: AVAudioRecorder?
     private var audioPlayer: AVAudioPlayer?
@@ -42,12 +44,39 @@ class VoiceRecorderManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDele
 
     /// 録音を開始する
     func startRecording() {
+        // Invalidate any existing timer to prevent orphans
+        timer?.invalidate()
+        timer = nil
+        errorMessage = nil
+
+        // マイク権限チェック
+        switch AVAudioApplication.shared.recordPermission {
+        case .denied:
+            errorMessage = "マイクの使用が許可されていません。設定アプリから許可してください。"
+            return
+        case .undetermined:
+            AVAudioApplication.requestRecordPermission { [weak self] granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        self?.startRecording()
+                    } else {
+                        self?.errorMessage = "マイクの使用が許可されていません。"
+                    }
+                }
+            }
+            return
+        case .granted:
+            break
+        @unknown default:
+            break
+        }
+
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
             try session.setActive(true)
         } catch {
-            print("オーディオセッション設定エラー: \(error)")
+            errorMessage = "オーディオの初期化に失敗しました。"
             return
         }
 
@@ -58,7 +87,7 @@ class VoiceRecorderManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDele
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
             AVSampleRateKey: 44100,
             AVNumberOfChannelsKey: 1,
-            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
         ]
 
         do {
@@ -76,27 +105,35 @@ class VoiceRecorderManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDele
             timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
                 guard let self, let recorder = self.audioRecorder else { return }
                 recorder.updateMeters()
-                self.recordingDuration = recorder.currentTime
 
-                // 音量レベルを正規化（-160dB〜0dBを0.0〜1.0に）
+                // Capture values before dispatching to main thread
+                let currentTime = recorder.currentTime
                 let power = recorder.averagePower(forChannel: 0)
                 let normalizedLevel = max(0, (power + 50) / 50)
-                self.currentLevel = CGFloat(normalizedLevel)
-
-                // 波形サンプルを蓄積
                 let sampleInterval = self.maxDuration / Double(self.maxLevelSamples)
-                let expectedSamples = Int(recorder.currentTime / sampleInterval) + 1
-                if expectedSamples > self.audioLevels.count {
-                    self.audioLevels.append(CGFloat(normalizedLevel))
-                }
+                let expectedSamples = Int(currentTime / sampleInterval) + 1
+                let maxDur = self.maxDuration
 
-                // 最大時間に達したら自動停止
-                if self.recordingDuration >= self.maxDuration {
-                    self.stopRecording()
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    self.recordingDuration = currentTime
+
+                    // 音量レベルを正規化（-160dB〜0dBを0.0〜1.0に）
+                    self.currentLevel = CGFloat(normalizedLevel)
+
+                    // 波形サンプルを蓄積
+                    if expectedSamples > self.audioLevels.count {
+                        self.audioLevels.append(CGFloat(normalizedLevel))
+                    }
+
+                    // 最大時間に達したら自動停止
+                    if self.recordingDuration >= maxDur {
+                        self.stopRecording()
+                    }
                 }
             }
         } catch {
-            print("録音開始エラー: \(error)")
+            errorMessage = "録音を開始できませんでした。"
         }
     }
 
@@ -112,6 +149,9 @@ class VoiceRecorderManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDele
     /// 録音を再生する
     func play() {
         guard let url = recordedURL else { return }
+        // Invalidate any existing timer to prevent orphans
+        timer?.invalidate()
+        timer = nil
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default)
@@ -124,10 +164,13 @@ class VoiceRecorderManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDele
 
             timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
                 guard let self else { return }
-                self.playbackPosition = self.audioPlayer?.currentTime ?? 0
+                let position = self.audioPlayer?.currentTime ?? 0
+                DispatchQueue.main.async { [weak self] in
+                    self?.playbackPosition = position
+                }
             }
         } catch {
-            print("再生エラー: \(error)")
+            errorMessage = "再生できませんでした。"
         }
     }
 
@@ -180,7 +223,7 @@ class VoiceRecorderManager: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDele
 
     // MARK: - AVAudioPlayerDelegate
 
-    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+    func audioPlayerDidFinishPlaying(_: AVAudioPlayer, successfully _: Bool) {
         timer?.invalidate()
         timer = nil
         playbackPosition = 0
@@ -209,6 +252,19 @@ struct VoiceRecorderView: View {
         }
         .padding(.horizontal)
         .animation(.easeInOut(duration: 0.3), value: recorder.state)
+        .overlay(alignment: .bottom) {
+            if let error = recorder.errorMessage {
+                Text(error)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(.red.opacity(0.85)))
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onTapGesture { recorder.errorMessage = nil }
+                    .padding(.bottom, 4)
+            }
+        }
     }
 
     // MARK: - 未録音状態
@@ -300,9 +356,10 @@ struct VoiceRecorderView: View {
                     )
                 }
 
-                // 録り直し
+                // 録り直し（削除して即録音開始）
                 Button {
                     recorder.deleteRecording()
+                    recorder.startRecording()
                     HapticManager.lightFeedback()
                 } label: {
                     VStack(spacing: 4) {
@@ -415,6 +472,7 @@ struct VoiceRecorderView: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(isRecording ? String(localized: "録音を停止") : String(localized: "録音を開始"))
     }
 
     /// 再生用丸ボタン
@@ -495,7 +553,7 @@ struct VoiceRecorderView: View {
             let spacing = (geo.size.width - barWidth * CGFloat(barCount)) / CGFloat(barCount - 1)
 
             HStack(spacing: spacing) {
-                ForEach(0..<barCount, id: \.self) { index in
+                ForEach(0 ..< barCount, id: \.self) { index in
                     let level: CGFloat = {
                         if index < recorder.audioLevels.count {
                             // 既に記録されたレベル
@@ -537,7 +595,7 @@ struct VoiceRecorderView: View {
 
             return AnyView(
                 HStack(spacing: spacing) {
-                    ForEach(0..<barCount, id: \.self) { index in
+                    ForEach(0 ..< barCount, id: \.self) { index in
                         let mappedIndex = Int(Double(index) / Double(barCount) * Double(recorder.audioLevels.count))
                         let level = recorder.audioLevels[min(mappedIndex, recorder.audioLevels.count - 1)]
 
@@ -569,7 +627,7 @@ struct VoiceRecorderView: View {
 
             return AnyView(
                 HStack(spacing: spacing) {
-                    ForEach(0..<barCount, id: \.self) { index in
+                    ForEach(0 ..< barCount, id: \.self) { index in
                         let mappedIndex = Int(Double(index) / Double(barCount) * Double(recorder.audioLevels.count))
                         let level = recorder.audioLevels[min(mappedIndex, recorder.audioLevels.count - 1)]
                         let isPlayed = index <= playedBars

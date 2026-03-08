@@ -3,17 +3,19 @@
 //  Nami
 //
 //  365日グリッドビュー（Year in Pixels）
-//  12行（月）× 最大31列（日）のカラーグリッドで1年分の気分を表示する
+//  12列（月）× 最大31行（日）のカラーグリッドで1年分の気分を表示する
 //
 
 import SwiftUI
 
 /// Year in Pixels - 1年分の気分記録を月×日のグリッドで表示
+/// 縦型レイアウト: 月が列（横）、日が行（縦）で画面を最大限活用
 struct YearInPixelsView: View {
     let entries: [MoodEntry]
     let themeColors: ThemeColors
 
     @AppStorage(AppConstants.scoreRangeMaxKey) private var currentMaxScore: Int = 10
+    @AppStorage(AppConstants.scoreRangeMinKey) private var currentMinScore: Int = 1
 
     /// 表示中の年
     @State private var displayYear: Int = Calendar.current.component(.year, from: .now)
@@ -24,9 +26,9 @@ struct YearInPixelsView: View {
 
     /// 月ラベル
     private let monthLabels = ["1月", "2月", "3月", "4月", "5月", "6月",
-                                "7月", "8月", "9月", "10月", "11月", "12月"]
+                               "7月", "8月", "9月", "10月", "11月", "12月"]
 
-    /// 日付ヘッダーに表示する日（混雑回避のため一部だけ）
+    /// 日付ラベルに表示する日（混雑回避のため一部だけ）
     private let headerDays = [1, 5, 10, 15, 20, 25, 30]
 
     // MARK: - データ準備
@@ -51,10 +53,9 @@ struct YearInPixelsView: View {
         }
 
         for (day, group) in dayGroups {
-            let avgNorm = group.reduce(0.0) { $0 + $1.normalizedScore } / Double(group.count)
-            let scaled = avgNorm * Double(currentMaxScore - 1) + 1.0
+            let avgScore = group.reduce(0.0) { $0 + Double($1.score) } / Double(group.count)
             let memos = group.compactMap(\.memo).filter { !$0.isEmpty }
-            result[day] = (score: scaled, hasEntry: true, entryCount: group.count, memo: memos.first)
+            result[day] = (score: avgScore, hasEntry: true, entryCount: group.count, memo: memos.first)
         }
 
         return result
@@ -90,22 +91,25 @@ struct YearInPixelsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             // 年セレクター
             yearSelector
 
             // サマリーバー
             summaryBar
 
-            // グリッド
-            pixelGrid
+            // グリッド（残りスペースを埋める）
+            GeometryReader { geometry in
+                verticalPixelGrid(in: geometry)
+            }
 
             // 凡例
             legend
-
-            // 選択された日の詳細
+        }
+        .overlay(alignment: .bottom) {
             if let date = selectedDate {
                 selectedDayDetail(for: date)
+                    .padding(.bottom, 40)
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
                         removal: .opacity
@@ -197,69 +201,69 @@ struct YearInPixelsView: View {
         .padding(.horizontal)
     }
 
-    // MARK: - ピクセルグリッド
+    // MARK: - 縦型ピクセルグリッド (月=列, 日=行)
 
-    private var pixelGrid: some View {
-        GeometryReader { geometry in
-            let monthLabelWidth: CGFloat = 32
-            let horizontalPadding: CGFloat = 32
-            let daySpacing: CGFloat = 1.5
-            let availableWidth = geometry.size.width - monthLabelWidth - horizontalPadding
-            let cellSize = max(6, (availableWidth - daySpacing * 30) / 31)
-            let rowHeight = cellSize + daySpacing
+    private func verticalPixelGrid(in geometry: GeometryProxy) -> some View {
+        let dayLabelWidth: CGFloat = 26
+        let monthHeaderHeight: CGFloat = 20
+        let sp: CGFloat = 1.5
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    // 日付ヘッダー行
-                    HStack(spacing: 0) {
-                        Color.clear.frame(width: monthLabelWidth, height: 14)
-                        ForEach(1...31, id: \.self) { day in
-                            if headerDays.contains(day) {
-                                Text("\(day)")
-                                    .font(.system(size: 7, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.tertiary)
-                                    .frame(width: cellSize + daySpacing, height: 14)
-                            } else {
-                                Color.clear.frame(width: cellSize + daySpacing, height: 14)
-                            }
+        let totalWidth = geometry.size.width - 16
+        let totalHeight = geometry.size.height
+
+        // セルサイズを計算: 幅は12列 + 日ラベル、高さは31行 + 月ヘッダー
+        let cellWidth = max(4, (totalWidth - dayLabelWidth - sp * 12) / 12)
+        let cellHeight = max(4, (totalHeight - monthHeaderHeight - sp * 31) / 31)
+
+        return VStack(spacing: sp) {
+            // 月ヘッダー行
+            HStack(spacing: sp) {
+                Color.clear
+                    .frame(width: dayLabelWidth, height: monthHeaderHeight)
+
+                ForEach(1 ... 12, id: \.self) { month in
+                    Text(monthLabels[month - 1])
+                        .font(.system(size: min(cellWidth * 0.38, 10), weight: .semibold, design: .rounded))
+                        .foregroundStyle(themeColors.accent.opacity(0.7))
+                        .frame(width: cellWidth, height: monthHeaderHeight)
+                }
+            }
+
+            // 日行（1〜31）
+            ForEach(1 ... 31, id: \.self) { day in
+                HStack(spacing: sp) {
+                    // 日ラベル
+                    Group {
+                        if headerDays.contains(day) {
+                            Text("\(day)")
+                                .font(.system(size: min(cellHeight * 0.6, 10), weight: .medium, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                        } else {
+                            Color.clear
                         }
                     }
+                    .frame(width: dayLabelWidth, height: cellHeight)
 
-                    // 月行
-                    ForEach(1...12, id: \.self) { month in
-                        HStack(spacing: 0) {
-                            // 月ラベル
-                            Text(monthLabels[month - 1])
-                                .font(.system(size: 9, weight: .semibold, design: .rounded))
-                                .foregroundStyle(themeColors.accent.opacity(0.7))
-                                .frame(width: monthLabelWidth, height: rowHeight, alignment: .leading)
-
-                            // 日セル
-                            let days = daysInMonth(month)
-                            ForEach(1...31, id: \.self) { day in
-                                if day <= days {
-                                    let date = calendar.date(from: DateComponents(year: displayYear, month: month, day: day))
-                                    cellView(for: date, cellSize: cellSize)
-                                        .padding(.trailing, daySpacing)
-                                        .padding(.bottom, daySpacing)
-                                } else {
-                                    Color.clear
-                                        .frame(width: cellSize + daySpacing, height: cellSize)
-                                        .padding(.bottom, daySpacing)
-                                }
-                            }
+                    // 各月のセル
+                    ForEach(1 ... 12, id: \.self) { month in
+                        let days = daysInMonth(month)
+                        if day <= days {
+                            let date = calendar.date(from: DateComponents(year: displayYear, month: month, day: day))
+                            cellView(for: date, cellWidth: cellWidth, cellHeight: cellHeight)
+                        } else {
+                            Color.clear
+                                .frame(width: cellWidth, height: cellHeight)
                         }
                     }
                 }
-                .padding(.horizontal)
             }
         }
-        .frame(height: 260)
+        .padding(.horizontal, 8)
     }
 
     /// 個別セル
     @ViewBuilder
-    private func cellView(for date: Date?, cellSize: CGFloat) -> some View {
+    private func cellView(for date: Date?, cellWidth: CGFloat, cellHeight: CGFloat) -> some View {
         if let date {
             let day = calendar.startOfDay(for: date)
             let data = dailyScores[day]
@@ -280,7 +284,7 @@ struct YearInPixelsView: View {
             } label: {
                 RoundedRectangle(cornerRadius: 2)
                     .fill(cellColor(data: data, isFuture: isFuture))
-                    .frame(width: cellSize, height: cellSize)
+                    .frame(width: cellWidth, height: cellHeight)
                     .overlay(
                         Group {
                             if isToday {
@@ -292,13 +296,13 @@ struct YearInPixelsView: View {
                             }
                         }
                     )
-                    .scaleEffect(isSelected ? 1.4 : 1.0)
+                    .scaleEffect(isSelected ? 1.3 : 1.0)
                     .zIndex(isSelected ? 1 : 0)
                     .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isSelected)
             }
             .buttonStyle(.plain)
         } else {
-            Color.clear.frame(width: cellSize, height: cellSize)
+            Color.clear.frame(width: cellWidth, height: cellHeight)
         }
     }
 
@@ -310,22 +314,22 @@ struct YearInPixelsView: View {
         guard let data, data.hasEntry else {
             return Color(.systemGray5).opacity(0.3)
         }
-        let score = max(1, Int(data.score.rounded()))
-        return themeColors.color(for: score, maxScore: currentMaxScore)
+        let score = max(currentMinScore, Int(data.score.rounded()))
+        return themeColors.color(for: score, maxScore: currentMaxScore, minScore: currentMinScore)
     }
 
     // MARK: - 凡例
 
     private var legend: some View {
         HStack(spacing: 5) {
-            Text("1")
+            Text("\(currentMinScore)")
                 .font(.system(size: 9, weight: .medium, design: .rounded))
                 .foregroundStyle(.tertiary)
 
-            ForEach(1...5, id: \.self) { level in
-                let score = Int(Double(level) / 5.0 * Double(currentMaxScore - 1)) + 1
+            ForEach(1 ... 5, id: \.self) { level in
+                let score = Int(Double(level) / 5.0 * Double(currentMaxScore - currentMinScore)) + currentMinScore
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(themeColors.color(for: score, maxScore: currentMaxScore))
+                    .fill(themeColors.color(for: score, maxScore: currentMaxScore, minScore: currentMinScore))
                     .frame(width: 12, height: 12)
             }
 
@@ -362,7 +366,7 @@ struct YearInPixelsView: View {
                 HStack(spacing: 6) {
                     if let data {
                         Circle()
-                            .fill(themeColors.color(for: Int(data.score.rounded()), maxScore: currentMaxScore))
+                            .fill(themeColors.color(for: Int(data.score.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                             .frame(width: 8, height: 8)
                     }
 
@@ -395,7 +399,7 @@ struct YearInPixelsView: View {
                     VStack(spacing: 2) {
                         Text(String(format: "%.1f", data.score))
                             .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(themeColors.color(for: Int(data.score.rounded()), maxScore: currentMaxScore))
+                            .foregroundStyle(themeColors.color(for: Int(data.score.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
 
                         Text("\(data.entryCount)件の記録")
                             .font(.system(.caption2, design: .rounded))
@@ -465,9 +469,9 @@ struct YearInPixelsView: View {
 }
 
 #Preview {
-    let sampleEntries = (0..<60).map { i in
+    let sampleEntries = (0 ..< 60).map { i in
         MoodEntry(
-            score: Int.random(in: 2...9),
+            score: Int.random(in: 2 ... 9),
             memo: i % 5 == 0 ? "テスト" : nil,
             tags: i % 3 == 0 ? ["嬉しい", "仕事"] : [],
             createdAt: Calendar.current.date(byAdding: .day, value: -i, to: .now)!

@@ -12,6 +12,7 @@ import SwiftUI
 struct ScoreInputView: View {
     let inputType: ScoreInputType
     let maxScore: Int
+    let minScore: Int
     let themeColors: ThemeColors
     let onScore: (Int) -> Void
 
@@ -28,12 +29,14 @@ struct ScoreInputView: View {
         case .buttons:
             ButtonGridScoreInput(
                 maxScore: maxScore,
+                minScore: minScore,
                 themeColors: themeColors,
                 onScore: onScore
             )
         case .slider:
             SliderScoreInput(
                 maxScore: maxScore,
+                minScore: minScore,
                 themeColors: themeColors,
                 onScore: onScore
             )
@@ -42,5 +45,5 @@ struct ScoreInputView: View {
 }
 
 #Preview {
-    ScoreInputView(inputType: .buttons, maxScore: 10, themeColors: .ocean) { _ in }
+    ScoreInputView(inputType: .buttons, maxScore: 10, minScore: 1, themeColors: .ocean) { _ in }
 }

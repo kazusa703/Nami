@@ -9,21 +9,30 @@ import UIKit
 
 /// メディアファイル（写真・ボイスメモ）の保存・読み込み・削除を管理する
 enum MediaManager {
-
     // MARK: - ディレクトリ
+
+    /// Base directory for media storage
+    private static var baseDirectory: URL {
+        if let shared = AppConstants.sharedContainerURL {
+            return shared
+        }
+        guard let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            // Fallback to temporary directory (should never happen)
+            return FileManager.default.temporaryDirectory
+        }
+        return docDir
+    }
 
     /// 写真保存ディレクトリ
     static var photosDirectory: URL {
-        let base = AppConstants.sharedContainerURL ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("Photos", isDirectory: true)
+        let dir = baseDirectory.appendingPathComponent("Photos", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
 
     /// ボイスメモ保存ディレクトリ
     static var voiceDirectory: URL {
-        let base = AppConstants.sharedContainerURL ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let dir = base.appendingPathComponent("VoiceMemos", isDirectory: true)
+        let dir = baseDirectory.appendingPathComponent("VoiceMemos", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
@@ -41,7 +50,9 @@ enum MediaManager {
             try data.write(to: fileURL)
             return "Photos/\(fileName)"
         } catch {
-            print("写真保存エラー: \(error)")
+            #if DEBUG
+                print("写真保存エラー: \(error)")
+            #endif
             return nil
         }
     }
@@ -59,9 +70,13 @@ enum MediaManager {
                 try FileManager.default.removeItem(at: destURL)
             }
             try FileManager.default.copyItem(at: sourceURL, to: destURL)
+            // Clean up temp source file after successful copy
+            try? FileManager.default.removeItem(at: sourceURL)
             return "VoiceMemos/\(fileName)"
         } catch {
-            print("ボイスメモ保存エラー: \(error)")
+            #if DEBUG
+                print("ボイスメモ保存エラー: \(error)")
+            #endif
             return nil
         }
     }
@@ -70,8 +85,7 @@ enum MediaManager {
 
     /// 相対パスからフルURLを解決する
     static func resolveURL(for relativePath: String) -> URL? {
-        let base = AppConstants.sharedContainerURL ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let url = base.appendingPathComponent(relativePath)
+        let url = baseDirectory.appendingPathComponent(relativePath)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url
     }

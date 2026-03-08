@@ -10,6 +10,129 @@ import StoreKit
 import SwiftData
 import SwiftUI
 
+// MARK: - Stats Range
+
+/// 統計の分析対象期間
+enum StatsRange: String, CaseIterable, Identifiable {
+    case oneWeek = "1W"
+    case oneMonth = "1M"
+    case threeMonths = "3M"
+    case sixMonths = "6M"
+    case oneYear = "1Y"
+    case all = "全期間"
+
+    var id: String {
+        rawValue
+    }
+
+    var label: String {
+        rawValue
+    }
+
+    /// Returns the start date for filtering, nil means no filter (all data)
+    var startDate: Date? {
+        let calendar = Calendar.current
+        let now = calendar.startOfDay(for: .now)
+        switch self {
+        case .oneWeek:
+            return calendar.date(byAdding: .day, value: -6, to: now)
+        case .oneMonth:
+            return calendar.date(byAdding: .month, value: -1, to: now)
+        case .threeMonths:
+            return calendar.date(byAdding: .month, value: -3, to: now)
+        case .sixMonths:
+            return calendar.date(byAdding: .month, value: -6, to: now)
+        case .oneYear:
+            return calendar.date(byAdding: .year, value: -1, to: now)
+        case .all:
+            return nil
+        }
+    }
+}
+
+// MARK: - Section IDs & Titles
+
+/// Identifiers for each stats section (used for scroll-to and TOC)
+enum StatsSectionID: String, CaseIterable, Identifiable {
+    case todayTips
+    case insights
+    case health
+    case weather
+    case weeklyReview
+    case monthlyReview
+    case proMonthlyReport
+    case moodRhythm
+    case summaryCards
+    case distribution
+    case average
+    case pastComparison
+    case weekdayAverage
+    case timeOfDay
+    case streak
+    case yearInPixels
+    case calendarHeatmap
+    case tagAnalysis
+    case premiumAnalytics
+    case discovery
+    case activity
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .todayTips: "今日のヒント"
+        case .insights: "インサイト"
+        case .health: "ヘルスケアと気分"
+        case .weather: "天気と気分"
+        case .weeklyReview: "先週のふりかえり"
+        case .monthlyReview: "先月のふりかえり"
+        case .proMonthlyReport: ReportFormat.titleMonthSummary
+        case .moodRhythm: "あなたの1週間のリズム"
+        case .summaryCards: "サマリー"
+        case .distribution: "スコア分布"
+        case .average: "平均スコア"
+        case .pastComparison: "あの頃の自分と比較"
+        case .weekdayAverage: "曜日別平均"
+        case .timeOfDay: "時間帯別平均"
+        case .streak: "ストリーク"
+        case .yearInPixels: "365日グリッド"
+        case .calendarHeatmap: "月間カレンダー"
+        case .tagAnalysis: "タグ分析"
+        case .premiumAnalytics: "高度な分析"
+        case .discovery: "発見"
+        case .activity: "アクティビティ"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .todayTips: "lightbulb"
+        case .insights: "sparkles"
+        case .health: "heart.text.square"
+        case .weather: "cloud.sun"
+        case .weeklyReview: "calendar.badge.checkmark"
+        case .monthlyReview: "calendar.badge.checkmark"
+        case .proMonthlyReport: "chart.bar.doc.horizontal"
+        case .moodRhythm: "waveform.path.ecg"
+        case .summaryCards: "square.grid.2x2"
+        case .distribution: "chart.bar"
+        case .average: "number"
+        case .pastComparison: "calendar.badge.clock"
+        case .weekdayAverage: "calendar"
+        case .timeOfDay: "clock"
+        case .streak: "flame"
+        case .yearInPixels: "square.grid.3x3.fill"
+        case .calendarHeatmap: "calendar"
+        case .tagAnalysis: "tag"
+        case .premiumAnalytics: "chart.xyaxis.line"
+        case .discovery: "binoculars"
+        case .activity: "chart.line.uptrend.xyaxis"
+        }
+    }
+}
+
 /// 統計画面
 /// 週間/月間/年間の平均スコア、スコア分布、連続記録日数を表示する
 struct StatsView: View {
@@ -53,6 +176,23 @@ struct StatsView: View {
     @State private var summaryMonth: Date = .now
     /// プレミアム購入シート表示
     @State private var showPremiumSheet = false
+    /// PDF export share sheet
+    @State private var showPDFShareSheet = false
+    @State private var exportedPDFURL: URL?
+    /// PDF export month selection dialog
+    @State private var showPDFExportDialog = false
+    /// Table of contents sheet
+    @State private var showTOCSheet = false
+    /// Scroll target for TOC jump
+    @State private var scrollTarget: StatsSectionID?
+    /// Range picker selection
+    @State private var selectedRange: StatsRange = .all
+
+    /// Entries filtered by the selected range
+    private var filteredEntries: [MoodEntry] {
+        guard let start = selectedRange.startDate else { return entries }
+        return entries.filter { $0.createdAt >= start }
+    }
 
     var body: some View {
         let colors = themeManager.colors
@@ -63,61 +203,121 @@ struct StatsView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    ScrollView {
-                        LazyVStack(spacing: 20) {
-                            if entries.isEmpty {
-                                emptyStatsView(colors: colors)
-                            } else {
-                                // AnyViewで型消去し、LazyVStackで遅延描画（スタックオーバーフロー防止）
-                                let count = entries.count
+                    ScrollViewReader { scrollProxy in
+                        ScrollView {
+                            LazyVStack(spacing: 20) {
+                                if entries.isEmpty {
+                                    emptyStatsView(colors: colors)
+                                } else {
+                                    // Range picker
+                                    AnyView(rangePickerView(colors: colors))
+                                    AnyView(insufficientDataBanner(colors: colors))
 
-                                AnyView(insightCarousel(colors: colors))
-                                AnyView(weeklyReviewSection(colors: colors))
-                                AnyView(monthlyReviewSection(colors: colors))
-                                AnyView(moodRhythmSection(colors: colors))
-                                AnyView(summaryCards(colors: colors))
-                                AnyView(distributionSection(colors: colors))
-                                AnyView(averageSection(colors: colors))
-                                if count >= 3 {
-                                    AnyView(pastComparisonSection(colors: colors))
-                                    AnyView(weekdayAverageSection(colors: colors))
-                                    AnyView(timeOfDaySection(colors: colors))
-                                }
-                                AnyView(streakSection(colors: colors))
-                                AnyView(calendarHeatmapSection(colors: colors))
-                                if entries.contains(where: { !$0.tags.isEmpty }) {
-                                    AnyView(tagAnalysisSection(colors: colors))
-                                }
-                                if count >= 3 {
-                                    AnyView(premiumAnalyticsSection(colors: colors))
-                                    AnyView(discoverySection(colors: colors))
-                                }
-                                if healthKitEnabled {
-                                    if !healthData.isEmpty {
-                                        AnyView(HealthStatsSection(
-                                            healthData: healthData,
-                                            entries: entries,
-                                            themeColors: colors,
-                                            currentMax: currentMaxScore,
-                                            currentMin: currentMinScore
-                                        ))
-                                    } else if healthDataLoaded {
-                                        AnyView(healthEmptyCard(colors: colors))
+                                    if filteredEntries.isEmpty {
+                                        AnyView(rangeEmptyView(colors: colors))
+                                    } else {
+                                        // AnyViewで型消去し、LazyVStackで遅延描画（スタックオーバーフロー防止）
+                                        let count = filteredEntries.count
+
+                                        AnyView(todayTipsSection(colors: colors))
+                                            .id(StatsSectionID.todayTips)
+                                        AnyView(insightCarousel(colors: colors))
+                                            .id(StatsSectionID.insights)
+                                        if healthKitEnabled {
+                                            if !healthData.isEmpty {
+                                                AnyView(HealthStatsSection(
+                                                    healthData: healthData,
+                                                    entries: filteredEntries,
+                                                    themeColors: colors,
+                                                    currentMax: currentMaxScore,
+                                                    currentMin: currentMinScore
+                                                ))
+                                                .id(StatsSectionID.health)
+                                            } else if healthDataLoaded {
+                                                AnyView(healthEmptyCard(colors: colors))
+                                            }
+                                        }
+                                        if filteredEntries.contains(where: { $0.weatherCondition != nil }) {
+                                            AnyView(WeatherStatsSection(
+                                                entries: filteredEntries,
+                                                themeColors: colors,
+                                                currentMax: currentMaxScore,
+                                                currentMin: currentMinScore
+                                            ))
+                                            .id(StatsSectionID.weather)
+                                        }
+                                        AnyView(weeklyReviewSection(colors: colors))
+                                            .id(StatsSectionID.weeklyReview)
+                                        AnyView(monthlyReviewSection(colors: colors))
+                                            .id(StatsSectionID.monthlyReview)
+                                        AnyView(proMonthlyReportCard(colors: colors))
+                                            .id(StatsSectionID.proMonthlyReport)
+                                        AnyView(moodRhythmSection(colors: colors))
+                                            .id(StatsSectionID.moodRhythm)
+                                        AnyView(summaryCards(colors: colors))
+                                            .id(StatsSectionID.summaryCards)
+                                        AnyView(distributionSection(colors: colors))
+                                            .id(StatsSectionID.distribution)
+                                        AnyView(averageSection(colors: colors))
+                                            .id(StatsSectionID.average)
+                                        if count >= 3 {
+                                            AnyView(pastComparisonSection(colors: colors))
+                                                .id(StatsSectionID.pastComparison)
+                                            AnyView(weekdayAverageSection(colors: colors))
+                                                .id(StatsSectionID.weekdayAverage)
+                                            AnyView(timeOfDaySection(colors: colors))
+                                                .id(StatsSectionID.timeOfDay)
+                                        }
+                                        AnyView(streakSection(colors: colors))
+                                            .id(StatsSectionID.streak)
+                                        AnyView(yearInPixelsSection(colors: colors))
+                                            .id(StatsSectionID.yearInPixels)
+                                        AnyView(calendarHeatmapSection(colors: colors))
+                                            .id(StatsSectionID.calendarHeatmap)
+                                        if filteredEntries.contains(where: { !$0.tags.isEmpty }) {
+                                            AnyView(tagAnalysisSection(colors: colors))
+                                                .id(StatsSectionID.tagAnalysis)
+                                        }
+                                        if count >= 3 {
+                                            AnyView(premiumAnalyticsSection(colors: colors))
+                                                .id(StatsSectionID.premiumAnalytics)
+                                            AnyView(discoverySection(colors: colors))
+                                                .id(StatsSectionID.discovery)
+                                        }
+                                        AnyView(activitySection(colors: colors))
+                                            .id(StatsSectionID.activity)
                                     }
                                 }
-                                AnyView(activitySection(colors: colors))
+                            }
+                            .padding()
+                        }
+                        .onChange(of: scrollTarget) { _, target in
+                            guard let target else { return }
+                            scrollTarget = nil
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                scrollProxy.scrollTo(target, anchor: .top)
                             }
                         }
-                        .padding()
                     }
 
                     // 広告バナー（画面最下部に固定）
-                    BannerAdView()
+                    BannerAdView(showRemoveLink: true) {
+                        showPremiumSheet = true
+                    }
                 }
             }
             .navigationTitle("統計")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showTOCSheet = true
+                    } label: {
+                        Image(systemName: "list.bullet")
+                            .font(.system(.body, design: .rounded))
+                    }
+                    .disabled(entries.isEmpty)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showShareSummary = true
@@ -148,7 +348,12 @@ struct StatsView: View {
                 )
             }
             .sheet(isPresented: $showPremiumSheet) {
-                PremiumPurchaseSheet(premiumManager: premiumManager)
+                PremiumPaywallView()
+            }
+            .sheet(isPresented: $showPDFShareSheet) {
+                if let url = exportedPDFURL {
+                    ShareSheet(items: [url])
+                }
             }
             .sheet(item: $editingEntry) { entry in
                 MemoInputView(
@@ -164,6 +369,9 @@ struct StatsView: View {
                         editingEntry = nil
                     }
                 )
+            }
+            .sheet(isPresented: $showTOCSheet) {
+                statsTOCSheet(colors: colors)
             }
             .task(id: "\(healthKitEnabled)-\(healthRefreshID)") {
                 guard healthKitEnabled else {
@@ -181,6 +389,76 @@ struct StatsView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Table of Contents
+
+    /// Compute which sections are currently visible based on data conditions
+    private var visibleSections: [StatsSectionID] {
+        guard !entries.isEmpty, !filteredEntries.isEmpty else { return [] }
+        let count = filteredEntries.count
+        var sections: [StatsSectionID] = []
+
+        sections.append(.todayTips)
+        sections.append(.insights)
+        if healthKitEnabled, !healthData.isEmpty {
+            sections.append(.health)
+        }
+        if filteredEntries.contains(where: { $0.weatherCondition != nil }) {
+            sections.append(.weather)
+        }
+        sections.append(.weeklyReview)
+        sections.append(.monthlyReview)
+        sections.append(.proMonthlyReport)
+        sections.append(.moodRhythm)
+        sections.append(.summaryCards)
+        sections.append(.distribution)
+        sections.append(.average)
+        if count >= 3 {
+            sections.append(.pastComparison)
+            sections.append(.weekdayAverage)
+            sections.append(.timeOfDay)
+        }
+        sections.append(.streak)
+        sections.append(.yearInPixels)
+        sections.append(.calendarHeatmap)
+        if filteredEntries.contains(where: { !$0.tags.isEmpty }) {
+            sections.append(.tagAnalysis)
+        }
+        if count >= 3 {
+            sections.append(.premiumAnalytics)
+            sections.append(.discovery)
+        }
+        sections.append(.activity)
+        return sections
+    }
+
+    /// TOC sheet view
+    private func statsTOCSheet(colors _: ThemeColors) -> some View {
+        NavigationStack {
+            List(visibleSections) { section in
+                Button {
+                    showTOCSheet = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        scrollTarget = section
+                    }
+                } label: {
+                    Label(section.title, systemImage: section.icon)
+                        .font(.system(.body, design: .rounded))
+                        .foregroundStyle(.primary)
+                }
+            }
+            .navigationTitle("目次")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("閉じる") {
+                        showTOCSheet = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 
     // MARK: - ヘルスケアデータなしカード
@@ -207,6 +485,73 @@ struct StatsView: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
         )
+    }
+
+    // MARK: - Range Picker
+
+    /// Period range selector (matches CalendarHeatmapView style)
+    private func rangePickerView(colors: ThemeColors) -> some View {
+        HStack(spacing: 6) {
+            ForEach(StatsRange.allCases) { range in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedRange = range
+                    }
+                    HapticManager.lightFeedback()
+                } label: {
+                    Text(range.label)
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(selectedRange == range ? colors.accent : Color(.systemGray5).opacity(0.8))
+                        )
+                        .foregroundStyle(selectedRange == range ? .white : .primary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// Banner shown when filtered data has fewer than 20 entries
+    @ViewBuilder
+    private func insufficientDataBanner(colors: ThemeColors) -> some View {
+        if selectedRange != .all && filteredEntries.count < 20 && !filteredEntries.isEmpty {
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(colors.accent)
+                Text("この期間のデータは\(filteredEntries.count)件です。20件以上でより正確な分析になります。")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(colors.accent.opacity(0.06))
+            )
+        }
+    }
+
+    /// Shown when the selected range has zero entries but total entries exist
+    private func rangeEmptyView(colors: ThemeColors) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "calendar.badge.exclamationmark")
+                .font(.system(size: 36))
+                .foregroundStyle(colors.accent.opacity(0.4))
+
+            Text("この期間にはデータがありません")
+                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            Text("別の期間を選択するか、「全期間」に切り替えてください")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.vertical, 40)
     }
 
     // MARK: - 空状態ビュー
@@ -292,18 +637,51 @@ struct StatsView: View {
         }
     }
 
+    // MARK: - 今日のヒントセクション
+
+    @ViewBuilder
+    private func todayTipsSection(colors: ThemeColors) -> some View {
+        let tips = InsightEngine.generateDailyTips(
+            from: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore
+        )
+        if !tips.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkle")
+                        .foregroundStyle(.yellow)
+                    Text(StatsSectionID.todayTips.title)
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                }
+                ForEach(tips) { tip in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: tip.icon)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(colors.accent)
+                            .frame(width: 16)
+                        Text(tip.text)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
+        }
+    }
+
     // MARK: - インサイトカルーセル
 
     @ViewBuilder
     private func insightCarousel(colors: ThemeColors) -> some View {
-        let insights = InsightEngine.generate(from: entries, currentMax: currentMaxScore)
+        let insights = InsightEngine.generate(from: filteredEntries, currentMax: currentMaxScore)
 
         if !insights.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
                     Image(systemName: "lightbulb.fill")
                         .foregroundStyle(.yellow)
-                    Text("インサイト")
+                    Text(StatsSectionID.insights.title)
                         .font(.system(.headline, design: .rounded))
                 }
                 .padding(.horizontal, 4)
@@ -356,7 +734,7 @@ struct StatsView: View {
 
     @ViewBuilder
     private func weeklyReviewSection(colors: ThemeColors) -> some View {
-        if let review = statsVM.weeklyReview(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore) {
+        if let review = statsVM.weeklyReview(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore) {
             VStack(alignment: .leading, spacing: 14) {
                 // ヘッダー
                 weeklyReviewHeader(review: review)
@@ -400,7 +778,7 @@ struct StatsView: View {
         HStack(spacing: 6) {
             Image(systemName: "book.pages.fill")
                 .foregroundStyle(.indigo)
-            Text("先週のふりかえり")
+            Text(StatsSectionID.weeklyReview.title)
                 .font(.system(.headline, design: .rounded))
         }
 
@@ -422,7 +800,7 @@ struct StatsView: View {
 
             Text(String(format: "%.1f", review.average))
                 .font(.system(.title3, design: .rounded, weight: .bold))
-                .foregroundStyle(colors.color(for: Int(review.average.rounded()), maxScore: currentMaxScore))
+                .foregroundStyle(colors.color(for: Int(review.average.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
 
             if let prev = review.previousWeekAverage {
                 let diff = review.average - prev
@@ -484,7 +862,7 @@ struct StatsView: View {
             HStack(spacing: 6) {
                 Text("\(point.score)")
                     .font(.system(.title2, design: .rounded, weight: .bold))
-                    .foregroundStyle(colors.color(for: point.score, maxScore: currentMaxScore))
+                    .foregroundStyle(colors.color(for: point.score, maxScore: currentMaxScore, minScore: currentMinScore))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(point.date.formatted(.dateTime.month(.defaultDigits).day(.defaultDigits).weekday(.abbreviated)))
@@ -541,11 +919,11 @@ struct StatsView: View {
         let thisMonthStart = calendar.dateInterval(of: .month, for: .now)?.start ?? .now
         let lastMonth = calendar.date(byAdding: .month, value: -1, to: thisMonthStart) ?? thisMonthStart
 
-        let lastMonthSummary = statsVM.monthlySummary(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore, month: lastMonth)
+        let lastMonthSummary = statsVM.monthlySummary(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore, month: lastMonth)
 
         if let summary = lastMonthSummary, summary.entryCount >= 3 {
             let summaryText = statsVM.generateMonthlySummaryText(summary: summary, currentMax: currentMaxScore)
-            let tagHighlights = statsVM.monthlyTagHighlights(entries: entries, currentMax: currentMaxScore, month: lastMonth)
+            let tagHighlights = statsVM.monthlyTagHighlights(entries: filteredEntries, currentMax: currentMaxScore, month: lastMonth)
 
             VStack(alignment: .leading, spacing: 14) {
                 // Header
@@ -620,7 +998,7 @@ struct StatsView: View {
         HStack(spacing: 6) {
             Image(systemName: "calendar.badge.checkmark")
                 .foregroundStyle(.indigo)
-            Text("先月のふりかえり")
+            Text(StatsSectionID.monthlyReview.title)
                 .font(.system(.headline, design: .rounded))
         }
 
@@ -641,7 +1019,7 @@ struct StatsView: View {
 
             Text(String(format: "%.1f", summary.average))
                 .font(.system(.title3, design: .rounded, weight: .bold))
-                .foregroundStyle(colors.color(for: Int(summary.average.rounded()), maxScore: currentMaxScore))
+                .foregroundStyle(colors.color(for: Int(summary.average.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
 
             if let prev = summary.previousMonthAverage {
                 let diff = summary.average - prev
@@ -706,12 +1084,12 @@ struct StatsView: View {
 
     @ViewBuilder
     private func moodRhythmSection(colors: ThemeColors) -> some View {
-        let rhythmData = statsVM.weeklyRhythmData(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let rhythmData = statsVM.weeklyRhythmData(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore)
         let hasRhythmData = rhythmData.contains { $0.average > 0 }
 
         if hasRhythmData {
             VStack(alignment: .leading, spacing: 16) {
-                Text("あなたの1週間のリズム")
+                Text(StatsSectionID.moodRhythm.title)
                     .font(.system(.headline, design: .rounded))
                     .padding(.horizontal, 4)
 
@@ -719,7 +1097,7 @@ struct StatsView: View {
                 weeklyRhythmChart(rhythmData: rhythmData, colors: colors)
 
                 // ボラティリティ推移
-                let volData = statsVM.volatilityTrend(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+                let volData = statsVM.volatilityTrend(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore)
                 if volData.count >= 4 {
                     volatilityChart(volData: volData, colors: colors)
                 }
@@ -758,12 +1136,12 @@ struct StatsView: View {
                             x: .value("曜日", item.label),
                             y: .value("平均", item.average)
                         )
-                        .foregroundStyle(colors.color(for: Int(item.average.rounded()), maxScore: currentMaxScore))
+                        .foregroundStyle(colors.color(for: Int(item.average.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                         .symbolSize(40)
                         .annotation(position: .top, spacing: 4) {
                             Text(String(format: "%.1f", item.average))
                                 .font(.system(.caption2, design: .rounded, weight: .semibold))
-                                .foregroundStyle(colors.color(for: Int(item.average.rounded()), maxScore: currentMaxScore))
+                                .foregroundStyle(colors.color(for: Int(item.average.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                         }
                     }
                 }
@@ -980,16 +1358,22 @@ struct StatsView: View {
 
     // MARK: - スコア分布セクション
 
+    @ViewBuilder
     private func distributionSection(colors: ThemeColors) -> some View {
+        let distribution = statsVM.scoreDistribution(entries: filteredEntries, maxScore: currentMaxScore, minScore: currentMinScore)
+
         VStack(alignment: .leading, spacing: 12) {
+            // Mood balance pie chart
+            moodBalancePieChart(distribution: distribution, colors: colors)
+
             HStack {
-                Text("スコア分布")
+                Text(StatsSectionID.distribution.title)
                     .font(.system(.headline, design: .rounded))
 
                 Spacer()
 
                 // モード値の表示
-                if let mode = statsVM.mostCommonScore(entries: entries, currentMax: currentMaxScore) {
+                if let mode = statsVM.mostCommonScore(entries: filteredEntries, currentMax: currentMaxScore) {
                     Text("最多: \(mode)")
                         .font(.system(.caption, design: .rounded, weight: .semibold))
                         .padding(.horizontal, 10)
@@ -1001,7 +1385,6 @@ struct StatsView: View {
             .padding(.horizontal, 4)
 
             // 横棒グラフ
-            let distribution = statsVM.scoreDistribution(entries: entries, maxScore: currentMaxScore, minScore: currentMinScore)
             let maxCount = max(distribution.values.max() ?? 0, 1)
 
             // 分布が大きい場合はグルーピング表示
@@ -1088,19 +1471,98 @@ struct StatsView: View {
         )
     }
 
+    // MARK: - Mood Balance Pie Chart
+
+    /// Mood balance pie chart showing positive / neutral / negative ratio
+    @ViewBuilder
+    private func moodBalancePieChart(distribution: [Int: Int], colors: ThemeColors) -> some View {
+        let range = max(currentMaxScore - currentMinScore, 1)
+        let lowThreshold = currentMinScore + Int(Double(range) * 0.33)
+        let highThreshold = currentMinScore + Int(Double(range) * 0.66)
+
+        let counts = distribution.reduce(into: (pos: 0, neu: 0, neg: 0)) { result, pair in
+            if pair.key > highThreshold {
+                result.pos += pair.value
+            } else if pair.key >= lowThreshold {
+                result.neu += pair.value
+            } else {
+                result.neg += pair.value
+            }
+        }
+        let total = counts.pos + counts.neu + counts.neg
+
+        if total > 0 {
+            let posRatio = Double(counts.pos) / Double(total)
+            let neuRatio = Double(counts.neu) / Double(total)
+            let negRatio = Double(counts.neg) / Double(total)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("気分バランス")
+                    .font(.system(.headline, design: .rounded))
+                    .padding(.horizontal, 4)
+
+                HStack(spacing: 20) {
+                    Chart {
+                        SectorMark(angle: .value("ポジティブ", counts.pos), innerRadius: .ratio(0.6), angularInset: 1.5)
+                            .foregroundStyle(colors.highScoreColor)
+                        SectorMark(angle: .value("ふつう", counts.neu), innerRadius: .ratio(0.6), angularInset: 1.5)
+                            .foregroundStyle(colors.accent.opacity(0.5))
+                        SectorMark(angle: .value("ネガティブ", counts.neg), innerRadius: .ratio(0.6), angularInset: 1.5)
+                            .foregroundStyle(colors.lowScoreColor)
+                    }
+                    .chartLegend(.hidden)
+                    .frame(width: 120, height: 120)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        moodBalanceLegendRow(color: colors.highScoreColor, label: "ポジティブ", count: counts.pos, ratio: posRatio)
+                        moodBalanceLegendRow(color: colors.accent.opacity(0.5), label: "ふつう", count: counts.neu, ratio: neuRatio)
+                        moodBalanceLegendRow(color: colors.lowScoreColor, label: "ネガティブ", count: counts.neg, ratio: negRatio)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+            )
+        }
+    }
+
+    /// Legend row for mood balance pie chart
+    private func moodBalanceLegendRow(color: Color, label: String, count: Int, ratio: Double) -> some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(color)
+                .frame(width: 10, height: 10)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                HStack(spacing: 4) {
+                    Text("\(count)回")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text("(\(Int(ratio * 100))%)")
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     // MARK: - 平均スコアセクション
 
     private func averageSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("平均スコア")
+            Text(StatsSectionID.average.title)
                 .font(.system(.headline, design: .rounded))
                 .padding(.horizontal, 4)
 
             // 週間平均
             averageRow(
                 label: "今週",
-                current: statsVM.weeklyAverage(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore),
-                previous: statsVM.lastWeekAverage(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore),
+                current: statsVM.weeklyAverage(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore),
+                previous: statsVM.lastWeekAverage(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore),
                 previousLabel: "先週",
                 colors: colors
             )
@@ -1108,14 +1570,14 @@ struct StatsView: View {
             // 月間平均
             averageRow(
                 label: "今月",
-                current: statsVM.monthlyAverage(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore),
-                previous: statsVM.lastMonthAverage(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore),
+                current: statsVM.monthlyAverage(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore),
+                previous: statsVM.lastMonthAverage(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore),
                 previousLabel: "先月",
                 colors: colors
             )
 
             // 年間平均
-            if let yearAvg = statsVM.yearlyAverage(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore) {
+            if let yearAvg = statsVM.yearlyAverage(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore) {
                 HStack {
                     Text("今年")
                         .font(.system(.subheadline, design: .rounded))
@@ -1138,11 +1600,11 @@ struct StatsView: View {
 
     @ViewBuilder
     private func pastComparisonSection(colors: ThemeColors) -> some View {
-        let comparison = statsVM.pastComparison(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let comparison = statsVM.pastComparison(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore)
 
         if comparison.hasLastYearData {
             VStack(alignment: .leading, spacing: 12) {
-                collapsibleHeader("あの頃の自分と比較", sectionKey: "pastComparison", icon: "calendar.badge.clock")
+                collapsibleHeader(StatsSectionID.pastComparison.title, sectionKey: "pastComparison", icon: "calendar.badge.clock")
 
                 if expandedSections.contains("pastComparison") {
                     VStack(spacing: 10) {
@@ -1283,10 +1745,10 @@ struct StatsView: View {
 
     private func weekdayAverageSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            collapsibleHeader("曜日別平均", sectionKey: "weekday")
+            collapsibleHeader(StatsSectionID.weekdayAverage.title, sectionKey: "weekday")
 
             if expandedSections.contains("weekday") {
-                let averages = statsVM.weekdayAverages(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+                let averages = statsVM.weekdayAverages(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore)
                 // 月〜日の順（2=月, 3=火, ..., 7=土, 1=日）
                 let weekdayOrder = [2, 3, 4, 5, 6, 7, 1]
                 let weekdayLabels = [String(localized: "月曜"), String(localized: "火曜"), String(localized: "水曜"), String(localized: "木曜"), String(localized: "金曜"), String(localized: "土曜"), String(localized: "日曜")]
@@ -1300,7 +1762,7 @@ struct StatsView: View {
                         )
                         .foregroundStyle(
                             avg > 0
-                                ? colors.color(for: Int(avg.rounded()), maxScore: currentMaxScore).gradient
+                                ? colors.color(for: Int(avg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore).gradient
                                 : Color.gray.opacity(0.3).gradient
                         )
                         .cornerRadius(6)
@@ -1333,10 +1795,10 @@ struct StatsView: View {
 
     private func timeOfDaySection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            collapsibleHeader("時間帯別平均", sectionKey: "timeOfDay")
+            collapsibleHeader(StatsSectionID.timeOfDay.title, sectionKey: "timeOfDay")
 
             if expandedSections.contains("timeOfDay") {
-                let averages = statsVM.timeOfDayAverages(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+                let averages = statsVM.timeOfDayAverages(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore)
                 let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
 
                 LazyVGrid(columns: gridColumns, spacing: 10) {
@@ -1354,7 +1816,7 @@ struct StatsView: View {
                             if let avg {
                                 Text(String(format: "%.1f", avg))
                                     .font(.system(.title3, design: .rounded, weight: .bold))
-                                    .foregroundStyle(colors.color(for: Int(avg.rounded()), maxScore: currentMaxScore))
+                                    .foregroundStyle(colors.color(for: Int(avg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                             } else {
                                 Text("-")
                                     .font(.system(.title3, design: .rounded, weight: .bold))
@@ -1381,7 +1843,7 @@ struct StatsView: View {
 
     private func streakSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            collapsibleHeader("ストリーク", sectionKey: "streak")
+            collapsibleHeader(StatsSectionID.streak.title, sectionKey: "streak")
 
             if expandedSections.contains("streak") {
                 let current = statsVM.currentStreak(entries: entries)
@@ -1458,11 +1920,26 @@ struct StatsView: View {
         }
     }
 
+    // MARK: - 365日グリッドセクション
+
+    private func yearInPixelsSection(colors: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(StatsSectionID.yearInPixels.title)
+                .font(.system(.headline, design: .rounded))
+                .padding(.horizontal, 4)
+
+            YearInPixelsView(
+                entries: entries,
+                themeColors: colors
+            )
+        }
+    }
+
     // MARK: - カレンダーヒートマップセクション
 
     private func calendarHeatmapSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("月間カレンダー")
+            Text(StatsSectionID.calendarHeatmap.title)
                 .font(.system(.headline, design: .rounded))
                 .padding(.horizontal, 4)
 
@@ -1480,7 +1957,7 @@ struct StatsView: View {
     private func tagAnalysisSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Text("タグ分析")
+                Text(StatsSectionID.tagAnalysis.title)
                     .font(.system(.headline, design: .rounded))
 
                 Spacer()
@@ -1521,7 +1998,7 @@ struct StatsView: View {
     /// タグ使用頻度の横棒グラフ
     @ViewBuilder
     private func tagFrequencyChart(colors: ThemeColors) -> some View {
-        let frequency = statsVM.tagFrequency(entries: entries)
+        let frequency = statsVM.tagFrequency(entries: filteredEntries)
         let top10 = Array(frequency.prefix(10))
 
         if !top10.isEmpty {
@@ -1565,7 +2042,7 @@ struct StatsView: View {
     /// タグ別平均スコアの横棒グラフ
     @ViewBuilder
     private func tagAverageScoreChart(colors: ThemeColors) -> some View {
-        let averages = statsVM.tagAverageScores(entries: entries, currentMax: currentMaxScore)
+        let averages = statsVM.tagAverageScores(entries: filteredEntries, currentMax: currentMaxScore)
         let top10 = Array(averages.prefix(10))
 
         if !top10.isEmpty {
@@ -1580,7 +2057,7 @@ struct StatsView: View {
                             x: .value("平均", item.average),
                             y: .value("タグ", item.tag)
                         )
-                        .foregroundStyle(colors.color(for: Int(item.average.rounded()), maxScore: currentMaxScore).gradient)
+                        .foregroundStyle(colors.color(for: Int(item.average.rounded()), maxScore: currentMaxScore, minScore: currentMinScore).gradient)
                         .cornerRadius(4)
                         .annotation(position: .trailing, spacing: 4) {
                             Text(String(format: "%.1f", item.average))
@@ -1610,7 +2087,7 @@ struct StatsView: View {
     /// 翌日効果リスト
     @ViewBuilder
     private func nextDayEffectList(colors _: ThemeColors) -> some View {
-        let effects = statsVM.nextDayEffect(entries: entries, currentMax: currentMaxScore)
+        let effects = statsVM.nextDayEffect(entries: filteredEntries, currentMax: currentMaxScore)
 
         if !effects.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
@@ -1663,7 +2140,7 @@ struct StatsView: View {
     /// タグ共起パターンリスト
     @ViewBuilder
     private func tagCoOccurrenceList(colors: ThemeColors) -> some View {
-        let coOccurrence = statsVM.tagCoOccurrence(entries: entries)
+        let coOccurrence = statsVM.tagCoOccurrence(entries: filteredEntries)
         let top5 = Array(coOccurrence.prefix(5))
 
         if !top5.isEmpty {
@@ -1722,7 +2199,7 @@ struct StatsView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkle.magnifyingglass")
                         .foregroundStyle(colors.accent)
-                    Text("発見")
+                    Text(StatsSectionID.discovery.title)
                         .font(.system(.headline, design: .rounded))
                 }
                 .padding(.horizontal, 4)
@@ -1742,7 +2219,7 @@ struct StatsView: View {
     /// 記録回数とスコアの関係
     @ViewBuilder
     private func recordCountDiscovery(colors: ThemeColors) -> some View {
-        if let data = statsVM.recordCountVsScore(entries: entries, currentMax: currentMaxScore) {
+        if let data = statsVM.recordCountVsScore(entries: filteredEntries, currentMax: currentMaxScore) {
             let delta = data.multiAvg - data.singleAvg
             discoveryCard(
                 icon: "square.and.pencil",
@@ -1755,13 +2232,13 @@ struct StatsView: View {
                         label: "複数回/日",
                         value: String(format: "%.1f", data.multiAvg),
                         sub: "\(data.multiDays)日",
-                        valueColor: colors.color(for: Int(data.multiAvg.rounded()), maxScore: currentMaxScore)
+                        valueColor: colors.color(for: Int(data.multiAvg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore)
                     )
                     discoveryStatColumn(
                         label: "1回/日",
                         value: String(format: "%.1f", data.singleAvg),
                         sub: "\(data.singleDays)日",
-                        valueColor: colors.color(for: Int(data.singleAvg.rounded()), maxScore: currentMaxScore)
+                        valueColor: colors.color(for: Int(data.singleAvg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore)
                     )
                     discoveryDeltaColumn(delta: delta)
                 }
@@ -1772,7 +2249,7 @@ struct StatsView: View {
     /// タグ使用とスコアの関係
     @ViewBuilder
     private func tagUsageDiscovery(colors: ThemeColors) -> some View {
-        if let data = statsVM.tagUsageVsScore(entries: entries, currentMax: currentMaxScore) {
+        if let data = statsVM.tagUsageVsScore(entries: filteredEntries, currentMax: currentMaxScore) {
             let delta = data.taggedAvg - data.untaggedAvg
             discoveryCard(
                 icon: "tag.fill",
@@ -1785,13 +2262,13 @@ struct StatsView: View {
                         label: "タグあり",
                         value: String(format: "%.1f", data.taggedAvg),
                         sub: "\(data.taggedCount)件",
-                        valueColor: colors.color(for: Int(data.taggedAvg.rounded()), maxScore: currentMaxScore)
+                        valueColor: colors.color(for: Int(data.taggedAvg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore)
                     )
                     discoveryStatColumn(
                         label: "タグなし",
                         value: String(format: "%.1f", data.untaggedAvg),
                         sub: "\(data.untaggedCount)件",
-                        valueColor: colors.color(for: Int(data.untaggedAvg.rounded()), maxScore: currentMaxScore)
+                        valueColor: colors.color(for: Int(data.untaggedAvg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore)
                     )
                     discoveryDeltaColumn(delta: delta)
                 }
@@ -1802,7 +2279,7 @@ struct StatsView: View {
     /// 詳細な共起パターン
     @ViewBuilder
     private func detailedCoOccurrenceDiscovery(colors: ThemeColors) -> some View {
-        let pairs = statsVM.detailedCoOccurrence(entries: entries)
+        let pairs = statsVM.detailedCoOccurrence(entries: filteredEntries)
 
         if !pairs.isEmpty {
             discoveryCard(
@@ -1930,7 +2407,7 @@ struct StatsView: View {
         HStack(spacing: 6) {
             Image(systemName: premiumManager.isPremium ? "sparkles" : "lock.fill")
                 .foregroundStyle(premiumManager.isPremium ? colors.accent : .purple)
-            Text("高度な分析")
+            Text(StatsSectionID.premiumAnalytics.title)
                 .font(.system(.headline, design: .rounded))
             if !premiumManager.isPremium {
                 Text("PRO")
@@ -1952,6 +2429,30 @@ struct StatsView: View {
         let weatherCount = entries.filter { $0.weatherCondition != nil }.count
 
         VStack(spacing: 12) {
+            // Unlock CTA
+            Button {
+                showPremiumSheet = true
+                HapticManager.lightFeedback()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(.caption, design: .rounded))
+                    Text("タップして全機能を解放")
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                }
+                .foregroundStyle(.purple.opacity(0.8))
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .background(Capsule().fill(.purple.opacity(0.08)))
+            }
+            .buttonStyle(.plain)
+
+            if selectedRange != .all {
+                Text("全期間（\(entries.count)件）のデータに基づく例")
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+
             lockedPreviewCard(
                 icon: "percent",
                 title: "タグ影響度",
@@ -2046,45 +2547,52 @@ struct StatsView: View {
 
     /// ロックプレビューカード1枚（件数ティーザー付き）
     private func lockedPreviewCard(icon: String, title: String, preview: String, teaser: String?, colors: ThemeColors) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(.title3, design: .rounded))
-                    .foregroundStyle(colors.accent)
-                Text(title)
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                Spacer()
-                Image(systemName: "lock.fill")
-                    .font(.caption)
-                    .foregroundStyle(.purple)
-            }
-            Text(preview)
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(.secondary)
-                .blur(radius: 4)
+        Button {
+            showPremiumSheet = true
+            HapticManager.lightFeedback()
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .font(.system(.title3, design: .rounded))
+                        .foregroundStyle(colors.accent)
+                    Text(title)
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Image(systemName: "lock.fill")
+                        .font(.caption)
+                        .foregroundStyle(.purple)
+                }
+                Text(preview)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .blur(radius: 4)
 
-            if let teaser {
-                Text(teaser)
-                    .font(.system(.caption2, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.purple)
+                if let teaser {
+                    Text(teaser)
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.purple)
+                }
             }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(.purple.opacity(0.2), lineWidth: 1)
+            )
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(.purple.opacity(0.2), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
     }
 
     // MARK: - プレミアムインサイトカルーセル
 
     @ViewBuilder
     private func premiumInsightCarousel(colors: ThemeColors) -> some View {
-        let insights = InsightEngine.generatePremium(from: entries, currentMax: currentMaxScore)
+        let insights = InsightEngine.generatePremium(from: filteredEntries, currentMax: currentMaxScore)
         if !insights.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -2102,9 +2610,9 @@ struct StatsView: View {
 
     @ViewBuilder
     private func weatherCorrelationCard(colors: ThemeColors) -> some View {
-        let weatherCount = statsVM.weatherDataCount(entries: entries)
-        let conditionAvgs = statsVM.weatherConditionAverages(entries: entries, currentMax: currentMaxScore)
-        let pressure = statsVM.pressureCorrelation(entries: entries, currentMax: currentMaxScore)
+        let weatherCount = statsVM.weatherDataCount(entries: filteredEntries)
+        let conditionAvgs = statsVM.weatherConditionAverages(entries: filteredEntries, currentMax: currentMaxScore)
+        let pressure = statsVM.pressureCorrelation(entries: filteredEntries, currentMax: currentMaxScore)
 
         if weatherCount >= 5 && (!conditionAvgs.isEmpty || pressure != nil) {
             VStack(alignment: .leading, spacing: 14) {
@@ -2137,14 +2645,14 @@ struct StatsView: View {
                                 GeometryReader { geo in
                                     let ratio = item.averageScore / Double(currentMaxScore)
                                     RoundedRectangle(cornerRadius: 4)
-                                        .fill(colors.color(for: Int(item.averageScore.rounded()), maxScore: currentMaxScore).gradient)
+                                        .fill(colors.color(for: Int(item.averageScore.rounded()), maxScore: currentMaxScore, minScore: currentMinScore).gradient)
                                         .frame(width: geo.size.width * max(ratio, 0.05))
                                 }
                                 .frame(height: 14)
 
                                 Text(String(format: "%.1f", item.averageScore))
                                     .font(.system(.caption2, design: .rounded, weight: .semibold))
-                                    .foregroundStyle(colors.color(for: Int(item.averageScore.rounded()), maxScore: currentMaxScore))
+                                    .foregroundStyle(colors.color(for: Int(item.averageScore.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                                     .frame(width: 28, alignment: .trailing)
 
                                 Text("(\(item.entryCount))")
@@ -2236,7 +2744,7 @@ struct StatsView: View {
                 .foregroundStyle(.secondary)
             Text(String(format: "%.1f", avg))
                 .font(.system(.title3, design: .rounded, weight: .bold))
-                .foregroundStyle(colors.color(for: Int(avg.rounded()), maxScore: currentMaxScore))
+                .foregroundStyle(colors.color(for: Int(avg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
             Text(label)
                 .font(.system(.caption2, design: .rounded, weight: .medium))
             Text(sublabel)
@@ -2277,7 +2785,7 @@ struct StatsView: View {
 
     @ViewBuilder
     private func tagInfluenceCard(colors: ThemeColors) -> some View {
-        let influences = statsVM.tagInfluencePercentage(entries: entries, currentMax: currentMaxScore)
+        let influences = statsVM.tagInfluencePercentage(entries: filteredEntries, currentMax: currentMaxScore)
         if !influences.isEmpty {
             let upFactors = Array(influences.filter { $0.influencePercent > 0 }.prefix(5))
             let downFactors = Array(influences.filter { $0.influencePercent < 0 }.prefix(5))
@@ -2359,7 +2867,7 @@ struct StatsView: View {
 
     @ViewBuilder
     private func reverseInsightsCard(colors: ThemeColors) -> some View {
-        let data = statsVM.reverseInsights(entries: entries, currentMax: currentMaxScore)
+        let data = statsVM.reverseInsights(entries: filteredEntries, currentMax: currentMaxScore)
         let hasData = !data.highTags.isEmpty || !data.lowTags.isEmpty
         if hasData {
             VStack(alignment: .leading, spacing: 14) {
@@ -2464,7 +2972,7 @@ struct StatsView: View {
                 }
             }
 
-            if let summary = statsVM.monthlySummary(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore, month: summaryMonth) {
+            if let summary = statsVM.monthlySummary(entries: filteredEntries, currentMax: currentMaxScore, currentMin: currentMinScore, month: summaryMonth) {
                 // 平均 + 前月比
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -2474,7 +2982,7 @@ struct StatsView: View {
                         HStack(spacing: 6) {
                             Text(String(format: "%.1f", summary.average))
                                 .font(.system(.title2, design: .rounded, weight: .bold))
-                                .foregroundStyle(colors.color(for: Int(summary.average.rounded()), maxScore: currentMaxScore))
+                                .foregroundStyle(colors.color(for: Int(summary.average.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                             if let prev = summary.previousMonthAverage {
                                 let diff = summary.average - prev
                                 HStack(spacing: 2) {
@@ -2563,6 +3071,23 @@ struct StatsView: View {
 
                 // Weather trend (if data exists)
                 monthlySummaryWeatherTrend(month: summaryMonth, colors: colors)
+
+                // PDF export button
+                Button {
+                    exportMonthlyPDF(month: summaryMonth, summary: summary, colors: colors)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc.text")
+                            .font(.caption)
+                        Text("PDFレポートを出力")
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(colors.accent))
+                }
+                .padding(.top, 4)
             } else {
                 Text("この月のデータがありません")
                     .font(.system(.caption, design: .rounded))
@@ -2578,10 +3103,95 @@ struct StatsView: View {
         )
     }
 
+    // MARK: - PDF Export
+
+    /// Count entries in a given month (for prev month availability check)
+    private func prevMonthEntryCount(prevMonth: Date) -> Int {
+        let calendar = Calendar.current
+        guard let interval = calendar.dateInterval(of: .month, for: prevMonth) else { return 0 }
+        return entries.filter { $0.createdAt >= interval.start && $0.createdAt < interval.end }.count
+    }
+
+    /// Generate and export PDF for the previous month
+    private func exportPreviousMonthPDF(prevMonth: Date, colors: ThemeColors) {
+        guard let summary = statsVM.monthlySummary(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore, month: prevMonth) else { return }
+        exportMonthlyPDF(month: prevMonth, summary: summary, colors: colors)
+    }
+
+    /// Generate and share a monthly summary PDF report
+    private func exportMonthlyPDF(month: Date, summary: MonthlySummary, colors: ThemeColors) {
+        let tagHighlights = statsVM.monthlyTagHighlights(entries: entries, currentMax: currentMaxScore, month: month)
+
+        // Phase 1-2 PRO data (only if >= 10 entries in target month)
+        let calendar = Calendar.current
+        let monthInterval = calendar.dateInterval(of: .month, for: month)
+        let monthEntryCount = monthInterval.map { iv in
+            entries.filter { $0.createdAt >= iv.start && $0.createdAt < iv.end }.count
+        } ?? 0
+
+        let tagDiffs: (positive: [StatsViewModel.TagScoreDiff], negative: [StatsViewModel.TagScoreDiff])?
+        let comp: StatsViewModel.MonthlyComparison?
+        let outlierList: [StatsViewModel.MonthlyOutlier]?
+
+        if monthEntryCount >= 10 {
+            tagDiffs = statsVM.tagScoreDifferences(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore, month: month)
+            comp = statsVM.monthlyComparison(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore, month: month)
+            outlierList = statsVM.monthlyOutliers(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore, month: month)
+        } else {
+            tagDiffs = nil
+            comp = nil
+            outlierList = nil
+        }
+
+        let pdfView = MonthlyPDFReportView(
+            summary: summary,
+            tagHighlights: tagHighlights,
+            currentMaxScore: currentMaxScore,
+            currentMinScore: currentMinScore,
+            colors: colors,
+            tagScoreDiffs: tagDiffs,
+            comparison: comp,
+            outliers: outlierList
+        )
+
+        // A4 width in points
+        let renderer = ImageRenderer(content: pdfView.frame(width: 595))
+        renderer.scale = 2.0
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM"
+        let monthLabel = dateFormatter.string(from: month)
+        let timestamp = Int(Date.now.timeIntervalSince1970)
+        let fileName = "nami_report_\(monthLabel)_\(timestamp).pdf"
+        let url = tempDir.appendingPathComponent(fileName)
+
+        // PDF metadata
+        let pdfInfo: [CFString: Any] = [
+            kCGPDFContextTitle: "Nami Monthly Report - \(monthLabel)",
+            kCGPDFContextCreator: "Nami",
+        ]
+
+        renderer.render { size, context in
+            var box = CGRect(origin: .zero, size: size)
+            guard let pdfContext = CGContext(url as CFURL, mediaBox: &box, pdfInfo as CFDictionary) else { return }
+            pdfContext.beginPDFPage(nil)
+            context(pdfContext)
+            pdfContext.endPDFPage()
+            pdfContext.closePDF()
+        }
+
+        // Only show share sheet if the file was actually created
+        if FileManager.default.fileExists(atPath: url.path) {
+            exportedPDFURL = url
+            showPDFShareSheet = true
+        }
+    }
+
     /// Tag correlation display for monthly summary card
     @ViewBuilder
     private func monthlySummaryTagCorrelation(month: Date, colors: ThemeColors) -> some View {
-        let highlights = statsVM.monthlyTagHighlights(entries: entries, currentMax: currentMaxScore, month: month)
+        let highlights = statsVM.monthlyTagHighlights(entries: filteredEntries, currentMax: currentMaxScore, month: month)
         if !highlights.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 4) {
@@ -2606,7 +3216,7 @@ struct StatsView: View {
 
                         Text(String(format: "%.1f", item.averageScore))
                             .font(.system(.caption, design: .rounded, weight: .semibold))
-                            .foregroundStyle(colors.color(for: Int(item.averageScore.rounded()), maxScore: currentMaxScore))
+                            .foregroundStyle(colors.color(for: Int(item.averageScore.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
 
                         Text("(\(item.count)回)")
                             .font(.system(.caption2, design: .rounded))
@@ -2625,7 +3235,7 @@ struct StatsView: View {
         let calendar = Calendar.current
         let monthInterval = calendar.dateInterval(of: .month, for: month)
         let monthEntries = monthInterval.map { interval in
-            entries.filter { $0.createdAt >= interval.start && $0.createdAt < interval.end }
+            filteredEntries.filter { $0.createdAt >= interval.start && $0.createdAt < interval.end }
         } ?? []
         let weatherEntries = monthEntries.filter { $0.weatherCondition != nil }
 
@@ -2680,7 +3290,7 @@ struct StatsView: View {
             HStack(spacing: 4) {
                 Text("\(score)")
                     .font(.system(.title3, design: .rounded, weight: .bold))
-                    .foregroundStyle(colors.color(for: score, maxScore: currentMaxScore))
+                    .foregroundStyle(colors.color(for: score, maxScore: currentMaxScore, minScore: currentMinScore))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(date.formatted(.dateTime.month(.defaultDigits).day(.defaultDigits)))
                         .font(.system(.caption2, design: .rounded))
@@ -2703,7 +3313,7 @@ struct StatsView: View {
 
     @ViewBuilder
     private func tagChainCard(colors: ThemeColors) -> some View {
-        let chains = statsVM.tagChainPatterns(entries: entries, currentMax: currentMaxScore)
+        let chains = statsVM.tagChainPatterns(entries: filteredEntries, currentMax: currentMaxScore)
         if !chains.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 6) {
@@ -2774,7 +3384,7 @@ struct StatsView: View {
 
     @ViewBuilder
     private func tagEchoCard(colors: ThemeColors) -> some View {
-        let echoes = statsVM.tagEchoEffect(entries: entries, currentMax: currentMaxScore)
+        let echoes = statsVM.tagEchoEffect(entries: filteredEntries, currentMax: currentMaxScore)
         // ネガティブ影響（初日が負）の上位3つ
         let negativeEchoes = Array(echoes.filter { ($0.dayEffects.first ?? 0) < -0.3 }.prefix(3))
         if !negativeEchoes.isEmpty {
@@ -2857,7 +3467,7 @@ struct StatsView: View {
 
     @ViewBuilder
     private func divergenceAlertCard(colors _: ThemeColors) -> some View {
-        let divergences = statsVM.actionScoreDivergence(entries: entries, currentMax: currentMaxScore)
+        let divergences = statsVM.actionScoreDivergence(entries: filteredEntries, currentMax: currentMaxScore)
         let negDivergences = Array(divergences.filter { $0.divergence < -1.0 }.prefix(3))
         if !negDivergences.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
@@ -2905,7 +3515,7 @@ struct StatsView: View {
 
     @ViewBuilder
     private func recoveryTriggerCard(colors _: ThemeColors) -> some View {
-        let triggers = statsVM.recoveryTriggers(entries: entries, currentMax: currentMaxScore)
+        let triggers = statsVM.recoveryTriggers(entries: filteredEntries, currentMax: currentMaxScore)
         if !triggers.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 6) {
@@ -2957,7 +3567,7 @@ struct StatsView: View {
 
     @ViewBuilder
     private func synergyCard(colors: ThemeColors) -> some View {
-        let synergies = statsVM.tagSynergyAnalysis(entries: entries, currentMax: currentMaxScore)
+        let synergies = statsVM.tagSynergyAnalysis(entries: filteredEntries, currentMax: currentMaxScore)
         let positive = synergies.filter { $0.synergyDelta > 0 }
         let redZone = synergies.filter { $0.isRedZone }
         if !positive.isEmpty || !redZone.isEmpty {
@@ -3042,149 +3652,12 @@ struct StatsView: View {
         )
     }
 
-    // MARK: - プレミアム購入シート
-
-    /// プレミアム購入シート（StatsViewから呼び出し用）
-    struct PremiumPurchaseSheet: View {
-        let premiumManager: PremiumManager
-        @Environment(\.dismiss) private var dismiss
-
-        var body: some View {
-            NavigationStack {
-                VStack(spacing: 24) {
-                    Spacer()
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.orange)
-
-                    Text("プレミアムで全機能を解放")
-                        .font(.system(.title2, design: .rounded, weight: .bold))
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        premiumFeatureRow(icon: "brain.head.profile", text: "逆インサイト・回復トリガー分析")
-                        premiumFeatureRow(icon: "calendar.badge.clock", text: "月間サマリーレポート")
-                        premiumFeatureRow(icon: "arrow.triangle.branch", text: "タグ連鎖・残響効果分析")
-                        premiumFeatureRow(icon: "arrow.triangle.merge", text: "タグシナジー・レッドゾーン検出")
-                        premiumFeatureRow(icon: "xmark.circle", text: "広告の非表示")
-                    }
-                    .padding()
-
-                    if premiumManager.products.isEmpty {
-                        if premiumManager.productFetchFailed {
-                            Text("商品情報の取得に失敗しました")
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundStyle(.secondary)
-                            Button("再読み込み") {
-                                Task { await premiumManager.fetchProducts() }
-                            }
-                            .font(.system(.caption, design: .rounded))
-                        } else {
-                            ProgressView("読み込み中...")
-                                .font(.system(.caption, design: .rounded))
-                        }
-                    } else {
-                        VStack(spacing: 8) {
-                            if let monthly = premiumManager.product(for: PremiumManager.monthlyProductID) {
-                                sheetPlanButton(product: monthly, title: "月額", subtitle: "\(monthly.displayPrice) / 月", badge: nil)
-                            }
-                            if let yearly = premiumManager.product(for: PremiumManager.yearlyProductID) {
-                                sheetPlanButton(product: yearly, title: "年額", subtitle: "\(yearly.displayPrice) / 年", badge: "お得")
-                            }
-                            if let lifetime = premiumManager.product(for: PremiumManager.lifetimeProductID) {
-                                sheetPlanButton(product: lifetime, title: "買い切り", subtitle: lifetime.displayPrice, badge: "一生涯")
-                            }
-                        }
-                    }
-
-                    Button("復元") {
-                        Task { await premiumManager.restore() }
-                    }
-                    .font(.system(.caption, design: .rounded))
-
-                    if let error = premiumManager.errorMessage {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-
-                    Spacer()
-                }
-                .padding()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("閉じる") { dismiss() }
-                    }
-                }
-            }
-            .onChange(of: premiumManager.isPremium) { _, isPremium in
-                if isPremium { dismiss() }
-            }
-        }
-
-        private func premiumFeatureRow(icon: String, text: String) -> some View {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .frame(width: 24)
-                Text(text)
-                    .font(.system(.subheadline, design: .rounded))
-            }
-        }
-
-        private func sheetPlanButton(product: Product, title: String, subtitle: String, badge: String?) -> some View {
-            Button {
-                Task { await premiumManager.purchase(product) }
-            } label: {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(title)
-                                .font(.system(.body, design: .rounded, weight: .semibold))
-                                .foregroundStyle(.primary)
-                            if let badge {
-                                Text(badge)
-                                    .font(.system(.caption2, design: .rounded, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(.orange))
-                            }
-                        }
-                        Text(subtitle)
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if premiumManager.isPurchasing {
-                        ProgressView()
-                    } else {
-                        Text("購入")
-                            .font(.system(.caption, design: .rounded, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                            .background(Capsule().fill(.orange))
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemGray6))
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(premiumManager.isPurchasing)
-        }
-    }
-
     // MARK: - アクティビティセクション
 
     private func activitySection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("アクティビティ")
+                Text(StatsSectionID.activity.title)
                     .font(.system(.headline, design: .rounded))
                 Spacer()
                 Button {
@@ -3537,6 +4010,508 @@ struct StatsView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.ultraThinMaterial)
         )
+    }
+
+    // MARK: - PRO 今月のまとめレポート
+
+    /// Main entry point for the PRO monthly report card (current month, independent of range picker)
+    @ViewBuilder
+    private func proMonthlyReportCard(colors: ThemeColors) -> some View {
+        let calendar = Calendar.current
+        let now = Date.now
+        if let monthInterval = calendar.dateInterval(of: .month, for: now) {
+            let monthEntries = entries.filter { $0.createdAt >= monthInterval.start && $0.createdAt < monthInterval.end }
+            let count = monthEntries.count
+
+            if count >= 10 {
+                if premiumManager.isPremium {
+                    // Full report
+                    if let summary = statsVM.monthlySummary(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore, month: now) {
+                        VStack(alignment: .leading, spacing: 14) {
+                            proMonthlyReportHeader(colors: colors, isPremium: true) {
+                                showPDFExportDialog = true
+                            }
+                            proMonthlyOverviewGrid(summary: summary, colors: colors)
+                            proMonthlyComparisonSection(colors: colors)
+                            proMonthlyStabilityRow(summary: summary, colors: colors)
+                            monthlyReviewHighlights(summary: summary, colors: colors)
+                            proMonthlyOutliersSection(colors: colors)
+                            proMonthlyTagInsights(monthEntries: monthEntries, colors: colors)
+                        }
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(colors.accent.opacity(0.04))
+                        )
+                        .confirmationDialog("PDFレポートをエクスポート", isPresented: $showPDFExportDialog, titleVisibility: .visible) {
+                            Button("今月のレポート") {
+                                exportMonthlyPDF(month: now, summary: summary, colors: colors)
+                            }
+                            if let prevMonth = calendar.date(byAdding: .month, value: -1, to: now),
+                               prevMonthEntryCount(prevMonth: prevMonth) >= 10
+                            {
+                                Button("先月のレポート") {
+                                    exportPreviousMonthPDF(prevMonth: prevMonth, colors: colors)
+                                }
+                            }
+                            Button("キャンセル", role: .cancel) {}
+                        } message: {
+                            if let prevMonth = calendar.date(byAdding: .month, value: -1, to: now),
+                               prevMonthEntryCount(prevMonth: prevMonth) < 10
+                            {
+                                let prevCount = prevMonthEntryCount(prevMonth: prevMonth)
+                                if prevCount == 0 {
+                                    Text("先月の記録がないため、今月のみ選択できます")
+                                } else {
+                                    Text("先月の記録が\(prevCount)件のため、先月のレポートは生成できません（10件以上必要）")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Locked preview for free users
+                    VStack(alignment: .leading, spacing: 14) {
+                        proMonthlyReportHeader(colors: colors, isPremium: false)
+                        proMonthlyLockedPreview(entryCount: count, colors: colors)
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(colors.accent.opacity(0.04))
+                    )
+                }
+            } else if count > 0 {
+                // Not enough data message
+                VStack(alignment: .leading, spacing: 10) {
+                    proMonthlyReportHeader(colors: colors, isPremium: premiumManager.isPremium)
+                    HStack(spacing: 6) {
+                        Image(systemName: "chart.bar.xaxis.ascending")
+                            .foregroundStyle(.secondary)
+                        Text("今月のデータが少ないため、まとめを表示できません（あと\(10 - count)件）")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(colors.accent.opacity(0.04))
+                )
+            }
+            // count == 0 → hidden
+        }
+    }
+
+    /// Header with icon, title, month label, optional PRO badge, and optional export button
+    private func proMonthlyReportHeader(colors: ThemeColors, isPremium: Bool, onExport: (() -> Void)? = nil) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "chart.bar.doc.horizontal")
+                .foregroundStyle(isPremium ? colors.accent : .purple)
+            Text(ReportFormat.titleMonthSummary)
+                .font(.system(.headline, design: .rounded))
+            Text(Date.now.formatted(.dateTime.year().month(.defaultDigits)) + "月")
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+            Spacer()
+            if isPremium, let export = onExport {
+                Button {
+                    export()
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(colors.accent)
+                }
+                .buttonStyle(.plain)
+            }
+            if !isPremium {
+                Text("PRO")
+                    .font(.system(.caption2, design: .rounded, weight: .bold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(.purple))
+                    .foregroundStyle(.white)
+            }
+        }
+    }
+
+    /// 2×2 overview grid: average, entry count, active days, best weekday
+    private func proMonthlyOverviewGrid(summary: MonthlySummary, colors: ThemeColors) -> some View {
+        let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+
+        // Previous month comparison
+        let prevDiff: Double? = summary.previousMonthAverage.map { summary.average - $0 }
+
+        return LazyVGrid(columns: columns, spacing: 10) {
+            proMetricCell(
+                label: "平均スコア",
+                value: ReportFormat.score(summary.average),
+                valueColor: colors.color(for: Int(summary.average.rounded()), maxScore: currentMaxScore, minScore: currentMinScore),
+                subValue: prevDiff.map { ReportFormat.prevMonthDiff($0) },
+                subColor: prevDiff.map { $0 >= 0 ? .green : .orange },
+                colors: colors
+            )
+            proMetricCell(
+                label: "記録回数",
+                value: "\(summary.entryCount)回",
+                valueColor: colors.accent,
+                colors: colors
+            )
+            proMetricCell(
+                label: "記録日数",
+                value: "\(summary.activeDays)日",
+                valueColor: colors.accent,
+                colors: colors
+            )
+            proMetricCell(
+                label: "好調な曜日",
+                value: summary.weekdayBest,
+                valueColor: .green,
+                colors: colors
+            )
+        }
+    }
+
+    /// Single metric cell for the overview grid
+    private func proMetricCell(
+        label: String, value: String, valueColor: Color,
+        subValue: String? = nil, subColor: Color? = nil,
+        colors: ThemeColors
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(.title3, design: .rounded, weight: .bold))
+                .foregroundStyle(valueColor)
+            if let sub = subValue {
+                Text(sub)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(subColor ?? .secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(colors.accent.opacity(0.06)))
+    }
+
+    // MARK: - Phase 2: 先月比較セクション
+
+    /// Month-over-month comparison rows
+    @ViewBuilder
+    private func proMonthlyComparisonSection(colors: ThemeColors) -> some View {
+        if let comparison = statsVM.monthlyComparison(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore) {
+            if comparison.previousAverage != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.caption2)
+                            .foregroundStyle(colors.accent)
+                        Text(ReportFormat.titleComparison)
+                            .font(.system(.caption2, design: .rounded, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    proComparisonRow(
+                        label: "平均スコア",
+                        current: ReportFormat.score(comparison.currentAverage),
+                        diff: comparison.averageDiff.map { (value: ReportFormat.signedDiff($0), isPositive: $0 >= 0) }
+                    )
+                    proComparisonRow(
+                        label: "記録回数",
+                        current: "\(comparison.currentEntryCount)回",
+                        diff: comparison.entryCountDiff.map { (value: ReportFormat.signedInt($0), isPositive: $0 >= 0) }
+                    )
+                    proComparisonRow(
+                        label: "記録日数",
+                        current: "\(comparison.currentActiveDays)日",
+                        diff: comparison.activeDaysDiff.map { (value: ReportFormat.signedInt($0), isPositive: $0 >= 0) }
+                    )
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 10).fill(colors.accent.opacity(0.04)))
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("先月のデータがありません")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    /// Single comparison row: label | current value | diff badge
+    private func proComparisonRow(label: String, current: String, diff: (value: String, isPositive: Bool)?) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+                .frame(width: 70, alignment: .leading)
+            Text(current)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+            Spacer()
+            if let d = diff {
+                let color: Color = d.value == "+0" || d.value == "+0.0" ? .secondary : (d.isPositive ? .green : .orange)
+                Text(d.value)
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+        }
+    }
+
+    // MARK: - Phase 2: 外れ値ハイライト
+
+    /// Outlier days section (±1.5σ)
+    @ViewBuilder
+    private func proMonthlyOutliersSection(colors: ThemeColors) -> some View {
+        let outliers = statsVM.monthlyOutliers(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        if !outliers.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.circle")
+                        .font(.caption2)
+                        .foregroundStyle(.indigo)
+                    Text(ReportFormat.titleSpecialDays)
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(outliers, id: \.date) { outlier in
+                    proOutlierRow(outlier: outlier, colors: colors)
+                }
+            }
+        }
+    }
+
+    /// Single outlier row: date + score + diff + tags + entry count
+    private func proOutlierRow(outlier: StatsViewModel.MonthlyOutlier, colors: ThemeColors) -> some View {
+        let isHigh = outlier.diffFromMean > 0
+        let iconColor: Color = isHigh ? .green : .orange
+        let diffText = ReportFormat.meanDiff(outlier.diffFromMean)
+
+        return HStack(spacing: 8) {
+            Image(systemName: isHigh ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                .foregroundStyle(iconColor)
+                .font(.caption)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(outlier.date.formatted(.dateTime.month(.defaultDigits).day(.defaultDigits)))
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
+                    Text(ReportFormat.score(outlier.dayAverage))
+                        .font(.system(.caption, design: .rounded, weight: .bold))
+                        .foregroundStyle(colors.color(for: Int(outlier.dayAverage.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
+                    Text(diffText)
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(iconColor.opacity(0.8))
+                    if outlier.entryCountThatDay > 1 {
+                        Text(ReportFormat.entryCount(outlier.entryCountThatDay))
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
+                if !outlier.topTags.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(outlier.topTags, id: \.self) { tag in
+                            Text(tag)
+                                .font(.system(.caption2, design: .rounded))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(colors.accent.opacity(0.1)))
+                                .foregroundStyle(colors.accent)
+                        }
+                    }
+                }
+            }
+            Spacer()
+        }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 8).fill(iconColor.opacity(0.04)))
+    }
+
+    /// Stability indicator based on volatility
+    private func proMonthlyStabilityRow(summary: MonthlySummary, colors _: ThemeColors) -> some View {
+        let v = summary.volatility
+        let label: String
+        let icon: String
+        let color: Color
+        if v < 1.5 {
+            label = "安定"; icon = "checkmark.seal.fill"; color = .green
+        } else if v < 2.5 {
+            label = "やや波あり"; icon = "wave.3.right"; color = .orange
+        } else {
+            label = "波が大きい"; icon = "waveform.path.ecg"; color = .red
+        }
+        return HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+            Text(ReportFormat.titleStability)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+            Text(label)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(color)
+            Spacer()
+            Text(ReportFormat.score(v))
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10).fill(color.opacity(0.06)))
+    }
+
+    /// Tag insights: frequent tags + score-up/down tags
+    @ViewBuilder
+    private func proMonthlyTagInsights(monthEntries: [MoodEntry], colors: ThemeColors) -> some View {
+        let taggedEntries = monthEntries.filter { !$0.tags.isEmpty }
+        if taggedEntries.count >= 3 {
+            let freqTags = statsVM.tagFrequency(entries: monthEntries).prefix(3)
+            let diffs = statsVM.tagScoreDifferences(
+                entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore,
+                month: .now, minSamples: 3, topN: 3
+            )
+            let hasPositive = !diffs.positive.isEmpty
+            let hasNegative = !diffs.negative.isEmpty
+
+            VStack(alignment: .leading, spacing: 10) {
+                // Frequent tags
+                if !freqTags.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(ReportFormat.titleFrequentTags)
+                            .font(.system(.caption2, design: .rounded, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 6) {
+                            ForEach(Array(freqTags), id: \.tag) { item in
+                                HStack(spacing: 3) {
+                                    Text(item.tag)
+                                        .font(.system(.caption, design: .rounded))
+                                    Text("\(item.count)")
+                                        .font(.system(.caption2, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(colors.accent.opacity(0.1)))
+                                .foregroundStyle(colors.accent)
+                            }
+                        }
+                    }
+                }
+
+                // Score diffs
+                if hasPositive || hasNegative {
+                    if hasPositive {
+                        proTagDiffList(
+                            title: ReportFormat.titleTagUp,
+                            icon: "arrow.up.right",
+                            items: diffs.positive,
+                            diffColor: .green
+                        )
+                    }
+                    if hasNegative {
+                        proTagDiffList(
+                            title: ReportFormat.titleTagDown,
+                            icon: "arrow.down.right",
+                            items: diffs.negative,
+                            diffColor: .orange
+                        )
+                    }
+                } else if taggedEntries.count >= 3 {
+                    Text("タグごとのスコア差が小さいため、傾向は見られません")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    /// Helper list for tag score differences (positive or negative)
+    private func proTagDiffList(title: String, icon: String, items: [StatsViewModel.TagScoreDiff], diffColor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundStyle(diffColor)
+                Text(title)
+                    .font(.system(.caption2, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(items, id: \.tag) { item in
+                HStack(spacing: 8) {
+                    Text(item.tag)
+                        .font(.system(.caption, design: .rounded))
+                    Text(ReportFormat.signedDiff(item.diff))
+                        .font(.system(.caption, design: .rounded, weight: .semibold))
+                        .foregroundStyle(diffColor)
+                    Text(ReportFormat.sampleCount(item.count))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    /// Locked preview for free users showing blurred metrics and PRO CTA
+    private func proMonthlyLockedPreview(entryCount: Int, colors: ThemeColors) -> some View {
+        VStack(spacing: 12) {
+            // Blurred teaser metrics
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("平均スコア")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text("?.?")
+                        .font(.system(.title3, design: .rounded, weight: .bold))
+                        .foregroundStyle(.primary)
+                        .blur(radius: 2)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("記録回数")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text("\(entryCount)回")
+                        .font(.system(.title3, design: .rounded, weight: .bold))
+                        .foregroundStyle(colors.accent)
+                }
+                Spacer()
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 10).fill(colors.accent.opacity(0.06)))
+
+            // PRO upgrade button
+            Button {
+                showPremiumSheet = true
+                HapticManager.lightFeedback()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "crown.fill")
+                    Text("PROの機能を詳しく見る")
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(
+                            LinearGradient(
+                                colors: [.purple, .pink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                )
+            }
+            .buttonStyle(.plain)
+
+            Text("月額・年額・買い切りから選べます")
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(.tertiary)
+        }
     }
 }
 

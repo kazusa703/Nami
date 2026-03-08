@@ -50,6 +50,7 @@ struct SettingsView: View {
     @AppStorage("healthKitEnabled") private var healthKitEnabled = false
     /// HealthKit権限拒否アラート
     @State private var showHealthKitDeniedAlert = false
+    @State private var premiumBenefitsExpanded = false
     @Environment(\.healthKitManager) private var healthKitManager
 
     /// CSVエクスポートのシェアシート
@@ -63,6 +64,8 @@ struct SettingsView: View {
     @State private var showPermissionDeniedAlert = false
     /// 購入成功アラート
     @State private var showPurchaseSuccessAlert = false
+    /// ペイウォールシート
+    @State private var showPaywall = false
 
     var body: some View {
         let colors = themeManager.colors
@@ -73,6 +76,9 @@ struct SettingsView: View {
                     .ignoresSafeArea()
 
                 List {
+                    // プレミアムセクション（一番上）
+                    premiumSection(colors: colors)
+
                     // テーマ選択セクション
                     themeSection(colors: colors)
 
@@ -99,9 +105,6 @@ struct SettingsView: View {
 
                     // iCloud同期セクション
                     iCloudSection(colors: colors)
-
-                    // プレミアム（広告除去）セクション
-                    premiumSection(colors: colors)
 
                     // アプリ情報セクション
                     aboutSection(colors: colors)
@@ -389,7 +392,7 @@ struct SettingsView: View {
             NavigationLink {
                 TagManagementView()
             } label: {
-                Label("感情タグを管理", systemImage: "tag.fill")
+                Label("タグを管理", systemImage: "tag.fill")
                     .font(.system(.body, design: .rounded))
             }
         } header: {
@@ -770,41 +773,147 @@ struct SettingsView: View {
     private func premiumSection(colors: ThemeColors) -> some View {
         Section {
             if premiumManager.isPremium {
-                // 購入済み表示
                 premiumActiveView(colors: colors)
             } else {
-                // プレミアム特典一覧
-                premiumBenefitsList(colors: colors)
-
-                // 3プラン購入カード（またはローディング）
-                if premiumManager.products.isEmpty && !premiumManager.productFetchFailed {
-                    HStack {
-                        Spacer()
-                        ProgressView("商品情報を読み込み中...")
-                            .font(.system(.caption, design: .rounded))
-                        Spacer()
-                    }
-                    .padding(.vertical, 8)
-                } else {
-                    premiumPlanCards(colors: colors)
-                }
-
-                // 復元ボタン
+                // Premium upsell card — gradient background, visually distinct from other sections
                 Button {
-                    Task { await premiumManager.restore() }
+                    showPaywall = true
                 } label: {
-                    HStack {
-                        Label("購入を復元", systemImage: "arrow.clockwise")
-                            .font(.system(.body, design: .rounded))
-                        Spacer()
-                        if premiumManager.isRestoring {
-                            ProgressView()
-                        }
-                    }
-                }
-                .disabled(premiumManager.isRestoring || premiumManager.isPurchasing)
+                    VStack(spacing: 16) {
+                        // Top: icon + title + tagline
+                        HStack(spacing: 12) {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 22))
+                                .foregroundStyle(.white)
+                                .frame(width: 40, height: 40)
+                                .background(
+                                    Circle()
+                                        .fill(.white.opacity(0.2))
+                                )
 
-                // 商品取得失敗時のリトライ
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Nami PRO")
+                                    .font(.system(.title3, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.white)
+                                Text("波をもっと深く読む")
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+
+                        // Benefit chips — compact 2x2 grid
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 8),
+                            GridItem(.flexible(), spacing: 8),
+                        ], spacing: 8) {
+                            premiumChip(icon: "eye.slash", text: "広告なし")
+                            premiumChip(icon: "chart.bar.xaxis", text: "高度な統計")
+                            premiumChip(icon: "tag", text: "タグ無制限")
+                            premiumChip(icon: "cloud.sun", text: "天気連携")
+                        }
+
+                        // Benefits disclosure
+                        Button {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                premiumBenefitsExpanded.toggle()
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .rotationEffect(.degrees(premiumBenefitsExpanded ? 90 : 0))
+                                Text("PROでできること")
+                                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                                Spacer()
+                            }
+                            .foregroundStyle(.white.opacity(0.8))
+                        }
+
+                        if premiumBenefitsExpanded {
+                            VStack(alignment: .leading, spacing: 10) {
+                                premiumBenefitDetail(
+                                    icon: "eye.slash",
+                                    text: "バナー・全画面広告が消え、記録だけに集中できる"
+                                )
+                                premiumBenefitDetail(
+                                    icon: "tag",
+                                    text: "タグを20個以上、無制限に作成。自分だけの感情を細かく分類"
+                                )
+                                premiumBenefitDetail(
+                                    icon: "cloud.sun",
+                                    text: "天気・気温・気圧を自動記録し、体調との相関を発見"
+                                )
+                                premiumBenefitDetail(
+                                    icon: "chart.bar.xaxis",
+                                    text: "どのタグが気分にどれだけ影響しているか数値で確認"
+                                )
+                                premiumBenefitDetail(
+                                    icon: "arrow.triangle.branch",
+                                    text: "タグの組み合わせ効果や連鎖パターンを可視化"
+                                )
+                                premiumBenefitDetail(
+                                    icon: "arrow.uturn.up",
+                                    text: "気分が落ちた後、何がきっかけで回復したか特定"
+                                )
+                                premiumBenefitDetail(
+                                    icon: "doc.text",
+                                    text: "月間レポートで1ヶ月の気分の波を振り返り"
+                                )
+                                premiumBenefitDetail(
+                                    icon: "exclamationmark.triangle",
+                                    text: "行動と気分のズレを検知し、無理をしていないかチェック"
+                                )
+                            }
+                            .padding(.vertical, 4)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+
+                        // CTA
+                        Text("すべての機能を解放")
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            .foregroundStyle(colors.accent)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.white)
+                            )
+                            .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                LinearGradient(
+                                    colors: [colors.accent, colors.accent.opacity(0.7)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 4, trailing: 16))
+                .listRowBackground(Color.clear)
+
+                // Error message
+                if let error = premiumManager.errorMessage {
+                    Text(error)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.red)
+                        .task {
+                            try? await Task.sleep(for: .seconds(5))
+                            premiumManager.errorMessage = nil
+                        }
+                }
+
+                // Product fetch retry
                 if premiumManager.productFetchFailed {
                     Button {
                         Task { await premiumManager.fetchProducts() }
@@ -814,27 +923,42 @@ struct SettingsView: View {
                             .foregroundStyle(.orange)
                     }
                 }
-            }
 
-            // エラー表示（5秒後に自動消去）
-            if let error = premiumManager.errorMessage {
-                Text(error)
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(.red)
-                    .task {
-                        try? await Task.sleep(for: .seconds(5))
-                        premiumManager.errorMessage = nil
+                // Restore — unobtrusive text link
+                Button {
+                    Task { await premiumManager.restore() }
+                } label: {
+                    HStack(spacing: 4) {
+                        if premiumManager.isRestoring {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                        }
+                        Text("購入を復元")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .disabled(premiumManager.isRestoring || premiumManager.isPurchasing)
+                .listRowBackground(Color.clear)
             }
         } header: {
-            Text("プレミアム")
+            if !premiumManager.isPremium {
+                // No header for free users — the gradient card speaks for itself
+            } else {
+                Text("プレミアム")
+            }
         } footer: {
             if !premiumManager.isPremium {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("サブスクリプションはApple IDに紐付けられ、いつでもキャンセルできます。買い切りプランは一度の購入で永久に利用できます。")
+                VStack(alignment: .center, spacing: 4) {
                     Text("[利用規約](https://kazusa703.github.io/nami-support/ja/terms.html) ・ [プライバシーポリシー](https://kazusa703.github.io/nami-support/ja/privacy.html)")
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
             }
+        }
+        .sheet(isPresented: $showPaywall) {
+            PremiumPaywallView()
         }
         .alert("購入完了", isPresented: $showPurchaseSuccessAlert) {
             Button("OK", role: .cancel) {}
@@ -849,17 +973,61 @@ struct SettingsView: View {
         }
     }
 
-    /// プレミアム有効時の表示
+    /// Compact benefit chip for premium card
+    private func premiumChip(icon: String, text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .medium))
+            Text(text)
+                .font(.system(.caption2, design: .rounded, weight: .medium))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.white.opacity(0.15))
+        )
+    }
+
+    private func premiumBenefitDetail(icon: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white.opacity(0.7))
+                .frame(width: 20)
+            Text(text)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.white.opacity(0.9))
+        }
+    }
+
+    /// プレミアム有効時の表示 — status card with clean design
     @ViewBuilder
     private func premiumActiveView(colors: ThemeColors) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.title2)
-                    .foregroundStyle(colors.accent)
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        Circle()
+                            .fill(colors.accent.gradient)
+                    )
+
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("プレミアム")
-                        .font(.system(.body, design: .rounded, weight: .semibold))
+                    HStack(spacing: 6) {
+                        Text("Nami PRO")
+                            .font(.system(.body, design: .rounded, weight: .bold))
+                        Text("有効")
+                            .font(.system(.caption2, design: .rounded, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(.green))
+                    }
 
                     if let planType = premiumManager.currentPlanType {
                         switch planType {
@@ -888,16 +1056,14 @@ struct SettingsView: View {
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(.secondary)
                         }
-                    } else {
-                        Text("有効")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
                     }
                 }
+
+                Spacer()
             }
         }
 
-        // サブスクリプションを管理リンク（買い切り以外）
+        // Subscription management link (not for lifetime)
         if premiumManager.currentPlanType != .lifetime {
             Button {
                 if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
@@ -914,118 +1080,6 @@ struct SettingsView: View {
                 }
             }
         }
-    }
-
-    /// プレミアム特典一覧
-    private func premiumBenefitsList(colors: ThemeColors) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("プレミアム特典")
-                .font(.system(.subheadline, design: .rounded, weight: .semibold))
-
-            benefitRow(icon: "xmark.rectangle", text: "広告を完全に非表示", colors: colors)
-            benefitRow(icon: "tag.fill", text: "カスタムタグ無制限", colors: colors)
-            benefitRow(icon: "chart.bar.xaxis", text: "高度な統計を解放", colors: colors)
-        }
-        .padding(.vertical, 4)
-    }
-
-    /// 特典行
-    private func benefitRow(icon: String, text: String, colors: ThemeColors) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(colors.accent)
-                .frame(width: 22)
-            Text(text)
-                .font(.system(.caption, design: .rounded))
-        }
-    }
-
-    /// 3プラン購入カード
-    private func premiumPlanCards(colors: ThemeColors) -> some View {
-        VStack(spacing: 10) {
-            // 月額
-            if let monthly = premiumManager.product(for: PremiumManager.monthlyProductID) {
-                planCard(
-                    product: monthly,
-                    title: "月額",
-                    badge: nil,
-                    colors: colors
-                )
-            }
-
-            // 年額
-            if let yearly = premiumManager.product(for: PremiumManager.yearlyProductID) {
-                planCard(
-                    product: yearly,
-                    title: "年額",
-                    badge: "お得",
-                    colors: colors
-                )
-            }
-
-            // 買い切り
-            if let lifetime = premiumManager.product(for: PremiumManager.lifetimeProductID) {
-                planCard(
-                    product: lifetime,
-                    title: "買い切り",
-                    badge: "一生涯",
-                    colors: colors
-                )
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    /// 個別プランカード
-    private func planCard(product: Product, title: String, badge: String?, colors: ThemeColors) -> some View {
-        Button {
-            Task { await premiumManager.purchase(product) }
-        } label: {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(title)
-                            .font(.system(.body, design: .rounded, weight: .semibold))
-                            .foregroundStyle(.primary)
-
-                        if let badge {
-                            Text(badge)
-                                .font(.system(.caption2, design: .rounded, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(colors.accent))
-                        }
-                    }
-
-                    Text(product.displayPrice + (product.type == .autoRenewable ? " / \(title == "月額" ? "月" : "年")" : ""))
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                if premiumManager.isPurchasing {
-                    ProgressView()
-                } else {
-                    Text("購入")
-                        .font(.system(.caption, design: .rounded, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(colors.accent))
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
-            )
-        }
-        .buttonStyle(.plain)
-        .disabled(premiumManager.isPurchasing)
     }
 
     // MARK: - アプリ情報セクション

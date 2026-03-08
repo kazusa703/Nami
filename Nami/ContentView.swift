@@ -5,14 +5,17 @@
 //  TabViewによるメインナビゲーション
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// メインコンテンツビュー
-/// TabViewで4つの画面を切り替える
+/// TabViewで画面を切り替える
 struct ContentView: View {
     @Environment(\.themeManager) private var themeManager
+    @Environment(\.premiumManager) private var premiumManager
     @State private var selectedTab = 0
+    /// PRO tab: show paywall sheet when user taps PRO tab while already premium
+    @State private var showPaywall = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -37,12 +40,19 @@ struct ContentView: View {
                 }
                 .tag(2)
 
+            // PROタブ
+            PremiumPaywallView(isInline: true)
+                .tabItem {
+                    Label("PRO", systemImage: "crown.fill")
+                }
+                .tag(3)
+
             // 設定タブ
             SettingsView()
                 .tabItem {
                     Label("設定", systemImage: "gearshape")
                 }
-                .tag(3)
+                .tag(4)
         }
         .tint(themeManager.colors.accent)
         .onOpenURL { url in
@@ -52,7 +62,8 @@ struct ContentView: View {
                 case "record": selectedTab = 0
                 case "graph": selectedTab = 1
                 case "stats": selectedTab = 2
-                case "settings": selectedTab = 3
+                case "pro": selectedTab = 3
+                case "settings": selectedTab = 4
                 default: break
                 }
             }

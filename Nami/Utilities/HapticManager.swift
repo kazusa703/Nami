@@ -34,4 +34,11 @@ enum HapticManager {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
     }
+
+    /// エラー時のフィードバック
+    static func errorFeedback() {
+        guard isEnabled else { return }
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.error)
+    }
 }

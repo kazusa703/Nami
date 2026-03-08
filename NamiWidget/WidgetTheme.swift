@@ -107,8 +107,8 @@ enum WidgetTheme: String, CaseIterable {
 
     /// スコアに基づいた色を返す（低→高で色が濃くなる）
     /// RGB成分を直接補間して正確なブレンドを実現
-    func colorForScore(_ score: Int, maxScore: Int) -> Color {
-        let fraction = Double(score - 1) / Double(max(maxScore - 1, 1))
+    func colorForScore(_ score: Int, maxScore: Int, minScore: Int = 1) -> Color {
+        let fraction = Double(score - minScore) / Double(max(maxScore - minScore, 1))
         let clamped = min(max(fraction, 0), 1)
 
         let (fromRGB, toRGB): (RGB, RGB)

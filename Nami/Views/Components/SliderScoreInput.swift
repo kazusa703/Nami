@@ -11,6 +11,7 @@ import SwiftUI
 /// 大きな数字表示 + スライダー + 記録ボタン
 struct SliderScoreInput: View {
     let maxScore: Int
+    let minScore: Int
     let themeColors: ThemeColors
     let onScore: (Int) -> Void
 
@@ -26,7 +27,7 @@ struct SliderScoreInput: View {
             // スコア数字表示
             Text("\(currentScore)")
                 .font(.system(size: 72, weight: .bold, design: .rounded))
-                .foregroundStyle(themeColors.color(for: currentScore, maxScore: maxScore))
+                .foregroundStyle(themeColors.color(for: currentScore, maxScore: maxScore, minScore: minScore))
                 .contentTransition(.numericText(value: Double(currentScore)))
                 .animation(.snappy(duration: 0.15), value: currentScore)
 
@@ -34,14 +35,14 @@ struct SliderScoreInput: View {
             VStack(spacing: 8) {
                 Slider(
                     value: $sliderValue,
-                    in: 1...Double(maxScore),
+                    in: Double(minScore) ... Double(maxScore),
                     step: 1
                 )
-                .tint(themeColors.color(for: currentScore, maxScore: maxScore))
+                .tint(themeColors.color(for: currentScore, maxScore: maxScore, minScore: minScore))
 
                 // 範囲ラベル
                 HStack {
-                    Text("1")
+                    Text("\(minScore)")
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -70,13 +71,13 @@ struct SliderScoreInput: View {
         }
         .onAppear {
             // 初期値を中間に設定
-            sliderValue = Double(maxScore) / 2.0
+            sliderValue = Double(minScore + maxScore) / 2.0
         }
     }
 }
 
 #Preview {
-    SliderScoreInput(maxScore: 100, themeColors: .ocean) { score in
+    SliderScoreInput(maxScore: 100, minScore: 1, themeColors: .ocean) { score in
         print("Score: \(score)")
     }
     .padding()

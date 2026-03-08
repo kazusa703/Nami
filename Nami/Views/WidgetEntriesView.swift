@@ -6,8 +6,8 @@
 //  ウィジェットから記録されたエントリの一覧・編集・削除を提供する
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// ウィジェット記録管理画面のフィルター
 enum WidgetEntryFilter: String, CaseIterable {
@@ -79,10 +79,11 @@ struct WidgetEntriesView: View {
         }
         .navigationTitle("ウィジェット記録")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $editingEntry) { entry in
+        .fullScreenCover(item: $editingEntry) { entry in
             RecordingSheet(
                 score: entry.score,
                 maxScore: entry.maxScore,
+                minScore: entry.minScore,
                 themeColors: themeManager.colors,
                 isEditing: true,
                 initialMemo: entry.memo ?? "",
@@ -110,7 +111,6 @@ struct WidgetEntriesView: View {
 
     // MARK: - エントリ行
 
-    @ViewBuilder
     private func entryRow(entry: MoodEntry, colors: ThemeColors) -> some View {
         HStack(spacing: 12) {
             // スコア表示
@@ -148,7 +148,7 @@ struct WidgetEntriesView: View {
             if entry.needsEnrichment {
                 Image(systemName: "pencil.circle")
                     .font(.system(.body))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(colors.accent)
             } else {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(.body))
@@ -165,7 +165,6 @@ struct WidgetEntriesView: View {
 
     // MARK: - 空状態
 
-    @ViewBuilder
     private func emptyState(colors: ThemeColors) -> some View {
         VStack(spacing: 16) {
             Spacer()
@@ -178,7 +177,7 @@ struct WidgetEntriesView: View {
                 .font(.system(.body, design: .rounded))
                 .foregroundStyle(.secondary)
 
-            if filter == .all {
+            if widgetEntries.isEmpty {
                 Text("ホーム画面のウィジェットからスコアボタンをタップして記録できます")
                     .font(.system(.caption, design: .rounded))
                     .foregroundStyle(.tertiary)
@@ -197,10 +196,10 @@ struct WidgetEntriesView: View {
             let entry = filteredEntries[index]
             // 写真・ボイスメモファイルを削除
             if let photoPath = entry.photoPath {
-                try? FileManager.default.removeItem(atPath: photoPath)
+                MediaManager.deleteMedia(at: photoPath)
             }
             if let voicePath = entry.voiceMemoPath {
-                try? FileManager.default.removeItem(atPath: voicePath)
+                MediaManager.deleteMedia(at: voicePath)
             }
             modelContext.delete(entry)
         }
@@ -212,6 +211,6 @@ struct WidgetEntriesView: View {
     NavigationStack {
         WidgetEntriesView()
     }
-    .modelContainer(for: [MoodEntry.self, EmotionTag.self], inMemory: true)
+    .modelContainer(for: [MoodEntry.self, EmotionTag.self, TagCategory.self], inMemory: true)
     .environment(\.themeManager, ThemeManager())
 }

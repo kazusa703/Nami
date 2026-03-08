@@ -18,11 +18,13 @@ enum DefaultTags {
     static func seedIfNeeded(context: ModelContext) {
         guard !UserDefaults.standard.bool(forKey: seededKey) else { return }
 
+        // Set flag immediately to prevent re-entry from concurrent calls
+        UserDefaults.standard.set(true, forKey: seededKey)
+
         // CloudKit経由でタグが既に同期されている場合はスキップ
         let descriptor = FetchDescriptor<EmotionTag>()
         let existingCount = (try? context.fetchCount(descriptor)) ?? 0
         if existingCount > 0 {
-            UserDefaults.standard.set(true, forKey: seededKey)
             return
         }
 
@@ -57,7 +59,27 @@ enum DefaultTags {
             )
             context.insert(tag)
         }
+    }
 
-        UserDefaults.standard.set(true, forKey: seededKey)
+    /// Remove duplicate tags (caused by CloudKit sync), keeping one per name
+    @MainActor
+    static func deduplicateIfNeeded(context: ModelContext) {
+        let descriptor = FetchDescriptor<EmotionTag>(sortBy: [SortDescriptor(\.sortOrder)])
+        guard let allTags = try? context.fetch(descriptor), allTags.count > 1 else { return }
+
+        // Sort: default tags first, then by sortOrder (keeps defaults when deduplicating)
+        let sorted = allTags.sorted {
+            if $0.isDefault != $1.isDefault { return $0.isDefault }
+            return $0.sortOrder < $1.sortOrder
+        }
+
+        var seen = Set<String>()
+        for tag in sorted {
+            if seen.contains(tag.name) {
+                context.delete(tag)
+            } else {
+                seen.insert(tag.name)
+            }
+        }
     }
 }

@@ -5,9 +5,9 @@
 //  ウィジェットのTimelineProvider & Widget定義
 //
 
-import WidgetKit
-import SwiftUI
 import SwiftData
+import SwiftUI
+import WidgetKit
 
 // MARK: - ウィジェットデータ
 
@@ -34,6 +34,8 @@ struct MoodWidgetEntry: TimelineEntry {
     let theme: WidgetTheme
     /// スコアレンジ上限
     let maxScore: Int
+    /// スコアレンジ下限
+    let minScore: Int
 }
 
 /// 日別気分データ
@@ -47,7 +49,7 @@ struct DailyMood {
 
 struct NamiTimelineProvider: TimelineProvider {
     /// プレースホルダー表示用
-    func placeholder(in context: Context) -> MoodWidgetEntry {
+    func placeholder(in _: Context) -> MoodWidgetEntry {
         MoodWidgetEntry(
             date: .now,
             dailyData: Self.sampleDaily(),
@@ -59,7 +61,8 @@ struct NamiTimelineProvider: TimelineProvider {
             currentStreak: 5,
             todayCount: 2,
             theme: .ocean,
-            maxScore: 10
+            maxScore: 10,
+            minScore: 1
         )
     }
 
@@ -73,7 +76,7 @@ struct NamiTimelineProvider: TimelineProvider {
     }
 
     /// タイムライン生成（定期更新）
-    func getTimeline(in context: Context, completion: @escaping (Timeline<MoodWidgetEntry>) -> Void) {
+    func getTimeline(in _: Context, completion: @escaping (Timeline<MoodWidgetEntry>) -> Void) {
         let entry = fetchEntry()
         // 30分後に次の更新
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now
@@ -89,9 +92,10 @@ struct NamiTimelineProvider: TimelineProvider {
             let stored = WidgetConstants.sharedUserDefaults.integer(forKey: WidgetConstants.scoreRangeMaxKey)
             return stored > 0 ? stored : 10
         }()
+        let minScore = WidgetConstants.sharedUserDefaults.object(forKey: WidgetConstants.scoreRangeMinKey) as? Int ?? 1
 
         guard let container = makeSharedModelContainer() else {
-            return emptyEntry(theme: theme, maxScore: maxScore)
+            return emptyEntry(theme: theme, maxScore: maxScore, minScore: minScore)
         }
 
         let context = ModelContext(container)
@@ -156,14 +160,15 @@ struct NamiTimelineProvider: TimelineProvider {
             currentStreak: currentStreak,
             todayCount: todayCount,
             theme: theme,
-            maxScore: maxScore
+            maxScore: maxScore,
+            minScore: minScore
         )
     }
 
     /// 直近7日の日別データを構築
     private func buildDailyData(entries: [MoodEntry], calendar: Calendar) -> [DailyMood] {
         var result: [DailyMood] = []
-        for dayOffset in (0..<7).reversed() {
+        for dayOffset in (0 ..< 7).reversed() {
             guard let targetDate = calendar.date(byAdding: .day, value: -dayOffset, to: .now) else { continue }
             let dayStart = calendar.startOfDay(for: targetDate)
             let dayEntries = entries.filter { calendar.isDate($0.createdAt, inSameDayAs: dayStart) }
@@ -207,7 +212,7 @@ struct NamiTimelineProvider: TimelineProvider {
     }
 
     /// 空のエントリ
-    private func emptyEntry(theme: WidgetTheme, maxScore: Int) -> MoodWidgetEntry {
+    private func emptyEntry(theme: WidgetTheme, maxScore: Int, minScore: Int = 1) -> MoodWidgetEntry {
         MoodWidgetEntry(
             date: .now,
             dailyData: [],
@@ -219,7 +224,8 @@ struct NamiTimelineProvider: TimelineProvider {
             currentStreak: 0,
             todayCount: 0,
             theme: theme,
-            maxScore: maxScore
+            maxScore: maxScore,
+            minScore: minScore
         )
     }
 
@@ -227,7 +233,7 @@ struct NamiTimelineProvider: TimelineProvider {
     static func sampleDaily() -> [DailyMood] {
         let calendar = Calendar.current
         let scores: [Double] = [5, 6, 4, 7, 8, 6, 7]
-        return (0..<7).map { i in
+        return (0 ..< 7).map { i in
             let date = calendar.date(byAdding: .day, value: -(6 - i), to: .now) ?? .now
             return DailyMood(date: calendar.startOfDay(for: date), averageScore: scores[i], entryCount: i % 2 == 0 ? 2 : 1)
         }

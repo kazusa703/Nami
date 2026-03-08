@@ -14,7 +14,9 @@ enum AppTheme: String, CaseIterable, Identifiable {
     case monoGold = "Mono Gold"
     case forest = "Forest"
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// テーマの表示名
     var displayName: String {
@@ -81,10 +83,10 @@ struct ThemeColors {
         )
     }
 
-    /// スコアに応じた色を返す（1=低スコア色、maxScore=高スコア色のグラデーション）
-    func color(for score: Int, maxScore: Int = 10) -> Color {
-        let divisor = Double(max(maxScore - 1, 1))
-        let ratio = Double(score - 1) / divisor
+    /// スコアに応じた色を返す（minScore=低スコア色、maxScore=高スコア色のグラデーション）
+    func color(for score: Int, maxScore: Int = 10, minScore: Int = 1) -> Color {
+        let divisor = Double(max(maxScore - minScore, 1))
+        let ratio = min(max(Double(score - minScore) / divisor, 0), 1)
         // 低→高のグラデーション補間
         return Color(
             red: lowScoreColor.components.red * (1 - ratio) + highScoreColor.components.red * ratio,

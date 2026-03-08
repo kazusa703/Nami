@@ -6,23 +6,24 @@
 //  特定タグがある日 vs ない日のスコアを比較する
 //
 
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 /// 分布チャート用のデータ行
 struct DistributionBar: Identifiable {
     let id = UUID()
-    let bucket: String   // スコアラベル（例: "7" or "1-5"）
+    let bucket: String // スコアラベル（例: "7" or "1-5"）
     let count: Int
-    let group: String    // "タグあり" or "タグなし"
-    let sortKey: Int     // ソート用
+    let group: String // "タグあり" or "タグなし"
+    let sortKey: Int // ソート用
 }
 
 /// タグの影響分析シート
 struct TagImpactSheet: View {
     let entries: [MoodEntry]
     let currentMaxScore: Int
+    var currentMinScore: Int = 1
     let themeColors: ThemeColors
 
     @Environment(\.dismiss) private var dismiss
@@ -121,8 +122,8 @@ struct TagImpactSheet: View {
                                 isSelected
                                     ? themeColors.accent
                                     : isDisabled
-                                        ? Color(.systemGray5)
-                                        : Color(.systemGray6)
+                                    ? Color(.systemGray5)
+                                    : Color(.systemGray6)
                             )
                         )
                         .foregroundStyle(
@@ -149,10 +150,10 @@ struct TagImpactSheet: View {
 
     // MARK: - 平均スコア比較カード
 
-    @ViewBuilder
     private func comparisonCard(impact: (withAvg: Double, withoutAvg: Double, delta: Double,
-                                        withDays: Int, withoutDays: Int,
-                                        withDist: [Int: Int], withoutDist: [Int: Int])) -> some View {
+                                         withDays: Int, withoutDays: Int,
+                                         withDist: [Int: Int], withoutDist: [Int: Int])) -> some View
+    {
         VStack(spacing: 16) {
             Text("「\(selectedTag)」の日 vs それ以外の日")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
@@ -162,7 +163,7 @@ struct TagImpactSheet: View {
                 VStack(spacing: 6) {
                     Text(String(format: "%.1f", impact.withAvg))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(themeColors.color(for: Int(impact.withAvg.rounded()), maxScore: currentMaxScore))
+                        .foregroundStyle(themeColors.color(for: Int(impact.withAvg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                     Text("タグあり")
                         .font(.system(.caption, design: .rounded, weight: .medium))
                         .foregroundStyle(themeColors.accent)
@@ -185,7 +186,7 @@ struct TagImpactSheet: View {
                 VStack(spacing: 6) {
                     Text(String(format: "%.1f", impact.withoutAvg))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(themeColors.color(for: Int(impact.withoutAvg.rounded()), maxScore: currentMaxScore))
+                        .foregroundStyle(themeColors.color(for: Int(impact.withoutAvg.rounded()), maxScore: currentMaxScore, minScore: currentMinScore))
                     Text("タグなし")
                         .font(.system(.caption, design: .rounded, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -207,8 +208,9 @@ struct TagImpactSheet: View {
 
     @ViewBuilder
     private func distributionChart(impact: (withAvg: Double, withoutAvg: Double, delta: Double,
-                                           withDays: Int, withoutDays: Int,
-                                           withDist: [Int: Int], withoutDist: [Int: Int])) -> some View {
+                                            withDays: Int, withoutDays: Int,
+                                            withDist: [Int: Int], withoutDist: [Int: Int])) -> some View
+    {
         let bars = buildDistributionBars(withDist: impact.withDist, withoutDist: impact.withoutDist)
 
         if !bars.isEmpty {
@@ -251,7 +253,7 @@ struct TagImpactSheet: View {
         }
         .chartForegroundStyleScale([
             "タグあり": accentColor,
-            "タグなし": grayColor
+            "タグなし": grayColor,
         ])
         .chartLegend(.hidden)
         .chartXAxis(.hidden)
@@ -265,7 +267,6 @@ struct TagImpactSheet: View {
     }
 
     /// 凡例アイテム
-    @ViewBuilder
     private func legendItem(color: Color, label: String) -> some View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 3)
@@ -293,29 +294,30 @@ struct TagImpactSheet: View {
 
     /// スコアレンジに応じたバケット分割
     private func scoreBuckets() -> [(label: String, range: ClosedRange<Int>, sortKey: Int)] {
-        if currentMaxScore <= 10 {
-            return (1...currentMaxScore).map { ("\($0)", $0...$0, $0) }
-        } else if currentMaxScore <= 30 {
+        let rangeSize = currentMaxScore - currentMinScore + 1
+        if rangeSize <= 10 {
+            return (currentMinScore ... currentMaxScore).map { ("\($0)", $0 ... $0, $0) }
+        } else if rangeSize <= 30 {
             let step = 5
-            return stride(from: 1, through: currentMaxScore, by: step).map { start in
+            return stride(from: currentMinScore, through: currentMaxScore, by: step).map { start in
                 let end = min(start + step - 1, currentMaxScore)
-                return ("\(start)-\(end)", start...end, start)
+                return ("\(start)-\(end)", start ... end, start)
             }
         } else {
             let step = 10
-            return stride(from: 1, through: currentMaxScore, by: step).map { start in
+            return stride(from: currentMinScore, through: currentMaxScore, by: step).map { start in
                 let end = min(start + step - 1, currentMaxScore)
-                return ("\(start)-\(end)", start...end, start)
+                return ("\(start)-\(end)", start ... end, start)
             }
         }
     }
 
     // MARK: - サンプルサイズ情報
 
-    @ViewBuilder
     private func sampleInfo(impact: (withAvg: Double, withoutAvg: Double, delta: Double,
                                      withDays: Int, withoutDays: Int,
-                                     withDist: [Int: Int], withoutDist: [Int: Int])) -> some View {
+                                     withDist: [Int: Int], withoutDist: [Int: Int])) -> some View
+    {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "info.circle.fill")
                 .font(.caption)
@@ -362,5 +364,5 @@ struct TagImpactSheet: View {
                 themeColors: .ocean
             )
         }
-        .modelContainer(for: [MoodEntry.self, EmotionTag.self], inMemory: true)
+        .modelContainer(for: [MoodEntry.self, EmotionTag.self, TagCategory.self], inMemory: true)
 }

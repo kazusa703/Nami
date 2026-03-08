@@ -5,9 +5,9 @@
 //  統合記録シート（メモ・写真・ボイスメモ）
 //
 
-import SwiftUI
-import SwiftData
 import PhotosUI
+import SwiftData
+import SwiftUI
 
 /// 記録シートのタブ
 enum RecordingTab: String, CaseIterable {
@@ -32,6 +32,7 @@ enum RecordingTab: String, CaseIterable {
 struct RecordingSheet: View {
     let score: Int
     let maxScore: Int
+    var minScore: Int = 1
     let themeColors: ThemeColors
     /// 編集モード（ウィジェット記録の補完時にtrue）
     var isEditing: Bool = false
@@ -42,17 +43,17 @@ struct RecordingSheet: View {
     let onSave: (_ memo: String, _ photo: UIImage?, _ voiceMemoURL: URL?, _ tags: [String]) -> Void
     let onSkip: () -> Void
 
-    @State private var selectedTab: RecordingTab = .memo
+    @State private var selectedTab: RecordingTab = .tags
     @State private var memoText = ""
     @State private var selectedTags: Set<String> = []
     @State private var capturedPhoto: UIImage?
     @State private var showCamera = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var recorder = VoiceRecorderManager()
+    @State private var showPhotoLoadError = false
+    @State private var isSaving = false
     @FocusState private var isMemoFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
-    /// シートの表示サイズ（初期値は中サイズ）
-    @State private var sheetDetent: PresentationDetent = .medium
 
     /// メモの最大文字数
     private let maxLength = 100
@@ -60,7 +61,7 @@ struct RecordingSheet: View {
     /// クイックメモテンプレート
     private let templates = [
         "仕事がんばった", "リラックスした", "疲れた",
-        "楽しかった", "不安だった", "感謝"
+        "楽しかった", "不安だった", "感謝",
     ]
 
     var body: some View {
@@ -80,34 +81,48 @@ struct RecordingSheet: View {
                     voiceTab.tag(RecordingTab.voice)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-
-                // ボタン群
-                actionButtons
             }
             .navigationTitle("詳細を追加")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
                         cleanupAndSkip()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
+                            .font(.title3)
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        guard !isSaving else { return }
+                        isSaving = true
+                        onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags))
+                    } label: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(themeColors.accent)
+                            .font(.title3)
+                    }
+                    .disabled(isSaving)
                 }
             }
         }
-        .presentationDetents([.medium, .large], selection: $sheetDetent)
-        .presentationDragIndicator(.visible)
         .onAppear {
             // 編集モード時は初期値を設定
             if isEditing {
                 memoText = initialMemo
                 selectedTags = initialTags
+                // Switch to memo tab if there's existing memo text
+                if !initialMemo.isEmpty {
+                    selectedTab = .memo
+                }
             }
-            // メモ欄に自動フォーカス
+            // メモタブ表示中のみ自動フォーカス
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isMemoFocused = true
+                if selectedTab == .memo {
+                    isMemoFocused = true
+                }
             }
         }
         .fullScreenCover(isPresented: $showCamera) {
@@ -123,6 +138,9 @@ struct RecordingSheet: View {
             )
             .ignoresSafeArea()
         }
+        .alert("写真の読み込みに失敗しました", isPresented: $showPhotoLoadError) {
+            Button("OK") {}
+        }
     }
 
     // MARK: - スコアヘッダー
@@ -133,11 +151,11 @@ struct RecordingSheet: View {
                 if isEditing {
                     Image(systemName: "square.grid.2x2")
                         .font(.system(.caption))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.secondary)
                 }
                 Text("\(score)")
                     .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .foregroundStyle(themeColors.color(for: score, maxScore: maxScore))
+                    .foregroundStyle(themeColors.color(for: score, maxScore: maxScore, minScore: minScore))
                 Text("/ \(maxScore)")
                     .font(.system(.title3, design: .rounded))
                     .foregroundStyle(.secondary)
@@ -229,7 +247,7 @@ struct RecordingSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("今の気持ちをひとこと...", text: $memoText, axis: .vertical)
                         .font(.system(.body, design: .rounded))
-                        .lineLimit(3...5)
+                        .lineLimit(3 ... 5)
                         .padding(12)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
@@ -322,9 +340,12 @@ struct RecordingSheet: View {
                     .onChange(of: selectedPhotoItem) { _, newItem in
                         Task {
                             if let data = try? await newItem?.loadTransferable(type: Data.self),
-                               let image = UIImage(data: data) {
+                               let image = UIImage(data: data)
+                            {
                                 capturedPhoto = image
                                 HapticManager.lightFeedback()
+                            } else if newItem != nil {
+                                showPhotoLoadError = true
                             }
                         }
                     }
@@ -353,38 +374,6 @@ struct RecordingSheet: View {
             VoiceRecorderView(themeColors: themeColors, recorder: recorder)
             Spacer()
         }
-    }
-
-    // MARK: - ボタン群
-
-    private var actionButtons: some View {
-        VStack(spacing: 12) {
-            // 保存ボタン
-            Button {
-                onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags))
-            } label: {
-                Text("保存")
-                    .font(.system(.headline, design: .rounded))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(themeColors.accent)
-                    )
-                    .foregroundStyle(.white)
-            }
-
-            // 詳細なしで閉じる / キャンセル
-            Button {
-                cleanupAndSkip()
-            } label: {
-                Text(isEditing ? "キャンセル" : "詳細なしで閉じる")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 16)
     }
 
     // MARK: - ヘルパー
@@ -419,14 +408,14 @@ struct RecordingSheet: View {
 
 #Preview {
     Text("")
-        .sheet(isPresented: .constant(true)) {
+        .fullScreenCover(isPresented: .constant(true)) {
             RecordingSheet(
                 score: 7,
                 maxScore: 10,
                 themeColors: .ocean,
                 onSave: { _, _, _, _ in },
-                onSkip: { }
+                onSkip: {}
             )
         }
-        .modelContainer(for: [MoodEntry.self, EmotionTag.self], inMemory: true)
+        .modelContainer(for: [MoodEntry.self, EmotionTag.self, TagCategory.self], inMemory: true)
 }

@@ -12,14 +12,16 @@ import SwiftUI
 struct MoodButton: View {
     let score: Int
     let maxScore: Int
+    let minScore: Int
     let themeColors: ThemeColors
     /// コンパクトモード（ボタン数が多い場合に小サイズ化）
     let compact: Bool
     let action: () -> Void
 
-    init(score: Int, maxScore: Int = 10, themeColors: ThemeColors, compact: Bool = false, action: @escaping () -> Void) {
+    init(score: Int, maxScore: Int = 10, minScore: Int = 1, themeColors: ThemeColors, compact: Bool = false, action: @escaping () -> Void) {
         self.score = score
         self.maxScore = maxScore
+        self.minScore = minScore
         self.themeColors = themeColors
         self.compact = compact
         self.action = action
@@ -27,7 +29,7 @@ struct MoodButton: View {
 
     /// スコアに対応する色
     private var scoreColor: Color {
-        themeColors.color(for: score, maxScore: maxScore)
+        themeColors.color(for: score, maxScore: maxScore, minScore: minScore)
     }
 
     var body: some View {
@@ -62,8 +64,8 @@ struct ScaleButtonStyle: ButtonStyle {
 
 #Preview {
     HStack {
-        ForEach(1...5, id: \.self) { score in
-            MoodButton(score: score, themeColors: .ocean) { }
+        ForEach(1 ... 5, id: \.self) { score in
+            MoodButton(score: score, themeColors: .ocean) {}
         }
     }
     .padding()

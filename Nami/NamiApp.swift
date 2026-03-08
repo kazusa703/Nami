@@ -63,11 +63,15 @@ struct NamiApp: App {
             do {
                 return try ModelContainer(for: schema, configurations: [config])
             } catch {
-                print("App Group共有コンテナでのModelContainer作成に失敗: \(error)")
+                #if DEBUG
+                    print("App Group共有コンテナでのModelContainer作成に失敗: \(error)")
+                #endif
                 // App Groupは利用可能だがストア作成に失敗 → デフォルトにフォールバック
             }
         } else {
-            print("App Groupコンテナが利用できません。Xcode → Signing & Capabilities → App Groups で group.com.imai.Nami を有効化してください。")
+            #if DEBUG
+                print("App Groupコンテナが利用できません。Xcode → Signing & Capabilities → App Groups で group.com.imai.Nami を有効化してください。")
+            #endif
         }
 
         // フォールバック: デフォルトパスを使用（App Group未設定またはストア作成失敗時）
@@ -75,7 +79,14 @@ struct NamiApp: App {
             let fallbackConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
             return try ModelContainer(for: schema, configurations: [fallbackConfig])
         } catch {
-            fatalError("ModelContainerの作成に失敗しました: \(error)")
+            // Persistent store also failed — use in-memory store as last resort
+            // so the app can still launch and show an error to the user
+            let inMemoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            do {
+                return try ModelContainer(for: schema, configurations: [inMemoryConfig])
+            } catch {
+                fatalError("ModelContainerの作成に失敗しました: \(error)")
+            }
         }
     }()
 
@@ -110,25 +121,32 @@ struct NamiApp: App {
                     // デバッグビルド時のみ: テストデータ投入
                     #if DEBUG
                         DebugDataSeeder.seedIfNeeded(context: sharedModelContainer.mainContext)
+                        // Range Picker boundary & tag scalability test data
+                        if !UserDefaults.standard.bool(forKey: "debug_range_test_seeded") {
+                            DebugDataSeeder.seedBoundaryData(context: sharedModelContainer.mainContext)
+                            DebugDataSeeder.seedMassTagData(context: sharedModelContainer.mainContext, uniqueTagCount: 200)
+                            UserDefaults.standard.set(true, forKey: "debug_range_test_seeded")
+                        }
                     #endif
 
                     // 重複除去 → デフォルト感情タグの初期化
                     DefaultTags.deduplicateIfNeeded(context: sharedModelContainer.mainContext)
                     DefaultTags.seedIfNeeded(context: sharedModelContainer.mainContext)
 
-                    // WatchConnectivityの初期化
-                    WatchConnectivityManager.shared.modelContainer = sharedModelContainer
-                    WatchConnectivityManager.shared.activate()
-
                     // Google Mobile Ads SDK の初期化
-                    _ = await MobileAds.shared.start()
+                    #if !DEBUG
+                        _ = await MobileAds.shared.start()
+                    #endif
 
                     // ATT（App Tracking Transparency）許可リクエスト
                     // 広告パーソナライズのためのトラッキング許可ダイアログ
                     // UI表示後に少し遅延してダイアログを表示
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        ATTrackingManager.requestTrackingAuthorization { _ in }
-                    }
+                    #if !DEBUG
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            ATTrackingManager.requestTrackingAuthorization { _ in
+                            }
+                        }
+                    #endif
 
                     // アプリ起動時: プレミアム失効 & カスタムタグ超過チェック
                     // （onChange は値の変化時のみ発火するため、起動時にも確認が必要）
@@ -232,7 +250,9 @@ struct NamiApp: App {
 
             try? fileManager.removeItem(at: tempDir)
             UserDefaults.standard.set(true, forKey: migrationKey)
-            print("SwiftDataストアをApp Groupに移行しました")
+            #if DEBUG
+                print("SwiftDataストアをApp Groupに移行しました")
+            #endif
         } catch {
             // Clean up partial migration
             try? fileManager.removeItem(at: tempDir)
@@ -240,7 +260,9 @@ struct NamiApp: App {
                 let newFile = URL(fileURLWithPath: newStoreURL.path + ext)
                 try? fileManager.removeItem(at: newFile)
             }
-            print("SwiftDataストア移行エラー: \(error)")
+            #if DEBUG
+                print("SwiftDataストア移行エラー: \(error)")
+            #endif
         }
     }
 }

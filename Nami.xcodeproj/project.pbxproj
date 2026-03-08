@@ -7,13 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		05070A14C239A86DBF22C9C4 /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 31FBE724B8E421F97648B388 /* WatchConnectivity.framework */; };
 		2D09B70F67D4D73B8311CEE3 /* NamiWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC5F421D2F39E7F100F0008A /* NamiWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		31C944458069BECD122ADB1D /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6AAA4981BD3D56A7BA296010 /* HealthKit.framework */; };
+		AC16222C2F51B9200038B9D4 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = AC16222B2F51B9200038B9D4 /* Products.storekit */; };
 		AC40FCBC2F3E67C600390C78 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = AC40FCBB2F3E67C600390C78 /* GoogleMobileAds */; };
 		AC5F42202F39E7F100F0008A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F421F2F39E7F100F0008A /* WidgetKit.framework */; };
 		AC5F42222F39E7F100F0008A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F42212F39E7F100F0008A /* SwiftUI.framework */; };
-		AC5F547B2F3D458400F0008A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F42212F39E7F100F0008A /* SwiftUI.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,8 +64,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		31FBE724B8E421F97648B388 /* WatchConnectivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WatchConnectivity.framework; path = System/Library/Frameworks/WatchConnectivity.framework; sourceTree = SDKROOT; };
 		6AAA4981BD3D56A7BA296010 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
+		AC16222B2F51B9200038B9D4 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		AC5F41BC2F39D66D00F0008A /* Nami.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Nami.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC5F41CB2F39D67000F0008A /* NamiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NamiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC5F41D52F39D67000F0008A /* NamiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NamiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -74,7 +73,6 @@
 		AC5F421F2F39E7F100F0008A /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		AC5F42212F39E7F100F0008A /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		AC5F423D2F39E80000F0008A /* NamiWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NamiWidgetExtension.entitlements; sourceTree = "<group>"; };
-		AC5F54792F3D458400F0008A /* NamiWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NamiWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -84,13 +82,6 @@
 				Info.plist,
 			);
 			target = AC5F421C2F39E7F100F0008A /* NamiWidgetExtension */;
-		};
-		AC5F54892F3D458700F0008A /* Exceptions for "NamiWatch" folder in "NamiWatch" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = AC5F54782F3D458400F0008A /* NamiWatch */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -116,14 +107,6 @@
 				AC5F42302F39E7F300F0008A /* Exceptions for "NamiWidget" folder in "NamiWidgetExtension" target */,
 			);
 			path = NamiWidget;
-			sourceTree = "<group>";
-		};
-		AC5F547C2F3D458400F0008A /* NamiWatch */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				AC5F54892F3D458700F0008A /* Exceptions for "NamiWatch" folder in "NamiWatch" target */,
-			);
-			path = NamiWatch;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -161,27 +144,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AC5F54762F3D458400F0008A /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				AC5F547B2F3D458400F0008A /* SwiftUI.framework in Frameworks */,
-				05070A14C239A86DBF22C9C4 /* WatchConnectivity.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		AC5F41B32F39D66D00F0008A = {
 			isa = PBXGroup;
 			children = (
+				AC16222B2F51B9200038B9D4 /* Products.storekit */,
 				AC5F423D2F39E80000F0008A /* NamiWidgetExtension.entitlements */,
 				AC5F41BE2F39D66D00F0008A /* Nami */,
 				AC5F41CE2F39D67000F0008A /* NamiTests */,
 				AC5F41D82F39D67000F0008A /* NamiUITests */,
 				AC5F42232F39E7F100F0008A /* NamiWidget */,
-				AC5F547C2F3D458400F0008A /* NamiWatch */,
 				AC5F421E2F39E7F100F0008A /* Frameworks */,
 				AC5F41BD2F39D66D00F0008A /* Products */,
 			);
@@ -194,7 +168,6 @@
 				AC5F41CB2F39D67000F0008A /* NamiTests.xctest */,
 				AC5F41D52F39D67000F0008A /* NamiUITests.xctest */,
 				AC5F421D2F39E7F100F0008A /* NamiWidgetExtension.appex */,
-				AC5F54792F3D458400F0008A /* NamiWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -204,7 +177,6 @@
 			children = (
 				AC5F421F2F39E7F100F0008A /* WidgetKit.framework */,
 				AC5F42212F39E7F100F0008A /* SwiftUI.framework */,
-				31FBE724B8E421F97648B388 /* WatchConnectivity.framework */,
 				6AAA4981BD3D56A7BA296010 /* HealthKit.framework */,
 			);
 			name = Frameworks;
@@ -298,26 +270,6 @@
 			productReference = AC5F421D2F39E7F100F0008A /* NamiWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		AC5F54782F3D458400F0008A /* NamiWatch */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = AC5F548A2F3D458700F0008A /* Build configuration list for PBXNativeTarget "NamiWatch" */;
-			buildPhases = (
-				AC5F54752F3D458400F0008A /* Sources */,
-				AC5F54762F3D458400F0008A /* Frameworks */,
-				AC5F54772F3D458400F0008A /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				AC5F547C2F3D458400F0008A /* NamiWatch */,
-			);
-			name = NamiWatch;
-			productName = NamiWatchExtension;
-			productReference = AC5F54792F3D458400F0008A /* NamiWatch.app */;
-			productType = "com.apple.product-type.application";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -340,9 +292,6 @@
 						TestTargetID = AC5F41BB2F39D66D00F0008A;
 					};
 					AC5F421C2F39E7F100F0008A = {
-						CreatedOnToolsVersion = 26.3;
-					};
-					AC5F54782F3D458400F0008A = {
 						CreatedOnToolsVersion = 26.3;
 					};
 				};
@@ -369,7 +318,6 @@
 				AC5F41CA2F39D67000F0008A /* NamiTests */,
 				AC5F41D42F39D67000F0008A /* NamiUITests */,
 				AC5F421C2F39E7F100F0008A /* NamiWidgetExtension */,
-				AC5F54782F3D458400F0008A /* NamiWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -379,6 +327,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AC16222C2F51B9200038B9D4 /* Products.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -397,13 +346,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AC5F421B2F39E7F100F0008A /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AC5F54772F3D458400F0008A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -435,13 +377,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AC5F42192F39E7F100F0008A /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		AC5F54752F3D458400F0008A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -598,7 +533,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Nami/Nami.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = WM7939G226;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -641,7 +576,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Nami/Nami.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = WM7939G226;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -682,7 +617,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = WM7939G226;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
@@ -694,7 +629,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nami.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Nami";
 			};
 			name = Debug;
@@ -704,7 +639,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = WM7939G226;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
@@ -716,7 +651,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Nami.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Nami";
 			};
 			name = Release;
@@ -725,7 +660,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = WM7939G226;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
@@ -736,7 +671,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Nami;
 			};
 			name = Debug;
@@ -745,7 +680,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = WM7939G226;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
@@ -756,7 +691,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = Nami;
 			};
 			name = Release;
@@ -768,7 +703,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = NamiWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = WM7939G226;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NamiWidget/Info.plist;
@@ -788,7 +723,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -799,7 +734,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = NamiWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = WM7939G226;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NamiWidget/Info.plist;
@@ -819,75 +754,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		AC5F548B2F3D458700F0008A /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = NamiWatch/NamiWatch.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = WM7939G226;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = NamiWatch/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Nami;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.imai.Nami;
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.imai.Nami.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
-			};
-			name = Debug;
-		};
-		AC5F548C2F3D458700F0008A /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = NamiWatch/NamiWatch.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = WM7939G226;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = NamiWatch/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = Nami;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.imai.Nami;
-				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.imai.Nami.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -935,15 +802,6 @@
 			buildConfigurations = (
 				AC5F42322F39E7F300F0008A /* Debug */,
 				AC5F42332F39E7F300F0008A /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		AC5F548A2F3D458700F0008A /* Build configuration list for PBXNativeTarget "NamiWatch" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AC5F548B2F3D458700F0008A /* Debug */,
-				AC5F548C2F3D458700F0008A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

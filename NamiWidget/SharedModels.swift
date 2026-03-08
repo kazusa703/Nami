@@ -13,6 +13,7 @@ enum WidgetConstants {
     static let appGroupIdentifier = "group.com.imai.Nami"
     static let themeKey = "selectedTheme"
     static let scoreRangeMaxKey = "scoreRangeMax"
+    static let scoreRangeMinKey = "scoreRangeMin"
 
     /// App Group共有のUserDefaults
     static var sharedUserDefaults: UserDefaults {
@@ -41,11 +42,14 @@ class MoodEntry {
     var voiceMemoPath: String?
     var tags: [String] = []
     var source: String = "app" // 記録元: "app", "widget", "watch"
+    var minScore: Int = 1 // 記録時のスコア範囲下限（軽量マイグレーション対応）
 
-    init(score: Int, maxScore: Int = 10, memo: String? = nil, tags: [String] = [], source: String = "app", createdAt: Date = .now) {
-        self.id = UUID()
-        self.score = score
-        self.maxScore = maxScore
+    init(score: Int, maxScore: Int = 10, minScore: Int = 1, memo: String? = nil, tags: [String] = [], source: String = "app", createdAt: Date = .now) {
+        id = UUID()
+        let safeMax = max(2, maxScore)
+        self.score = max(minScore, min(safeMax, score))
+        self.maxScore = safeMax
+        self.minScore = minScore
         self.memo = memo
         self.tags = tags
         self.source = source
@@ -54,13 +58,14 @@ class MoodEntry {
 
     /// 0.0〜1.0に正規化したスコア
     var normalizedScore: Double {
-        guard maxScore > 1 else { return 1.0 }
-        return Double(score - 1) / Double(maxScore - 1)
+        let range = maxScore - minScore
+        guard range > 0 else { return 1.0 }
+        return Double(score - minScore) / Double(range)
     }
 
     /// 指定レンジにスケーリングしたスコアを返す
-    func scaledScore(to targetMax: Int) -> Double {
-        return normalizedScore * Double(targetMax - 1) + 1.0
+    func scaledScore(to targetMax: Int, from targetMin: Int = 1) -> Double {
+        return normalizedScore * Double(targetMax - targetMin) + Double(targetMin)
     }
 }
 
@@ -70,7 +75,7 @@ func makeSharedModelContainer() -> ModelContainer? {
     let config = ModelConfiguration(
         schema: schema,
         url: WidgetConstants.sharedStoreURL,
-        allowsSave: false  // 読み取り専用
+        allowsSave: false // 読み取り専用
     )
     return try? ModelContainer(for: schema, configurations: [config])
 }
@@ -83,7 +88,7 @@ func makeWritableSharedModelContainer() -> ModelContainer? {
         schema: schema,
         url: WidgetConstants.sharedStoreURL,
         allowsSave: true,
-        cloudKitDatabase: .none  // ウィジェットからはCloudKit同期しない
+        cloudKitDatabase: .none // ウィジェットからはCloudKit同期しない
     )
     return try? ModelContainer(for: schema, configurations: [config])
 }

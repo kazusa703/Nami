@@ -12,12 +12,12 @@ import SwiftUI
 struct MonthlyHeatmapView: View {
     let entries: [MoodEntry]
     let currentMaxScore: Int
+    var currentMinScore: Int = 1
     let colors: ThemeColors
 
     /// 表示中の月（月初日を基準にする）
-    @State private var displayedMonth: Date = {
-        Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
-    }()
+    @State private var displayedMonth: Date = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
+
     /// タップされた日の詳細表示
     @State private var selectedDay: Date?
 
@@ -140,7 +140,7 @@ struct MonthlyHeatmapView: View {
                 // 背景色（スコアに基づく）
                 if let score = avgScore {
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(colors.color(for: Int(score.rounded()), maxScore: currentMaxScore).opacity(0.7))
+                        .fill(colors.color(for: Int(score.rounded()), maxScore: currentMaxScore, minScore: currentMinScore).opacity(0.7))
                 } else {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.primary.opacity(0.04))
@@ -238,11 +238,10 @@ struct MonthlyHeatmapView: View {
         entries.filter { calendar.isDate($0.createdAt, inSameDayAs: day) }
     }
 
-    /// エントリの平均スコア（現在のレンジにスケール）
+    /// エントリの平均スコア（生スコアの平均）
     private func averageScoreFor(entries: [MoodEntry]) -> Double? {
         guard !entries.isEmpty else { return nil }
-        let avg = entries.reduce(0.0) { $0 + $1.normalizedScore } / Double(entries.count)
-        return avg * Double(currentMaxScore - 1) + 1.0
+        return entries.reduce(0.0) { $0 + Double($1.score) } / Double(entries.count)
     }
 }
 

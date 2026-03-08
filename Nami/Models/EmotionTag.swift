@@ -8,14 +8,21 @@
 import Foundation
 import SwiftData
 
-/// 感情タグのカテゴリ
+/// 感情タグのカテゴリ（組み込み用enum）
 enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
-    case positive = "positive"   // ポジティブ感情
-    case negative = "negative"   // ネガティブ感情
-    case factor = "factor"       // 要因・活動
-    case custom = "custom"       // ユーザー作成
+    case positive // ポジティブ感情
+    case negative // ネガティブ感情
+    case factor // 要因・活動
+    case custom // ユーザー定義カテゴリの受け皿
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
+
+    /// 組み込みカテゴリ（custom以外）
+    static var builtIn: [EmotionTagCategory] {
+        [.positive, .negative, .factor]
+    }
 
     /// 表示名
     var displayName: String {
@@ -48,17 +55,36 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+/// ユーザー定義カテゴリモデル
+@Model
+class TagCategory {
+    var id: UUID = UUID()
+    var name: String = ""
+    var icon: String = "folder.fill"
+    var sortOrder: Int = 0
+    var createdAt: Date = Date.now
+
+    init(name: String, icon: String = "folder.fill", sortOrder: Int = 0) {
+        self.name = name
+        self.icon = icon
+        self.sortOrder = sortOrder
+        createdAt = .now
+    }
+}
+
 /// 感情タグモデル
 /// ユーザーが気分記録に付けるタグ（デフォルト + カスタム）
 @Model
 class EmotionTag {
     var id: UUID = UUID()
-    var name: String = ""           // タグ名（例: 嬉しい、疲れた）
-    var categoryRaw: String = "custom"  // カテゴリ（EmotionTagCategory.rawValue）
-    var icon: String = "tag.fill"   // SF Symbols アイコン名
-    var isDefault: Bool = false     // デフォルトタグかどうか
-    var sortOrder: Int = 0          // 表示順
+    var name: String = "" // タグ名（例: 嬉しい、疲れた）
+    var categoryRaw: String = "custom" // カテゴリ（EmotionTagCategory.rawValue）
+    var icon: String = "tag.fill" // SF Symbols アイコン名
+    var isDefault: Bool = false // デフォルトタグかどうか
+    var isActive: Bool = true // アクティブかどうか（プレミアム失効時に非アクティブ化）
+    var sortOrder: Int = 0 // 表示順
     var createdAt: Date = Date.now
+    var customCategoryId: UUID? // TagCategory.id (custom category only)
 
     /// カテゴリのアクセサ
     var category: EmotionTagCategory {
@@ -66,13 +92,13 @@ class EmotionTag {
         set { categoryRaw = newValue.rawValue }
     }
 
-    init(name: String, category: EmotionTagCategory, icon: String = "tag.fill", isDefault: Bool = false, sortOrder: Int = 0) {
-        self.id = UUID()
+    init(name: String, category: EmotionTagCategory, icon: String = "tag.fill", isDefault: Bool = false, sortOrder: Int = 0, customCategoryId: UUID? = nil) {
         self.name = name
-        self.categoryRaw = category.rawValue
+        categoryRaw = category.rawValue
         self.icon = icon
         self.isDefault = isDefault
         self.sortOrder = sortOrder
-        self.createdAt = .now
+        self.customCategoryId = customCategoryId
+        createdAt = .now
     }
 }

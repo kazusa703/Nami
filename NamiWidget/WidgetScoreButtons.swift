@@ -5,20 +5,20 @@
 //  ウィジェット用のインタラクティブスコアボタン
 //
 
+import AppIntents
 import SwiftUI
 import WidgetKit
-import AppIntents
 
 /// maxScore>10 の場合に代表値を計算するヘルパー
 enum WidgetScoreHelper {
     /// maxScore に対して5つの代表スコアを返す（均等分布）
-    static func quickPickScores(maxScore: Int, count: Int = 5) -> [Int] {
-        guard maxScore > count else {
-            return Array(1...maxScore)
+    static func quickPickScores(maxScore: Int, minScore: Int = 1, count: Int = 5) -> [Int] {
+        guard (maxScore - minScore + 1) > count else {
+            return Array(minScore ... maxScore)
         }
         var scores: [Int] = []
-        for i in 0..<count {
-            let value = 1 + Int(Double(i) / Double(count - 1) * Double(maxScore - 1))
+        for i in 0 ..< count {
+            let value = minScore + Int(Double(i) / Double(count - 1) * Double(maxScore - minScore))
             scores.append(value)
         }
         return scores
@@ -30,18 +30,19 @@ enum WidgetScoreHelper {
 /// 小ウィジェット用: 2行×5列のスコアボタン
 struct SmallScoreButtons: View {
     let maxScore: Int
+    let minScore: Int
     let theme: WidgetTheme
 
     var body: some View {
         let scores: [Int] = {
-            if maxScore <= 10 {
-                return Array(1...maxScore)
+            if (maxScore - minScore + 1) <= 10 {
+                return Array(minScore ... maxScore)
             } else {
-                return WidgetScoreHelper.quickPickScores(maxScore: maxScore)
+                return WidgetScoreHelper.quickPickScores(maxScore: maxScore, minScore: minScore)
             }
         }()
 
-        if maxScore <= 10 {
+        if (maxScore - minScore + 1) <= 10 {
             // 2行×5列
             let firstRow = Array(scores.prefix(5))
             let secondRow = Array(scores.dropFirst(5))
@@ -79,7 +80,7 @@ struct SmallScoreButtons: View {
                 .frame(height: 20)
                 .background(
                     RoundedRectangle(cornerRadius: 5)
-                        .fill(theme.colorForScore(score, maxScore: maxScore))
+                        .fill(theme.colorForScore(score, maxScore: maxScore, minScore: minScore))
                 )
         }
         .buttonStyle(.plain)
@@ -91,14 +92,15 @@ struct SmallScoreButtons: View {
 /// 中ウィジェット用: 1行のスコアボタン
 struct MediumScoreButtons: View {
     let maxScore: Int
+    let minScore: Int
     let theme: WidgetTheme
 
     var body: some View {
         let scores: [Int] = {
-            if maxScore <= 10 {
-                return Array(1...maxScore)
+            if (maxScore - minScore + 1) <= 10 {
+                return Array(minScore ... maxScore)
             } else {
-                return WidgetScoreHelper.quickPickScores(maxScore: maxScore)
+                return WidgetScoreHelper.quickPickScores(maxScore: maxScore, minScore: minScore)
             }
         }()
 
@@ -112,7 +114,7 @@ struct MediumScoreButtons: View {
                         .frame(height: 24)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(theme.colorForScore(score, maxScore: maxScore))
+                                .fill(theme.colorForScore(score, maxScore: maxScore, minScore: minScore))
                         )
                 }
                 .buttonStyle(.plain)
@@ -126,18 +128,19 @@ struct MediumScoreButtons: View {
 /// 大ウィジェット用: 2行×5列のスコアボタン
 struct LargeScoreButtons: View {
     let maxScore: Int
+    let minScore: Int
     let theme: WidgetTheme
 
     var body: some View {
         let scores: [Int] = {
-            if maxScore <= 10 {
-                return Array(1...maxScore)
+            if (maxScore - minScore + 1) <= 10 {
+                return Array(minScore ... maxScore)
             } else {
-                return WidgetScoreHelper.quickPickScores(maxScore: maxScore)
+                return WidgetScoreHelper.quickPickScores(maxScore: maxScore, minScore: minScore)
             }
         }()
 
-        if maxScore <= 10 {
+        if (maxScore - minScore + 1) <= 10 {
             let firstRow = Array(scores.prefix(5))
             let secondRow = Array(scores.dropFirst(5))
 
@@ -173,7 +176,7 @@ struct LargeScoreButtons: View {
                 .frame(height: 26)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(theme.colorForScore(score, maxScore: maxScore))
+                        .fill(theme.colorForScore(score, maxScore: maxScore, minScore: minScore))
                 )
         }
         .buttonStyle(.plain)

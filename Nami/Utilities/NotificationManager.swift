@@ -17,11 +17,12 @@ enum NotificationManager {
     @discardableResult
     static func requestPermission() async -> Bool {
         do {
-            let granted = try await UNUserNotificationCenter.current()
+            return try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
-            return granted
         } catch {
-            print("通知権限リクエストエラー: \(error)")
+            #if DEBUG
+                print("通知権限リクエストエラー: \(error)")
+            #endif
             return false
         }
     }
@@ -52,9 +53,11 @@ enum NotificationManager {
         )
 
         UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                print("通知スケジュールエラー: \(error)")
-            }
+            #if DEBUG
+                if let error {
+                    print("通知スケジュールエラー: \(error)")
+                }
+            #endif
         }
     }
 

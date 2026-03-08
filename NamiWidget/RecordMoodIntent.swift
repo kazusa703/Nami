@@ -19,7 +19,7 @@ struct RecordMoodIntent: AppIntent {
     var score: Int
 
     init() {
-        self.score = 5
+        score = 5
     }
 
     init(score: Int) {
@@ -37,12 +37,17 @@ struct RecordMoodIntent: AppIntent {
         // スコア範囲をApp Group UserDefaultsから取得
         let storedMax = WidgetConstants.sharedUserDefaults.integer(forKey: WidgetConstants.scoreRangeMaxKey)
         let maxScore = storedMax > 0 ? storedMax : 10
+        let minScore = WidgetConstants.sharedUserDefaults.object(forKey: WidgetConstants.scoreRangeMinKey) as? Int ?? 1
 
         // source = "widget" で新規エントリを作成
-        let entry = MoodEntry(score: score, maxScore: maxScore, source: "widget")
+        let entry = MoodEntry(score: score, maxScore: maxScore, minScore: minScore, source: "widget")
         context.insert(entry)
 
-        try? context.save()
+        do {
+            try context.save()
+        } catch {
+            print("RecordMoodIntent: Failed to save mood entry: \(error)")
+        }
 
         // ウィジェットのタイムラインを更新
         WidgetCenter.shared.reloadAllTimelines()

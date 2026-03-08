@@ -5,13 +5,14 @@
 //  メモ入力シート（新規記録・既存編集の両方に対応、テンプレート付き）
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// メモ入力ビュー
 /// 気分記録後の新規メモ追加、または既存エントリのメモ編集に使用する
 struct MemoInputView: View {
     let score: Int
+    let maxScore: Int
     let themeColors: ThemeColors
     /// 編集対象のエントリ（nilなら新規記録モード）
     let editingEntry: MoodEntry?
@@ -28,11 +29,13 @@ struct MemoInputView: View {
     /// クイックメモテンプレート
     private let templates = [
         "仕事がんばった", "リラックスした", "疲れた",
-        "楽しかった", "不安だった", "感謝"
+        "楽しかった", "不安だった", "感謝",
     ]
 
     /// 編集モードかどうか
-    private var isEditing: Bool { editingEntry != nil }
+    private var isEditing: Bool {
+        editingEntry != nil
+    }
 
     var body: some View {
         NavigationStack {
@@ -41,7 +44,7 @@ struct MemoInputView: View {
                 VStack(spacing: 8) {
                     Text("\(score)")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
-                        .foregroundStyle(themeColors.color(for: score))
+                        .foregroundStyle(themeColors.color(for: score, maxScore: maxScore))
 
                     Text(isEditing ? "メモを編集" : "記録しました")
                         .font(.system(.subheadline, design: .rounded))
@@ -80,7 +83,7 @@ struct MemoInputView: View {
 
                     TextField("今の気持ちをひとこと...", text: $memoText, axis: .vertical)
                         .font(.system(.body, design: .rounded))
-                        .lineLimit(3...5)
+                        .lineLimit(3 ... 5)
                         .padding(12)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
@@ -147,7 +150,7 @@ struct MemoInputView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .onAppear {
             // 編集モードの場合、既存メモを読み込む
@@ -176,10 +179,11 @@ struct MemoInputView: View {
         .sheet(isPresented: .constant(true)) {
             MemoInputView(
                 score: 7,
+                maxScore: 10,
                 themeColors: .ocean,
                 editingEntry: nil,
                 onSave: { _ in },
-                onSkip: { }
+                onSkip: {}
             )
         }
 }

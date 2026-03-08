@@ -17,6 +17,9 @@ struct HealthStatsSection: View {
     @State private var stepBands: [HealthBandData]?
     @State private var sleepBands: [HealthBandData]?
     @State private var energyBands: [HealthBandData]?
+    @State private var stepBestCondition: BestConditionResult?
+    @State private var sleepBestCondition: BestConditionResult?
+    @State private var energyBestCondition: BestConditionResult?
     @State private var computed = false
 
     var body: some View {
@@ -80,6 +83,19 @@ struct HealthStatsSection: View {
             }
 
             if hasAnyChart {
+                let bestConditions = [stepBestCondition, sleepBestCondition, energyBestCondition].compactMap { $0 }
+
+                if !bestConditions.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(bestConditions.enumerated()), id: \.offset) { _, result in
+                            bestConditionRow(result)
+                        }
+                    }
+
+                    Divider()
+                        .padding(.vertical, 2)
+                }
+
                 if let stepBands {
                     HealthMoodChartView(
                         title: "歩数別の気分",
@@ -124,6 +140,35 @@ struct HealthStatsSection: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
         )
+    }
+
+    // MARK: - Best Condition Row
+
+    private func bestConditionRow(_ result: BestConditionResult) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: result.metricIcon)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(themeColors.accent)
+                .frame(width: 16)
+            Text(bestConditionText(for: result))
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.primary.opacity(0.85))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func bestConditionText(for result: BestConditionResult) -> String {
+        let bandDesc: String
+        switch (result.metricIcon, result.bestBandLabel) {
+        case ("bed.double.fill", "長い"):
+            bandDesc = "睡眠が長めの日"
+        case ("bed.double.fill", "短い"):
+            bandDesc = "睡眠が短めの日"
+        default:
+            bandDesc = "\(result.metricName)が\(result.bestBandLabel)日"
+        }
+        let deltaStr = String(format: "%.1f", result.delta)
+        return "\(bandDesc)（\(result.thresholdDesc)）は気分が +\(deltaStr)pt 高い傾向"
     }
 
     // MARK: - Band Computation
@@ -196,12 +241,136 @@ struct HealthStatsSection: View {
             }
         }
 
+        // Best condition insights (need more data than charts)
+        if paired.count >= 14 {
+            let classifySteps: (Double) -> String = { value in
+                if value < Double(HealthThresholds.Steps.low) { return "少ない" }
+                else if value >= Double(HealthThresholds.Steps.high) { return "多い" }
+                else { return "普通" }
+            }
+            let classifySleep: (Double) -> String = { value in
+                if value < Double(HealthThresholds.Sleep.short) { return "短い" }
+                else if value >= Double(HealthThresholds.Sleep.long) { return "長い" }
+                else { return "普通" }
+            }
+            let classifyEnergy: (Double) -> String = { value in
+                if value < HealthThresholds.ActiveEnergy.low { return "少ない" }
+                else if value >= HealthThresholds.ActiveEnergy.high { return "多い" }
+                else { return "普通" }
+            }
+
+            stepBestCondition = buildBestCondition(
+                from: paired, metricType: .steps,
+                extract: { $0.health.steps.map(Double.init) }, classify: classifySteps
+            )
+            sleepBestCondition = buildBestCondition(
+                from: paired, metricType: .sleep,
+                extract: { $0.health.sleepMinutes.map(Double.init) }, classify: classifySleep
+            )
+            energyBestCondition = buildBestCondition(
+                from: paired, metricType: .energy,
+                extract: { $0.health.activeEnergyKcal }, classify: classifyEnergy
+            )
+        }
+
         computed = true
     }
 
     private struct PairedDay {
         let score: Double
         let health: DailyHealthData
+    }
+
+    // MARK: - Best Condition Types
+
+    private struct BestConditionResult {
+        let metricIcon: String
+        let metricName: String
+        let bestBandLabel: String
+        let thresholdDesc: String
+        let bestBandAvg: Double
+        let delta: Double
+        let bestBandCount: Int
+    }
+
+    private enum HealthMetricType {
+        case steps, sleep, energy
+
+        var icon: String {
+            switch self {
+            case .steps: return "figure.walk"
+            case .sleep: return "bed.double.fill"
+            case .energy: return "flame.fill"
+            }
+        }
+
+        var displayName: String {
+            switch self {
+            case .steps: return "歩数"
+            case .sleep: return "睡眠"
+            case .energy: return "運動量"
+            }
+        }
+
+        func thresholdDescription(for band: String) -> String {
+            switch (self, band) {
+            case (.steps, "少ない"): return "3,000歩未満"
+            case (.steps, "普通"): return "3,000〜8,000歩"
+            case (.steps, "多い"): return "8,000歩以上"
+            case (.sleep, "短い"): return "6時間未満"
+            case (.sleep, "普通"): return "6〜8時間"
+            case (.sleep, "長い"): return "8時間以上"
+            case (.energy, "少ない"): return "150kcal未満"
+            case (.energy, "普通"): return "150〜400kcal"
+            case (.energy, "多い"): return "400kcal以上"
+            default: return band
+            }
+        }
+    }
+
+    // MARK: - Best Condition Computation
+
+    private func buildBestCondition(
+        from paired: [PairedDay],
+        metricType: HealthMetricType,
+        extract: (PairedDay) -> Double?,
+        classify: (Double) -> String
+    ) -> BestConditionResult? {
+        var bandScores: [String: [Double]] = [:]
+        for p in paired {
+            guard let value = extract(p) else { continue }
+            let label = classify(value)
+            bandScores[label, default: []].append(p.score)
+        }
+
+        // Only bands with >= 3 entries are valid
+        let validBands = bandScores.filter { $0.value.count >= 3 }
+        guard validBands.count >= 2 else { return nil }
+
+        // Compute averages
+        let bandAvgs = validBands.mapValues { scores in
+            scores.reduce(0, +) / Double(scores.count)
+        }
+
+        // Find best and worst (tie-break by entry count)
+        let sorted = bandAvgs.sorted { a, b in
+            if a.value != b.value { return a.value > b.value }
+            return (validBands[a.key]?.count ?? 0) > (validBands[b.key]?.count ?? 0)
+        }
+
+        guard let best = sorted.first, let worst = sorted.last else { return nil }
+        let delta = best.value - worst.value
+        guard delta >= 0.5 else { return nil }
+
+        return BestConditionResult(
+            metricIcon: metricType.icon,
+            metricName: metricType.displayName,
+            bestBandLabel: best.key,
+            thresholdDesc: metricType.thresholdDescription(for: best.key),
+            bestBandAvg: best.value,
+            delta: delta,
+            bestBandCount: validBands[best.key]?.count ?? 0
+        )
     }
 
     /// Build bands for a metric. Returns nil if fewer than 2 bands have data.

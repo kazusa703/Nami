@@ -5,13 +5,15 @@
 //  気分記録の保存ロジック
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 import WidgetKit
 
 /// 気分記録のビジネスロジックを管理するViewModel
 @Observable
 class MoodViewModel {
+    /// 天気マネージャー
+    let weatherManager = WeatherManager()
     /// 最後に記録したエントリ（メモ追加用に保持）
     var lastRecordedEntry: MoodEntry?
     /// 統合記録シートの表示状態
@@ -22,24 +24,42 @@ class MoodViewModel {
     var recordedScore: Int = 0
     /// 記録時のmaxScore
     var recordedMaxScore: Int = 10
+    /// 記録時のminScore
+    var recordedMinScore: Int = 1
     /// 連続タップ防止フラグ
     var isRecording = false
+    /// エラーメッセージ（記録失敗時に表示）
+    var errorMessage: String?
 
     /// 気分スコアを記録する
     /// - Parameters:
     ///   - score: 気分スコア（1〜maxScore）
     ///   - maxScore: スコアの上限値
     ///   - context: SwiftDataのモデルコンテキスト
-    func recordMood(score: Int, maxScore: Int = 10, context: ModelContext) {
+    func recordMood(score: Int, maxScore: Int = 10, minScore: Int = 1, context: ModelContext) {
         // 連続タップによる重複記録を防止
         guard !isRecording else { return }
         isRecording = true
+        errorMessage = nil
 
-        let entry = MoodEntry(score: score, maxScore: maxScore)
+        let entry = MoodEntry(score: score, maxScore: maxScore, minScore: minScore)
         context.insert(entry)
+
+        // Persist to detect save failures
+        do {
+            try context.save()
+        } catch {
+            context.delete(entry)
+            isRecording = false
+            errorMessage = "記録の保存に失敗しました。もう一度お試しください。"
+            HapticManager.errorFeedback()
+            return
+        }
+
         lastRecordedEntry = entry
         recordedScore = score
         recordedMaxScore = maxScore
+        recordedMinScore = minScore
 
         // ハプティックフィードバック
         HapticManager.recordFeedback()
@@ -65,7 +85,7 @@ class MoodViewModel {
     ///   - photo: 撮影した写真（任意）
     ///   - voiceMemoURL: ボイスメモの一時URL（任意）
     ///   - tags: 選択された感情タグ名の配列
-    func saveRecording(memo: String, photo: UIImage?, voiceMemoURL: URL?, tags: [String] = []) {
+    func saveRecording(memo: String, photo: UIImage?, voiceMemoURL: URL?, tags: [String] = [], context: ModelContext? = nil) {
         guard let entry = lastRecordedEntry else { return }
 
         // メモ保存
@@ -85,6 +105,18 @@ class MoodViewModel {
 
         // タグ保存
         entry.tags = tags
+
+        // 天気データを非ブロッキングで付与
+        let weatherEnabled = UserDefaults.standard.bool(forKey: "weatherTrackingEnabled")
+        if weatherEnabled {
+            let wm = weatherManager
+            let ctx = context
+            Task { @MainActor in
+                await wm.attachWeatherData(to: entry)
+                // 天気データ付与後に明示的に保存（autosave前のデータロスを防止）
+                try? ctx?.save()
+            }
+        }
 
         showRecordingSheet = false
         lastRecordedEntry = nil

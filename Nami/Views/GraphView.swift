@@ -5,9 +5,9 @@
 //  ライングラフ画面 - 気分の波を可視化する
 //
 
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 /// グラフの表示期間
 enum ChartPeriod: String, CaseIterable, Identifiable {
@@ -18,7 +18,9 @@ enum ChartPeriod: String, CaseIterable, Identifiable {
     case year = "1年"
     case all = "全期間"
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// 期間の開始日（nilは全期間）
     var startDate: Date? {
@@ -89,16 +91,16 @@ enum TimeScale: String, CaseIterable {
 /// ドリルダウンのレベル（フルスクリーン用）
 /// 年→月→日の階層でグラフを掘り下げる
 enum DrillLevel: Hashable {
-    case year(Int)           // 年レベル: X軸=月
-    case month(Int, Int)     // 月レベル: X軸=日
-    case day(Int, Int, Int)  // 日レベル: X軸=時
+    case year(Int) // 年レベル: X軸=月
+    case month(Int, Int) // 月レベル: X軸=日
+    case day(Int, Int, Int) // 日レベル: X軸=時
 
     /// ヘッダー表示テキスト
     var headerText: String {
         switch self {
-        case .year(let y): return "\(y)年"
-        case .month(let y, let m): return "\(y)年\(m)月"
-        case .day(_, let m, let d): return "\(m)月\(d)日"
+        case let .year(y): return "\(y)年"
+        case let .month(y, m): return "\(y)年\(m)月"
+        case let .day(_, m, d): return "\(m)月\(d)日"
         }
     }
 
@@ -106,8 +108,8 @@ enum DrillLevel: Hashable {
     var parent: DrillLevel? {
         switch self {
         case .year: return nil
-        case .month(let y, _): return .year(y)
-        case .day(let y, let m, _): return .month(y, m)
+        case let .month(y, _): return .year(y)
+        case let .day(y, m, _): return .month(y, m)
         }
     }
 
@@ -116,18 +118,18 @@ enum DrillLevel: Hashable {
         let cal = Calendar.current
         let fallback = Date.now
         switch self {
-        case .year(let y):
+        case let .year(y):
             let start = cal.date(from: DateComponents(year: y, month: 1, day: 1)) ?? fallback
             let end = cal.date(from: DateComponents(year: y + 1, month: 1, day: 1)) ?? fallback
-            return start...end
-        case .month(let y, let m):
+            return start ... end
+        case let .month(y, m):
             let start = cal.date(from: DateComponents(year: y, month: m, day: 1)) ?? fallback
             let end = cal.date(byAdding: .month, value: 1, to: start) ?? fallback
-            return start...end
-        case .day(let y, let m, let d):
+            return start ... end
+        case let .day(y, m, d):
             let start = cal.date(from: DateComponents(year: y, month: m, day: d)) ?? fallback
             let end = cal.date(byAdding: .day, value: 1, to: start) ?? fallback
-            return start...end
+            return start ... end
         }
     }
 }
@@ -142,10 +144,17 @@ struct GraphView: View {
 
     /// 表示モード
     @State private var graphMode: GraphMode = .line
-    /// 選択中の表示期間
-    @State private var selectedPeriod: ChartPeriod = .week
-    /// X軸の日付粒度
-    @State private var selectedTimeScale: TimeScale = .daily
+    /// 選択中の表示期間（プリセット）
+    @State private var selectedPeriod: ChartPeriod? = .week
+    /// カスタム日付範囲（カレンダー選択時）
+    @State private var customStartDate: Date?
+    @State private var customEndDate: Date?
+    /// カレンダーピッカーの表示フラグ
+    @State private var showCalendarPicker = false
+    /// X軸の日付粒度（期間から自動決定）
+    private var effectiveTimeScale: TimeScale {
+        Self.effectiveTimeScale(for: selectedPeriod, customRange: customDateRange)
+    }
     /// 選択されたエントリ（詳細表示用）
     @State private var selectedEntry: MoodEntry?
     /// 詳細表示フラグ
@@ -193,8 +202,21 @@ struct GraphView: View {
                     } else {
                         ScrollView {
                             VStack(spacing: 16) {
-                                // 表示モード + 期間 + 全画面ボタン
+                                // 表示モード + 絞り込み + 全画面ボタン
                                 controlBar(colors: colors)
+
+                                // Inline calendar picker
+                                if showCalendarPicker {
+                                    DateRangeCalendarPicker(
+                                        startDate: $customStartDate,
+                                        endDate: $customEndDate,
+                                        selectedPeriod: $selectedPeriod
+                                    )
+                                    .transition(.asymmetric(
+                                        insertion: .move(edge: .top).combined(with: .opacity),
+                                        removal: .opacity
+                                    ))
+                                }
 
                                 switch graphMode {
                                 case .line, .step, .bar:
@@ -202,10 +224,7 @@ struct GraphView: View {
                                         .id("chart-\(graphMode.rawValue)")
 
                                 case .heatmap:
-                                    YearInPixelsView(
-                                        entries: entries,
-                                        themeColors: colors
-                                    )
+                                    EmptyView() // Moved to StatsView
                                 }
                             }
                             .padding(.vertical)
@@ -220,9 +239,11 @@ struct GraphView: View {
             .animation(.spring(response: 0.3), value: graphMode)
             .animation(.spring(response: 0.3), value: showDetail)
             .animation(.spring(response: 0.3), value: selectedPeriod)
+            .animation(.spring(response: 0.3), value: showCalendarPicker)
             .sheet(item: $editingEntry) { entry in
                 MemoInputView(
                     score: entry.score,
+                    maxScore: entry.maxScore,
                     themeColors: themeManager.colors,
                     editingEntry: entry,
                     onSave: { memo in
@@ -245,8 +266,8 @@ struct GraphView: View {
                     entries: entries,
                     themeColors: themeManager.colors,
                     graphMode: graphMode,
-                    period: selectedPeriod,
-                    timeScale: selectedTimeScale,
+                    period: selectedPeriod ?? .all,
+                    customDateRange: customDateRange,
                     onDeleteEntry: { entry in
                         deleteEntry(entry)
                     }
@@ -312,12 +333,11 @@ struct GraphView: View {
 
     // MARK: - コントロールバー（モード + 期間 + 全画面）
 
-    @ViewBuilder
     private func controlBar(colors: ThemeColors) -> some View {
         HStack(spacing: 10) {
             // モード切り替えボタン群
             HStack(spacing: 4) {
-                ForEach(GraphMode.allCases, id: \.self) { mode in
+                ForEach(GraphMode.allCases.filter { $0 != .heatmap }, id: \.self) { mode in
                     let isSelected = graphMode == mode
                     Button {
                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -347,110 +367,74 @@ struct GraphView: View {
                 }
             }
 
-            // 期間メニュー（折れ線/ステップモード時のみ表示）
-            if graphMode != .heatmap {
-                periodMenu(colors: colors)
-                timeScaleMenu(colors: colors)
-            }
+            // 絞り込みボタン
+            filterButton(colors: colors)
 
             Spacer()
 
-            // 全画面ボタン（折れ線/ステップ時のみ）
-            if graphMode != .heatmap {
-                Button {
-                    showFullscreen = true
-                    HapticManager.lightFeedback()
-                } label: {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(.subheadline, design: .rounded))
-                        .frame(width: 36, height: 36)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color(.systemGray5).opacity(0.6))
-                        )
-                        .foregroundStyle(.primary)
-                }
-                .buttonStyle(.plain)
+            // 全画面ボタン
+            Button {
+                showFullscreen = true
+                HapticManager.lightFeedback()
+            } label: {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(.subheadline, design: .rounded))
+                    .frame(width: 36, height: 36)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(.systemGray5).opacity(0.6))
+                    )
+                    .foregroundStyle(.primary)
             }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal)
     }
 
-    // MARK: - 期間メニュー（ドロップダウン）
+    // MARK: - 絞り込みボタン
 
-    @ViewBuilder
-    private func periodMenu(colors: ThemeColors) -> some View {
-        Menu {
-            ForEach(ChartPeriod.allCases) { period in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedPeriod = period
-                        showDetail = false
-                    }
-                    HapticManager.lightFeedback()
-                } label: {
-                    HStack {
-                        Text(LocalizedStringKey(period.rawValue))
-                        if period == selectedPeriod {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Text(LocalizedStringKey(selectedPeriod.rawValue))
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .bold))
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule()
-                    .fill(colors.accent.opacity(0.12))
-            )
-            .foregroundStyle(colors.accent)
+    /// Current filter label text
+    private var filterLabelText: String {
+        if let period = selectedPeriod {
+            return period.rawValue
         }
+        if let start = customStartDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "M/d"
+            let startStr = formatter.string(from: start)
+            if let end = customEndDate {
+                let endStr = formatter.string(from: end)
+                return "\(startStr)〜\(endStr)"
+            }
+            return "\(startStr)〜"
+        }
+        return "期間"
     }
 
-    // MARK: - 日付粒度メニュー（ドロップダウン）
-
-    @ViewBuilder
-    private func timeScaleMenu(colors: ThemeColors) -> some View {
-        Menu {
-            ForEach(TimeScale.allCases, id: \.self) { scale in
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedTimeScale = scale
-                    }
-                    HapticManager.lightFeedback()
-                } label: {
-                    HStack {
-                        Label(LocalizedStringKey(scale.rawValue), systemImage: scale.iconName)
-                        if scale == selectedTimeScale {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
+    private func filterButton(colors: ThemeColors) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                showCalendarPicker.toggle()
             }
+            HapticManager.lightFeedback()
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: selectedTimeScale.iconName)
+                Image(systemName: "calendar")
                     .font(.system(size: 10, weight: .bold))
-                Text(LocalizedStringKey(selectedTimeScale.rawValue))
+                Text(filterLabelText)
                     .font(.system(.caption, design: .rounded, weight: .semibold))
-                Image(systemName: "chevron.up.chevron.down")
+                Image(systemName: showCalendarPicker ? "chevron.up" : "chevron.down")
                     .font(.system(size: 9, weight: .bold))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(colors.accent.opacity(0.12))
+                    .fill(showCalendarPicker ? colors.accent : colors.accent.opacity(0.12))
             )
-            .foregroundStyle(colors.accent)
+            .foregroundStyle(showCalendarPicker ? .white : colors.accent)
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - チャートコンテンツ（折れ線/ステップ/棒グラフ共通）
@@ -462,10 +446,11 @@ struct GraphView: View {
             ZoomableChartContainer(
                 entries: entries,
                 themeColors: colors,
-                period: selectedPeriod,
+                period: selectedPeriod ?? .all,
                 graphMode: mode,
-                timeScale: selectedTimeScale,
+                timeScale: effectiveTimeScale,
                 zoomEnabled: false,
+                customDateRange: customDateRange,
                 onPointTap: { entry in
                     selectedEntry = entry
                     showDetail = true
@@ -493,7 +478,6 @@ struct GraphView: View {
 
     // MARK: - エントリ詳細カード
 
-    @ViewBuilder
     private func entryDetailCard(entry: MoodEntry, colors: ThemeColors) -> some View {
         VStack(spacing: 12) {
             HStack {
@@ -578,6 +562,35 @@ struct GraphView: View {
         )
         .padding(.horizontal)
     }
+
+    /// Determine TimeScale automatically from period or custom date range
+    static func effectiveTimeScale(for period: ChartPeriod?, customRange: ClosedRange<Date>?) -> TimeScale {
+        if let range = customRange {
+            let days = range.upperBound.timeIntervalSince(range.lowerBound) / (24 * 3600)
+            if days <= 7 { return .hourly }
+            else if days <= 90 { return .daily }
+            else if days <= 365 { return .weekly }
+            else { return .monthly }
+        }
+        switch period ?? .all {
+        case .week, .month, .threeMonths: return .daily
+        case .sixMonths: return .weekly
+        case .year, .all: return .monthly
+        }
+    }
+
+    /// Custom date range from calendar picker (nil if using preset period)
+    private var customDateRange: ClosedRange<Date>? {
+        guard selectedPeriod == nil,
+              let start = customStartDate,
+              let end = customEndDate
+        else { return nil }
+        let rangeStart = min(start, end)
+        // End of day for the end date
+        let calendar = Calendar.current
+        let rangeEnd = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: max(start, end)) ?? max(start, end)
+        return rangeStart ... rangeEnd
+    }
 }
 
 // MARK: - ズーム・パン対応チャートコンテナ
@@ -592,6 +605,8 @@ struct ZoomableChartContainer: View {
     var timeScale: TimeScale = .daily
     /// ズーム・パンの有効/無効（通常ビューではfalse）
     var zoomEnabled: Bool = true
+    /// カスタム日付範囲（カレンダーピッカーから、nilならperiodを使用）
+    var customDateRange: ClosedRange<Date>? = nil
     /// ドリルダウン時のレベル指定（フルスクリーン用）
     var drillLevel: DrillLevel? = nil
     let onPointTap: ((MoodEntry) -> Void)?
@@ -615,6 +630,9 @@ struct ZoomableChartContainer: View {
     /// 長押しの位置追跡用
     @State private var lastLongPressLocation: CGPoint = .zero
 
+    /// Scrubbing state (normal view only)
+    @State private var scrubEntry: MoodEntry?
+
     /// 表示期間でフィルタリングされたエントリ
     private var allFilteredEntries: [MoodEntry] {
         // ドリルダウン時はレベルの日付範囲でフィルタ
@@ -622,6 +640,12 @@ struct ZoomableChartContainer: View {
             let range = drillLevel.dateRange
             return entries
                 .filter { range.contains($0.createdAt) }
+                .sorted { $0.createdAt < $1.createdAt }
+        }
+        // カスタム日付範囲（カレンダーピッカー）
+        if let customRange = customDateRange {
+            return entries
+                .filter { customRange.contains($0.createdAt) }
                 .sorted { $0.createdAt < $1.createdAt }
         }
         guard let startDate = period.startDate else {
@@ -649,13 +673,14 @@ struct ZoomableChartContainer: View {
             let center = range.lowerBound.timeIntervalSince1970 + totalSpan / 2 + panOffset
             let start = Date(timeIntervalSince1970: center - visibleSpan / 2)
             let end = Date(timeIntervalSince1970: center + visibleSpan / 2)
-            return start...end
+            return start ... end
         }
 
         guard let first = allFilteredEntries.first?.createdAt,
-              let last = allFilteredEntries.last?.createdAt else {
+              let last = allFilteredEntries.last?.createdAt
+        else {
             let now = Date.now
-            return now...now
+            return now ... now
         }
 
         // データが短期間に集中している場合、最低3日分の幅を確保
@@ -670,7 +695,7 @@ struct ZoomableChartContainer: View {
 
         let start = Date(timeIntervalSince1970: center - visibleSpan / 2)
         let end = Date(timeIntervalSince1970: center + visibleSpan / 2)
-        return start...end
+        return start ... end
     }
 
     /// 表示範囲内のエントリ
@@ -693,7 +718,7 @@ struct ZoomableChartContainer: View {
         let sorted = visibleEntries
         guard sorted.count >= 2 else { return [] }
         var changes: [(date: Date, from: Int, to: Int)] = []
-        for i in 1..<sorted.count {
+        for i in 1 ..< sorted.count {
             let prev = sorted[i - 1]
             let curr = sorted[i]
             if prev.maxScore != curr.maxScore {
@@ -832,9 +857,44 @@ struct ZoomableChartContainer: View {
                             )
                     }
             }
+
+            // Scrub indicator line + score tooltip
+            if let entry = scrubEntry {
+                let scrubScore = entry.maxScore == entry.minScore
+                    ? Double(entry.score)
+                    : Double(entry.score - entry.minScore) / Double(entry.maxScore - entry.minScore) * Double(yAxisMax)
+
+                RuleMark(x: .value("Scrub", entry.createdAt))
+                    .foregroundStyle(themeColors.graphLine.opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                    .annotation(position: .top, alignment: .center) {
+                        VStack(spacing: 2) {
+                            Text("\(entry.score)")
+                                .font(.system(.headline, design: .rounded, weight: .bold))
+                            Text(entry.createdAt, format: .dateTime.month(.defaultDigits).day(.defaultDigits).hour().minute())
+                                .font(.system(.caption2, design: .rounded))
+                        }
+                        .foregroundStyle(themeColors.graphLine)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.ultraThinMaterial)
+                                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                        )
+                    }
+
+                PointMark(
+                    x: .value("Scrub", entry.createdAt),
+                    y: .value("Score", scrubScore)
+                )
+                .symbol(.circle)
+                .symbolSize(80)
+                .foregroundStyle(themeColors.graphLine)
+            }
         }
         .chartXScale(domain: visibleDateRange)
-        .chartYScale(domain: 1...yAxisMax)
+        .chartYScale(domain: 1 ... yAxisMax)
         .chartYAxis {
             AxisMarks(values: yAxisValues) { _ in
                 AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
@@ -883,8 +943,29 @@ struct ZoomableChartContainer: View {
                     .fill(.clear)
                     .contentShape(Rectangle())
                     .onTapGesture { location in
+                        // Clear scrub on tap
+                        if scrubEntry != nil {
+                            withAnimation(.easeOut(duration: 0.15)) { scrubEntry = nil }
+                            return
+                        }
                         handleTap(at: location, proxy: proxy, geometry: geometry)
                     }
+                    .gesture(
+                        DragGesture(minimumDistance: 8)
+                            .onChanged { value in
+                                if !zoomEnabled {
+                                    handleScrub(at: value.location, proxy: proxy, geometry: geometry)
+                                }
+                            }
+                            .onEnded { _ in
+                                if !zoomEnabled {
+                                    // Keep the last scrub visible briefly then fade
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                        withAnimation(.easeOut(duration: 0.3)) { scrubEntry = nil }
+                                    }
+                                }
+                            }
+                    )
                     .gesture(
                         LongPressGesture(minimumDuration: 0.5)
                             .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
@@ -894,7 +975,6 @@ struct ZoomableChartContainer: View {
                                     if let location = drag?.location {
                                         handleLongPress(at: location, proxy: proxy, geometry: geometry)
                                     } else {
-                                        // ドラッグなしで長押し完了 → lastLongPressLocationを使用
                                         handleLongPress(at: lastLongPressLocation, proxy: proxy, geometry: geometry)
                                     }
                                 default:
@@ -999,6 +1079,23 @@ struct ZoomableChartContainer: View {
         if let closest { onPointTap(closest) }
     }
 
+    /// Scrub gesture handler: find closest entry for scrub indicator
+    private func handleScrub(at location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy) {
+        guard let plotFrame = proxy.plotFrame else { return }
+        let frame = geometry[plotFrame]
+        let xPosition = location.x - frame.origin.x
+
+        guard let date: Date = proxy.value(atX: xPosition) else { return }
+
+        let closest = visibleEntries.min { a, b in
+            abs(a.createdAt.timeIntervalSince(date)) < abs(b.createdAt.timeIntervalSince(date))
+        }
+        if let closest, closest.id != scrubEntry?.id {
+            withAnimation(.easeInOut(duration: 0.08)) { scrubEntry = closest }
+            HapticManager.lightFeedback()
+        }
+    }
+
     /// 長押しでデータポイントを検出してコールバックを呼ぶ
     private func handleLongPress(at location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy) {
         guard let onPointLongPress,
@@ -1028,9 +1125,15 @@ struct FullscreenChartView: View {
     let themeColors: ThemeColors
     let graphMode: GraphMode
     let period: ChartPeriod
-    let timeScale: TimeScale
+    /// Custom date range from calendar picker (nil = use period)
+    let customDateRange: ClosedRange<Date>?
     /// 削除時のコールバック（親ビューのmodelContextで削除する）
     let onDeleteEntry: ((MoodEntry) -> Void)?
+
+    /// X軸の日付粒度（期間から自動決定）
+    private var effectiveTimeScale: TimeScale {
+        GraphView.effectiveTimeScale(for: period, customRange: customDateRange)
+    }
 
     /// 現在のドリルダウンレベル
     @State private var currentLevel: DrillLevel
@@ -1042,27 +1145,49 @@ struct FullscreenChartView: View {
     @State private var entryToDelete: MoodEntry?
 
     init(entries: [MoodEntry], themeColors: ThemeColors, graphMode: GraphMode,
-         period: ChartPeriod, timeScale: TimeScale = .daily,
-         onDeleteEntry: ((MoodEntry) -> Void)? = nil) {
+         period: ChartPeriod,
+         customDateRange: ClosedRange<Date>? = nil,
+         onDeleteEntry: ((MoodEntry) -> Void)? = nil)
+    {
         self.entries = entries
         self.themeColors = themeColors
         self.graphMode = graphMode
         self.period = period
-        self.timeScale = timeScale
+        self.customDateRange = customDateRange
         self.onDeleteEntry = onDeleteEntry
 
-        // 初期レベル: 期間が長い場合は年レベル、それ以外は月レベル
+        // Determine initial drill level based on custom date range or period
         let cal = Calendar.current
         let now = Date()
         let initialLevel: DrillLevel
-        switch period {
-        case .year, .all:
-            initialLevel = .year(cal.component(.year, from: now))
-        default:
-            initialLevel = .month(
-                cal.component(.year, from: now),
-                cal.component(.month, from: now)
-            )
+
+        if let range = customDateRange {
+            // Custom range: determine level from range span
+            let startComps = cal.dateComponents([.year, .month, .day], from: range.lowerBound)
+            let endComps = cal.dateComponents([.year, .month, .day], from: range.upperBound)
+            let daySpan = cal.dateComponents([.day], from: range.lowerBound, to: range.upperBound).day ?? 0
+
+            let currentYear = cal.component(.year, from: now)
+            if daySpan <= 1 {
+                // Single day → day level
+                initialLevel = .day(startComps.year ?? currentYear, startComps.month ?? 1, startComps.day ?? 1)
+            } else if startComps.year == endComps.year && startComps.month == endComps.month {
+                // Same month → month level
+                initialLevel = .month(startComps.year ?? currentYear, startComps.month ?? 1)
+            } else {
+                // Spans multiple months → year level
+                initialLevel = .year(startComps.year ?? currentYear)
+            }
+        } else {
+            switch period {
+            case .year, .all:
+                initialLevel = .year(cal.component(.year, from: now))
+            default:
+                initialLevel = .month(
+                    cal.component(.year, from: now),
+                    cal.component(.month, from: now)
+                )
+            }
         }
         _currentLevel = State(initialValue: initialLevel)
     }
@@ -1089,7 +1214,8 @@ struct FullscreenChartView: View {
                         themeColors: themeColors,
                         period: period,
                         graphMode: graphMode,
-                        timeScale: timeScale,
+                        timeScale: effectiveTimeScale,
+                        customDateRange: customDateRange,
                         drillLevel: currentLevel,
                         onPointTap: { entry in
                             selectedEntry = entry
@@ -1160,7 +1286,6 @@ struct FullscreenChartView: View {
 
     // MARK: - ヘッダーバー
 
-    @ViewBuilder
     private var headerBar: some View {
         HStack {
             // 戻るボタン（履歴がある or 親レベルがある場合のみ）
@@ -1242,7 +1367,6 @@ struct FullscreenChartView: View {
 
     // MARK: - エントリ詳細カード
 
-    @ViewBuilder
     private func fullscreenDetailCard(entry: MoodEntry) -> some View {
         HStack(spacing: 12) {
             Text("\(entry.score)")
@@ -1298,25 +1422,25 @@ struct FullscreenChartView: View {
     let today = Date()
 
     // 今日: 5回記録（密集テスト）
-    for i in 0..<5 {
+    for i in 0 ..< 5 {
         let date = cal.date(byAdding: .hour, value: -i * 3, to: today)!
-        let entry = MoodEntry(score: Int.random(in: 3...9), memo: "テストメモ\(i)", createdAt: date)
+        let entry = MoodEntry(score: Int.random(in: 3 ... 9), memo: "テストメモ\(i)", createdAt: date)
         container.mainContext.insert(entry)
     }
     // 過去7日間: 各日2〜3回
-    for day in 1...7 {
+    for day in 1 ... 7 {
         let baseDate = cal.date(byAdding: .day, value: -day, to: today)!
         for hour in [8, 14, 21] {
-            let date = cal.date(bySettingHour: hour, minute: Int.random(in: 0...59), second: 0, of: baseDate)!
-            let entry = MoodEntry(score: Int.random(in: 2...10), createdAt: date)
+            let date = cal.date(bySettingHour: hour, minute: Int.random(in: 0 ... 59), second: 0, of: baseDate)!
+            let entry = MoodEntry(score: Int.random(in: 2 ... 10), createdAt: date)
             container.mainContext.insert(entry)
         }
     }
     // 過去30日間: 各日1〜2回
-    for day in 8...30 {
+    for day in 8 ... 30 {
         let baseDate = cal.date(byAdding: .day, value: -day, to: today)!
         let date = cal.date(bySettingHour: 12, minute: 0, second: 0, of: baseDate)!
-        let entry = MoodEntry(score: Int.random(in: 1...10), createdAt: date)
+        let entry = MoodEntry(score: Int.random(in: 1 ... 10), createdAt: date)
         container.mainContext.insert(entry)
     }
 

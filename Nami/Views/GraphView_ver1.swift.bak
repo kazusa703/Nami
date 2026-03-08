@@ -1,0 +1,1359 @@
+//
+//  GraphView.swift
+//  Nami
+//
+//  グラフ画面 - 気分の波を可視化する
+//  ドリルダウンナビゲーション対応（年→月→日→時間）
+//
+
+import Charts
+import SwiftData
+import SwiftUI
+
+// MARK: - グラフモード
+
+/// グラフの表示モード
+enum GraphMode: String, CaseIterable {
+    case line = "折れ線"
+    case bar = "棒グラフ"
+    case heatmap = "芝生"
+
+    /// SF Symbols アイコン名
+    var iconName: String {
+        switch self {
+        case .line: return "chart.xyaxis.line"
+        case .bar: return "chart.bar.fill"
+        case .heatmap: return "square.grid.3x3.fill"
+        }
+    }
+
+    /// チャート描画可能かどうか
+    var isChartType: Bool {
+        self != .heatmap
+    }
+}
+
+// MARK: - 日付範囲カレンダーピッカー
+
+/// カレンダー形式で開始日と終了日を選択するピッカー
+struct DateRangeCalendarPicker: View {
+    @Binding var rangeStart: Date
+    @Binding var rangeEnd: Date
+    @Binding var isExpanded: Bool
+    let accentColor: Color
+
+    @State private var displayedMonth: Date
+    @State private var isSelectingEnd = false
+
+    private let calendar = Calendar.current
+    private let weekdayHeaders = ["日", "月", "火", "水", "木", "金", "土"]
+
+    init(rangeStart: Binding<Date>, rangeEnd: Binding<Date>, isExpanded: Binding<Bool>, accentColor: Color) {
+        _rangeStart = rangeStart
+        _rangeEnd = rangeEnd
+        _isExpanded = isExpanded
+        self.accentColor = accentColor
+        _displayedMonth = State(initialValue: rangeEnd.wrappedValue)
+    }
+
+    private var monthYearText: String {
+        let y = calendar.component(.year, from: displayedMonth)
+        let m = calendar.component(.month, from: displayedMonth)
+        return "\(y)年\(m)月"
+    }
+
+    private var isNextMonthFuture: Bool {
+        let nextMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth)!
+        return calendar.compare(nextMonth, to: Date(), toGranularity: .month) == .orderedDescending
+    }
+
+    /// 月のグリッドデータ（nilは空セル、Intは日番号）
+    private var daysGrid: [Int?] {
+        let comps = calendar.dateComponents([.year, .month], from: displayedMonth)
+        let firstOfMonth = calendar.date(from: comps)!
+        let weekday = calendar.component(.weekday, from: firstOfMonth)
+        let daysInMonth = calendar.range(of: .day, in: .month, for: firstOfMonth)!.count
+
+        var grid: [Int?] = Array(repeating: nil, count: weekday - 1)
+        for day in 1 ... daysInMonth {
+            grid.append(day)
+        }
+        return grid
+    }
+
+    private func dateForDay(_ day: Int) -> Date {
+        let comps = calendar.dateComponents([.year, .month], from: displayedMonth)
+        return calendar.date(from: DateComponents(year: comps.year, month: comps.month, day: day))!
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            // クイックプリセット
+            HStack(spacing: 6) {
+                presetButton("1日", days: 1)
+                presetButton("1週間", days: 7)
+                presetButton("1ヶ月", days: 30)
+                presetButton("3ヶ月", days: 90)
+                presetButton("1年", days: 365)
+            }
+
+            // 月ナビゲーション
+            HStack {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth)!
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(accentColor)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+
+                Spacer()
+
+                Text(monthYearText)
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+
+                Spacer()
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth)!
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(isNextMonthFuture ? .secondary.opacity(0.3) : accentColor)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .disabled(isNextMonthFuture)
+            }
+
+            // 選択ガイド
+            if isSelectingEnd {
+                Text("終了日をタップしてください")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(accentColor)
+                    .transition(.opacity)
+            }
+
+            // 曜日ヘッダー
+            HStack(spacing: 0) {
+                ForEach(weekdayHeaders, id: \.self) { symbol in
+                    Text(symbol)
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            // 日グリッド
+            let grid = daysGrid
+            let rowCount = (grid.count + 6) / 7
+            VStack(spacing: 2) {
+                ForEach(0 ..< rowCount, id: \.self) { row in
+                    HStack(spacing: 0) {
+                        ForEach(0 ..< 7, id: \.self) { col in
+                            let index = row * 7 + col
+                            if index < grid.count, let day = grid[index] {
+                                dayCell(day: day)
+                            } else {
+                                Color.clear.frame(height: 40).frame(maxWidth: .infinity)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+        )
+    }
+
+    // MARK: - 日セル
+
+    @ViewBuilder
+    private func dayCell(day: Int) -> some View {
+        let date = dateForDay(day)
+        let startDay = calendar.startOfDay(for: rangeStart)
+        let endDay = calendar.startOfDay(for: rangeEnd)
+        let thisDay = calendar.startOfDay(for: date)
+        let today = calendar.startOfDay(for: Date())
+
+        let isStart = thisDay == startDay
+        let isEnd = thisDay == endDay
+        let isSingleDay = startDay == endDay
+        let isInRange = thisDay > startDay && thisDay < endDay
+        let isFuture = thisDay > today
+
+        Text("\(day)")
+            .font(.system(.body, design: .rounded, weight: isStart || isEnd ? .bold : .regular))
+            .foregroundStyle(isStart || isEnd ? .white : isFuture ? .secondary.opacity(0.4) : .primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .background {
+                // 範囲ハイライト（行をまたぐ帯）
+                if isInRange {
+                    Rectangle().fill(Color(.systemGray5))
+                } else if isStart && !isSingleDay {
+                    HStack(spacing: 0) {
+                        Color.clear
+                        Rectangle().fill(Color(.systemGray5))
+                    }
+                } else if isEnd && !isSingleDay {
+                    HStack(spacing: 0) {
+                        Rectangle().fill(Color(.systemGray5))
+                        Color.clear
+                    }
+                }
+            }
+            .overlay {
+                if isStart || isEnd {
+                    Circle()
+                        .fill(Color.primary)
+                        .frame(width: 38, height: 38)
+                        .overlay {
+                            Text("\(day)")
+                                .font(.system(.body, design: .rounded, weight: .bold))
+                                .foregroundStyle(Color(.systemBackground))
+                        }
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard !isFuture else { return }
+                handleDayTap(date)
+            }
+    }
+
+    // MARK: - タップ処理
+
+    private func handleDayTap(_ date: Date) {
+        let tapped = calendar.startOfDay(for: date)
+        let currentStart = calendar.startOfDay(for: rangeStart)
+
+        if !isSelectingEnd {
+            rangeStart = tapped
+            rangeEnd = tapped
+            isSelectingEnd = true
+        } else {
+            if tapped >= currentStart {
+                rangeEnd = tapped
+            } else {
+                rangeStart = tapped
+                rangeEnd = currentStart
+            }
+            isSelectingEnd = false
+        }
+    }
+
+    // MARK: - プリセットボタン
+
+    private func presetButton(_ title: String, days: Int) -> some View {
+        let presetStart = calendar.startOfDay(
+            for: calendar.date(byAdding: .day, value: -(days - 1), to: Date()) ?? Date()
+        )
+        let presetEnd = calendar.startOfDay(for: Date())
+        let isActive = calendar.startOfDay(for: rangeStart) == presetStart
+            && calendar.startOfDay(for: rangeEnd) == presetEnd
+
+        return Button {
+            rangeStart = presetStart
+            rangeEnd = presetEnd
+            isSelectingEnd = false
+            displayedMonth = Date()
+        } label: {
+            Text(title)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isActive ? accentColor : Color(.systemGray5))
+                )
+                .foregroundStyle(isActive ? .white : .primary)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - グラフ画面
+
+/// グラフ画面
+/// カレンダーで選択した日付範囲のデータを折れ線/棒グラフ/ヒートマップで表示
+struct GraphView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.themeManager) private var themeManager
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \MoodEntry.createdAt, order: .reverse) private var entries: [MoodEntry]
+
+    /// 表示モード
+    @State private var graphMode: GraphMode = .line
+    /// 日付範囲（カレンダーで選択）
+    @State private var rangeStart: Date = Calendar.current.date(byAdding: .day, value: -29, to: Date()) ?? Date()
+    @State private var rangeEnd: Date = .init()
+    /// カレンダー表示フラグ
+    @State private var showCalendar = false
+    /// 選択されたエントリ（詳細表示用）
+    @State private var selectedEntry: MoodEntry?
+    /// 詳細表示フラグ
+    @State private var showDetail = false
+    /// メモ編集シートの対象エントリ
+    @State private var editingEntry: MoodEntry?
+    /// 全画面表示フラグ
+    @State private var showFullscreen = false
+    /// 削除確認対象エントリ
+    @State private var entryToDelete: MoodEntry?
+    private let calendar = Calendar.current
+
+    /// 日付範囲のテキスト表示
+    private var dateRangeText: String {
+        let sm = calendar.component(.month, from: rangeStart)
+        let sd = calendar.component(.day, from: rangeStart)
+        let em = calendar.component(.month, from: rangeEnd)
+        let ed = calendar.component(.day, from: rangeEnd)
+        if calendar.isDate(rangeStart, inSameDayAs: rangeEnd) {
+            return "\(sm)/\(sd)"
+        }
+        return "\(sm)/\(sd)〜\(em)/\(ed)"
+    }
+
+    /// 日付範囲でフィルタしたエントリ
+    private var filteredEntries: [MoodEntry] {
+        let start = calendar.startOfDay(for: rangeStart)
+        let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: rangeEnd)) ?? rangeEnd
+        return entries
+            .filter { $0.createdAt >= start && $0.createdAt < end }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// チャート用の日付ドメイン
+    private var chartDateRange: ClosedRange<Date> {
+        let start = calendar.startOfDay(for: rangeStart)
+        let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: rangeEnd)) ?? rangeEnd
+        return start ... end
+    }
+
+    var body: some View {
+        let colors = themeManager.colors
+
+        ZStack {
+            NavigationStack {
+                ZStack {
+                    colors.backgroundGradient(for: colorScheme)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 0) {
+                        if entries.isEmpty {
+                            emptyStateView(colors: colors)
+                        } else if !showFullscreen {
+                            if graphMode == .heatmap {
+                                // ヒートマップモード: ScrollView不要、全画面表示
+                                controlBar(colors: colors)
+                                    .padding(.top, 8)
+                                YearInPixelsView(
+                                    entries: entries,
+                                    themeColors: colors
+                                )
+                            } else {
+                                ScrollView {
+                                    VStack(spacing: 12) {
+                                        // コントロールバー
+                                        controlBar(colors: colors)
+
+                                        // カレンダーピッカー（折りたたみ）
+                                        if showCalendar {
+                                            DateRangeCalendarPicker(
+                                                rangeStart: $rangeStart,
+                                                rangeEnd: $rangeEnd,
+                                                isExpanded: $showCalendar,
+                                                accentColor: colors.accent
+                                            )
+                                            .padding(.horizontal)
+                                            .transition(.move(edge: .top).combined(with: .opacity))
+                                        }
+
+                                        chartSection(colors: colors)
+                                    }
+                                    .padding(.vertical)
+                                }
+                            }
+                        }
+
+                        if !showFullscreen {
+                            BannerAdView()
+                        }
+                    }
+                }
+                .toolbar(.hidden, for: .navigationBar)
+                .toolbar(showFullscreen ? .hidden : .visible, for: .tabBar)
+                .animation(.easeInOut(duration: 0.25), value: graphMode)
+                .animation(.easeInOut(duration: 0.25), value: showDetail)
+                .animation(.easeInOut(duration: 0.25), value: showCalendar)
+                .sheet(item: $editingEntry) { entry in
+                    MemoInputView(
+                        score: entry.score,
+                        maxScore: entry.maxScore,
+                        themeColors: themeManager.colors,
+                        editingEntry: entry,
+                        onSave: { memo in
+                            entry.memo = memo.isEmpty ? nil : String(memo.prefix(100))
+                            editingEntry = nil
+                        },
+                        onSkip: {
+                            editingEntry = nil
+                        }
+                    )
+                }
+                .alert("この記録を削除しますか？", isPresented: Binding(
+                    get: { entryToDelete != nil },
+                    set: { if !$0 { entryToDelete = nil } }
+                )) {
+                    Button("削除", role: .destructive) {
+                        if let entry = entryToDelete {
+                            deleteEntry(entry)
+                        }
+                    }
+                    Button("キャンセル", role: .cancel) {
+                        entryToDelete = nil
+                    }
+                } message: {
+                    if let entry = entryToDelete {
+                        Text("\(entry.createdAt, format: .dateTime.month(.defaultDigits).day(.defaultDigits).hour().minute()) のスコア \(entry.score) を削除します")
+                    }
+                }
+            }
+
+            // 全画面オーバーレイ（fullScreenCoverの代わり）
+            if showFullscreen {
+                FullscreenChartView(
+                    entries: entries,
+                    themeColors: themeManager.colors,
+                    graphMode: graphMode,
+                    initialDateRange: chartDateRange,
+                    onDeleteEntry: { entry in
+                        deleteEntry(entry)
+                    },
+                    onClose: {
+                        showFullscreen = false
+                    }
+                )
+                .ignoresSafeArea(edges: .bottom)
+                .transition(.move(edge: .bottom))
+                .zIndex(1)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: showFullscreen)
+    }
+
+    // MARK: - 空状態ビュー
+
+    @ViewBuilder
+    private func emptyStateView(colors: ThemeColors) -> some View {
+        Spacer()
+        VStack(spacing: 20) {
+            Image(systemName: "waveform.path.ecg")
+                .font(.system(size: 52))
+                .foregroundStyle(colors.accent.opacity(0.3))
+
+            Text("気分の波を可視化")
+                .font(.system(.title3, design: .rounded, weight: .bold))
+
+            Text("記録が増えるほど、折れ線グラフ・棒グラフ・\nカレンダーヒートマップで気分の変化が見えてきます")
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            HStack(spacing: 16) {
+                graphFeatureChip(icon: "chart.xyaxis.line", text: "折れ線", colors: colors)
+                graphFeatureChip(icon: "chart.bar.fill", text: "棒グラフ", colors: colors)
+                graphFeatureChip(icon: "square.grid.3x3.fill", text: "芝生", colors: colors)
+            }
+        }
+        .padding()
+        Spacer()
+    }
+
+    private func graphFeatureChip(icon: String, text: String, colors: ThemeColors) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption2)
+            Text(text)
+                .font(.system(.caption2, design: .rounded, weight: .medium))
+        }
+        .foregroundStyle(colors.accent)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(colors.accent.opacity(0.1)))
+    }
+
+    // MARK: - コントロールバー
+
+    private func controlBar(colors: ThemeColors) -> some View {
+        HStack(spacing: 10) {
+            // モード切り替え
+            HStack(spacing: 4) {
+                ForEach(GraphMode.allCases, id: \.self) { mode in
+                    let isSelected = graphMode == mode
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            graphMode = mode
+                            showDetail = false
+                            selectedEntry = nil
+                        }
+                        HapticManager.lightFeedback()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: mode.iconName)
+                                .font(.system(.caption, design: .rounded))
+                            if isSelected {
+                                Text(LocalizedStringKey(mode.rawValue))
+                                    .font(.system(.caption2, design: .rounded, weight: .semibold))
+                            }
+                        }
+                        .padding(.horizontal, isSelected ? 12 : 0)
+                        .frame(minWidth: 36, minHeight: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(isSelected ? colors.accent : Color(.systemGray5).opacity(0.6))
+                        )
+                        .foregroundStyle(isSelected ? .white : .primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // 日付範囲ボタン（カレンダー切り替え）
+            if graphMode != .heatmap {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showCalendar.toggle()
+                    }
+                    HapticManager.lightFeedback()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                            .font(.system(.caption, design: .rounded))
+                        Text(dateRangeText)
+                            .font(.system(.caption, design: .rounded, weight: .medium))
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(showCalendar ? colors.accent : Color(.systemGray5).opacity(0.6))
+                    )
+                    .foregroundStyle(showCalendar ? .white : .primary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer()
+
+            // 全画面ボタン
+            if graphMode != .heatmap {
+                Button {
+                    showFullscreen = true
+                    HapticManager.lightFeedback()
+                } label: {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(.subheadline, design: .rounded))
+                        .frame(width: 36, height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color(.systemGray5).opacity(0.6))
+                        )
+                        .foregroundStyle(.primary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    // MARK: - チャートセクション
+
+    @ViewBuilder
+    private func chartSection(colors: ThemeColors) -> some View {
+        if filteredEntries.isEmpty {
+            ContentUnavailableView {
+                Label("データなし", systemImage: "chart.line.downtrend.xyaxis")
+            } description: {
+                Text("この期間のデータがありません。\n気分を記録してグラフを見てみましょう。")
+            }
+            .frame(height: 250)
+        } else {
+            VStack(spacing: 0) {
+                NormalChartView(
+                    entries: filteredEntries,
+                    themeColors: colors,
+                    graphMode: graphMode,
+                    dateRange: chartDateRange,
+                    onPointTap: graphMode == .line ? { entry in
+                        selectedEntry = entry
+                        showDetail = true
+                        HapticManager.lightFeedback()
+                    } : nil,
+                    onPointLongPress: { entry in
+                        entryToDelete = entry
+                        HapticManager.recordFeedback()
+                    }
+                )
+                .frame(height: 240)
+                .padding(.horizontal)
+            }
+
+            if showDetail, let entry = selectedEntry {
+                entryDetailCard(entry: entry, colors: colors)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .opacity
+                    ))
+            }
+        }
+    }
+
+    // MARK: - エントリ詳細カード
+
+    private func entryDetailCard(entry: MoodEntry, colors: ThemeColors) -> some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("記録の詳細")
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                Spacer()
+                Button {
+                    withAnimation {
+                        showDetail = false
+                        selectedEntry = nil
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+            }
+
+            HStack(spacing: 16) {
+                Text("\(entry.score)")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(colors.color(for: entry.score, maxScore: entry.maxScore))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(entry.createdAt, format: .dateTime.month(.defaultDigits).day(.defaultDigits).hour().minute())
+                        .font(.system(.subheadline, design: .rounded))
+
+                    if let memo = entry.memo, !memo.isEmpty {
+                        Text(memo)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !entry.tags.isEmpty {
+                        HStack(spacing: 3) {
+                            ForEach(Array(entry.tags.prefix(3)), id: \.self) { tag in
+                                Text(tag)
+                                    .font(.system(.caption2, design: .rounded))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(colors.accent.opacity(0.1)))
+                                    .foregroundStyle(colors.accent)
+                            }
+                            if entry.tags.count > 3 {
+                                Text("+\(entry.tags.count - 3)")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    editingEntry = entry
+                } label: {
+                    Image(systemName: entry.memo?.isEmpty == false ? "pencil.circle.fill" : "plus.circle")
+                        .font(.title3)
+                        .foregroundStyle(colors.accent.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    entryToDelete = entry
+                } label: {
+                    Image(systemName: "trash.circle")
+                        .font(.title3)
+                        .foregroundStyle(.red.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+        )
+        .padding(.horizontal)
+    }
+
+    // MARK: - エントリ削除
+
+    private func deleteEntry(_ entry: MoodEntry) {
+        if let photoPath = entry.photoPath {
+            MediaManager.deleteMedia(at: photoPath)
+        }
+        if let voicePath = entry.voiceMemoPath {
+            MediaManager.deleteMedia(at: voicePath)
+        }
+        if selectedEntry?.id == entry.id {
+            withAnimation {
+                showDetail = false
+                selectedEntry = nil
+            }
+        }
+        modelContext.delete(entry)
+        entryToDelete = nil
+        HapticManager.lightFeedback()
+    }
+}
+
+// MARK: - 通常チャートビュー（ドリルダウン対応）
+
+/// 日付範囲に応じた通常サイズのチャート
+struct NormalChartView: View {
+    let entries: [MoodEntry]
+    let themeColors: ThemeColors
+    let graphMode: GraphMode
+    let dateRange: ClosedRange<Date>
+    let onPointTap: ((MoodEntry) -> Void)?
+    let onPointLongPress: ((MoodEntry) -> Void)?
+
+    @AppStorage(AppConstants.scoreRangeMaxKey) private var currentMaxScore: Int = 10
+
+    @State private var lastLongPressLocation: CGPoint = .zero
+
+    private var yAxisMax: Int {
+        let maxScoreMax = entries.map(\.maxScore).max() ?? 10
+        let scoreMax = entries.map(\.score).max() ?? 10
+        return max(currentMaxScore, maxScoreMax, scoreMax)
+    }
+
+    private var yAxisValues: [Int] {
+        switch yAxisMax {
+        case ...10: return [0, 2, 4, 6, 8, 10]
+        case ...30: return [0, 5, 10, 15, 20, 25, 30]
+        default: return [0, 20, 40, 60, 80, 100]
+        }
+    }
+
+    private var visibleEntries: [MoodEntry] {
+        let maxVisible = 300
+        if entries.count > maxVisible {
+            let step = max(entries.count / maxVisible, 1)
+            return stride(from: 0, to: entries.count, by: step).map { entries[$0] }
+        }
+        return entries
+    }
+
+    private var barWidth: MarkDimension {
+        let count = visibleEntries.count
+        guard count > 0 else { return .fixed(12) }
+        let maxWidth: CGFloat = count <= 7 ? 24 : (count <= 31 ? 12 : 6)
+        return .fixed(maxWidth)
+    }
+
+    /// 日付範囲のスパンに応じたX軸フォーマット
+    private var xAxisFormat: Date.FormatStyle {
+        let span = dateRange.upperBound.timeIntervalSince(dateRange.lowerBound)
+        let oneDay: TimeInterval = 86400
+        if span < oneDay * 2 {
+            return .dateTime.hour()
+        } else if span < oneDay * 14 {
+            return .dateTime.month(.defaultDigits).day(.defaultDigits)
+        } else if span < oneDay * 90 {
+            return .dateTime.month(.defaultDigits).day(.defaultDigits)
+        } else {
+            return .dateTime.year().month(.abbreviated)
+        }
+    }
+
+    private var rangeChangeDates: [(date: Date, from: Int, to: Int)] {
+        let sorted = visibleEntries
+        guard sorted.count >= 2 else { return [] }
+        var changes: [(date: Date, from: Int, to: Int)] = []
+        for i in 1 ..< sorted.count {
+            let prev = sorted[i - 1]
+            let curr = sorted[i]
+            if prev.maxScore != curr.maxScore {
+                let midTime = (prev.createdAt.timeIntervalSinceReferenceDate + curr.createdAt.timeIntervalSinceReferenceDate) / 2
+                changes.append((Date(timeIntervalSinceReferenceDate: midTime), prev.maxScore, curr.maxScore))
+            }
+        }
+        return changes
+    }
+
+    var body: some View {
+        let isBar = graphMode == .bar
+        let interpolation: InterpolationMethod = visibleEntries.count >= 4 ? .catmullRom : .linear
+
+        Chart {
+            ForEach(visibleEntries, id: \.id) { entry in
+                let rawScore = entry.maxScore == yAxisMax
+                    ? Double(entry.score)
+                    : entry.scaledScore(to: yAxisMax)
+                let displayScore = min(rawScore, Double(yAxisMax))
+
+                if isBar {
+                    BarMark(
+                        x: .value("日時", entry.createdAt),
+                        yStart: .value("開始", 0),
+                        yEnd: .value("スコア", displayScore),
+                        width: barWidth
+                    )
+                    .foregroundStyle(
+                        themeColors.color(for: Int(displayScore.rounded()), maxScore: yAxisMax).gradient
+                    )
+                    .cornerRadius(3)
+                } else {
+                    if visibleEntries.count >= 2 {
+                        LineMark(
+                            x: .value("日時", entry.createdAt),
+                            y: .value("スコア", displayScore)
+                        )
+                        .foregroundStyle(themeColors.graphLine)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                        .interpolationMethod(interpolation)
+
+                        AreaMark(
+                            x: .value("日時", entry.createdAt),
+                            y: .value("スコア", displayScore)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [themeColors.graphLine.opacity(0.15), themeColors.graphLine.opacity(0.01)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .interpolationMethod(interpolation)
+                    }
+
+                    PointMark(
+                        x: .value("日時", entry.createdAt),
+                        y: .value("スコア", displayScore)
+                    )
+                    .foregroundStyle(themeColors.graphLine)
+                    .symbolSize(visibleEntries.count == 1 ? 60 : 30)
+                }
+            }
+
+            ForEach(Array(rangeChangeDates.enumerated()), id: \.offset) { _, change in
+                RuleMark(x: .value("範囲変更", change.date))
+                    .foregroundStyle(.secondary.opacity(0.4))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .annotation(position: .top, alignment: .center) {
+                        Text("\(change.from)→\(change.to)")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color(.systemGray5).opacity(0.6))
+                            )
+                    }
+            }
+        }
+        .chartXScale(domain: dateRange)
+        .chartYScale(domain: -1 ... yAxisMax)
+        .chartYAxis {
+            AxisMarks(values: yAxisValues) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
+                    .foregroundStyle(.secondary.opacity(0.3))
+                AxisValueLabel()
+                    .font(.system(.caption2, design: .rounded))
+            }
+        }
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
+                    .foregroundStyle(.secondary.opacity(0.3))
+                AxisValueLabel(format: xAxisFormat)
+                    .font(.system(.caption2, design: .rounded))
+            }
+        }
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        handleTap(at: location, proxy: proxy, geometry: geometry)
+                    }
+                    .gesture(
+                        LongPressGesture(minimumDuration: 0.5)
+                            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .local))
+                            .onEnded { value in
+                                switch value {
+                                case .second(true, let drag):
+                                    let loc = drag?.location ?? lastLongPressLocation
+                                    handleLongPress(at: loc, proxy: proxy, geometry: geometry)
+                                default:
+                                    break
+                                }
+                            }
+                    )
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                lastLongPressLocation = value.location
+                            }
+                    )
+            }
+        }
+    }
+
+    private func handleTap(at location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy) {
+        guard graphMode == .line, let onPointTap else { return }
+        guard let plotFrame = proxy.plotFrame else { return }
+        let frame = geometry[plotFrame]
+        let xPosition = location.x - frame.origin.x
+        guard let date: Date = proxy.value(atX: xPosition) else { return }
+        let closest = visibleEntries.min { a, b in
+            abs(a.createdAt.timeIntervalSince(date)) < abs(b.createdAt.timeIntervalSince(date))
+        }
+        if let closest { onPointTap(closest) }
+    }
+
+    private func handleLongPress(at location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy) {
+        guard let onPointLongPress,
+              let plotFrame = proxy.plotFrame else { return }
+        let frame = geometry[plotFrame]
+        let xPosition = location.x - frame.origin.x
+        guard let date: Date = proxy.value(atX: xPosition) else { return }
+        let closest = visibleEntries.min { a, b in
+            abs(a.createdAt.timeIntervalSince(date)) < abs(b.createdAt.timeIntervalSince(date))
+        }
+        if let closest { onPointLongPress(closest) }
+    }
+}
+
+// MARK: - 全画面チャートビュー
+
+/// グラフを全画面で表示するビュー
+/// スクロール位置とズームレベルに連動する動的ヘッダー
+struct FullscreenChartView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    let entries: [MoodEntry]
+    let themeColors: ThemeColors
+    let graphMode: GraphMode
+    let initialDateRange: ClosedRange<Date>
+    let onDeleteEntry: ((MoodEntry) -> Void)?
+    var onClose: (() -> Void)?
+
+    @AppStorage(AppConstants.scoreRangeMaxKey) private var currentMaxScore: Int = 10
+
+    @State private var selectedEntry: MoodEntry?
+    @State private var showDetail = false
+    @State private var entryToDelete: MoodEntry?
+    /// チャートタップで選択された日時
+    @State private var chartSelectedDate: Date?
+
+    /// スクロール・ズーム状態
+    @State private var visibleDomainLength: TimeInterval = 30 * 24 * 3600
+    @State private var baseVisibleDomain: TimeInterval = 30 * 24 * 3600
+    @State private var scrollPosition: Date = .init()
+
+    /// onAppearで一度だけ計算するキャッシュ
+    @State private var sortedEntries: [MoodEntry] = []
+    @State private var cachedYAxisMax: Int = 10
+    @State private var cachedXDomain: ClosedRange<Date> = Date() ... Date()
+    @State private var cachedDisplayScores: [UUID: Double] = [:]
+    @State private var isReady = false
+
+    /// ズームレベルとスクロール位置から動的にヘッダーテキストを計算
+    private var contextHeaderText: String {
+        let cal = Calendar.current
+        let center = scrollPosition
+        let oneDay: TimeInterval = 24 * 3600
+
+        if visibleDomainLength < oneDay * 2 {
+            let y = cal.component(.year, from: center)
+            let m = cal.component(.month, from: center)
+            let d = cal.component(.day, from: center)
+            return "\(y)年\(m)月\(d)日"
+        } else if visibleDomainLength < oneDay * 60 {
+            let y = cal.component(.year, from: center)
+            let m = cal.component(.month, from: center)
+            return "\(y)年\(m)月"
+        } else {
+            let y = cal.component(.year, from: center)
+            return "\(y)年"
+        }
+    }
+
+    /// Y軸ラベル値
+    private var yAxisValues: [Int] {
+        switch cachedYAxisMax {
+        case ...10: return [0, 2, 4, 6, 8, 10]
+        case ...30: return [0, 5, 10, 15, 20, 25, 30]
+        default: return [0, 20, 40, 60, 80, 100]
+        }
+    }
+
+    /// 全画面用X軸フォーマット（ズームレベルに応じて変化）
+    private var fullscreenXAxisFormat: Date.FormatStyle {
+        let oneDay: TimeInterval = 24 * 3600
+        if visibleDomainLength < oneDay * 2 {
+            return .dateTime.hour()
+        } else if visibleDomainLength < oneDay * 60 {
+            return .dateTime.month(.defaultDigits).day(.defaultDigits)
+        } else {
+            return .dateTime.year().month(.abbreviated)
+        }
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let headerHeight: CGFloat = 56
+            let detailHeight: CGFloat = showDetail ? 90 : 0
+            let chartHeight = max(geometry.size.height - headerHeight - detailHeight - 100, 200)
+
+            ZStack {
+                themeColors.backgroundGradient(for: colorScheme)
+                    .ignoresSafeArea()
+
+                if isReady {
+                    VStack(spacing: 0) {
+                        // ヘッダー
+                        HStack {
+                            Spacer()
+                            Text(contextHeaderText)
+                                .font(.system(.headline, design: .rounded, weight: .bold))
+                            Spacer()
+                        }
+                        .overlay(alignment: .trailing) {
+                            Button {
+                                closeFullscreen()
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                        }
+                        .frame(height: headerHeight)
+                        .padding(.horizontal)
+
+                        // チャート
+                        fullscreenChart(chartHeight: chartHeight)
+                            .padding(.horizontal)
+
+                        Spacer(minLength: 0)
+
+                        // エントリ詳細
+                        if showDetail, let entry = selectedEntry {
+                            fullscreenDetailCard(entry: entry)
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                                .padding(.bottom, 16)
+                        }
+                    }
+                } else {
+                    ProgressView()
+                }
+            }
+        }
+        .animation(.spring(response: 0.3), value: showDetail)
+        .statusBarHidden()
+        .onAppear {
+            NamiAppDelegate.allowLandscape = true
+            // ZStackオーバーレイではVCが変わらないため、手動で回転許可を通知
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                for window in windowScene.windows {
+                    window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                }
+            }
+            // 一度だけ計算してキャッシュ
+            let sorted = entries.sorted { $0.createdAt < $1.createdAt }
+            // サンプリング（200件以下に抑えてスクロール性能を確保）
+            let maxVisible = 200
+            if sorted.count > maxVisible {
+                let step = max(sorted.count / maxVisible, 1)
+                sortedEntries = stride(from: 0, to: sorted.count, by: step).map { sorted[$0] }
+            } else {
+                sortedEntries = sorted
+            }
+            // Y軸
+            let maxScoreMax = sortedEntries.map(\.maxScore).max() ?? 10
+            let scoreMax = sortedEntries.map(\.score).max() ?? 10
+            cachedYAxisMax = max(currentMaxScore, maxScoreMax, scoreMax)
+            // Pre-compute display scores to avoid per-frame calculation
+            var scores: [UUID: Double] = [:]
+            scores.reserveCapacity(sortedEntries.count)
+            let yMax = cachedYAxisMax
+            for entry in sortedEntries {
+                let raw = entry.maxScore == yMax
+                    ? Double(entry.score)
+                    : entry.scaledScore(to: yMax)
+                scores[entry.id] = min(raw, Double(yMax))
+            }
+            cachedDisplayScores = scores
+            // X軸ドメイン
+            let oldest = sortedEntries.first?.createdAt ?? Date()
+            let newest = sortedEntries.last?.createdAt ?? Date()
+            cachedXDomain = oldest.addingTimeInterval(-86400 * 3) ... newest.addingTimeInterval(86400 * 3)
+            // 初期ドメイン長
+            let range = initialDateRange
+            let len = range.upperBound.timeIntervalSince(range.lowerBound)
+            visibleDomainLength = len
+            baseVisibleDomain = len
+            isReady = true
+        }
+        .alert("この記録を削除しますか？", isPresented: Binding(
+            get: { entryToDelete != nil },
+            set: { if !$0 { entryToDelete = nil } }
+        )) {
+            Button("削除", role: .destructive) {
+                if let entry = entryToDelete {
+                    onDeleteEntry?(entry)
+                    if selectedEntry?.id == entry.id {
+                        withAnimation {
+                            showDetail = false
+                            selectedEntry = nil
+                        }
+                    }
+                    entryToDelete = nil
+                }
+            }
+            Button("キャンセル", role: .cancel) {
+                entryToDelete = nil
+            }
+        } message: {
+            if let entry = entryToDelete {
+                Text("\(entry.createdAt, format: .dateTime.month(.defaultDigits).day(.defaultDigits).hour().minute()) のスコア \(entry.score) を削除します")
+            }
+        }
+    }
+
+    // MARK: - 全画面チャート
+
+    @ViewBuilder
+    private func fullscreenChart(chartHeight: CGFloat) -> some View {
+        let isBar = graphMode == .bar
+        let interpolation: InterpolationMethod = sortedEntries.count >= 4 ? .catmullRom : .linear
+
+        Chart {
+            ForEach(sortedEntries, id: \.id) { entry in
+                let displayScore = cachedDisplayScores[entry.id] ?? Double(entry.score)
+
+                if isBar {
+                    BarMark(
+                        x: .value("日時", entry.createdAt),
+                        yStart: .value("開始", 0),
+                        yEnd: .value("スコア", displayScore)
+                    )
+                    .foregroundStyle(
+                        themeColors.color(for: Int(displayScore.rounded()), maxScore: cachedYAxisMax).gradient
+                    )
+                    .cornerRadius(3)
+                } else {
+                    if sortedEntries.count >= 2 {
+                        LineMark(
+                            x: .value("日時", entry.createdAt),
+                            y: .value("スコア", displayScore)
+                        )
+                        .foregroundStyle(themeColors.graphLine)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                        .interpolationMethod(interpolation)
+
+                        AreaMark(
+                            x: .value("日時", entry.createdAt),
+                            y: .value("スコア", displayScore)
+                        )
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [themeColors.graphLine.opacity(0.15), themeColors.graphLine.opacity(0.01)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .interpolationMethod(interpolation)
+                    }
+
+                    PointMark(
+                        x: .value("日時", entry.createdAt),
+                        y: .value("スコア", displayScore)
+                    )
+                    .foregroundStyle(themeColors.graphLine)
+                    .symbolSize(sortedEntries.count == 1 ? 80 : 50)
+                }
+            }
+        }
+        .chartXScale(domain: cachedXDomain)
+        .chartYScale(domain: -1 ... cachedYAxisMax)
+        .chartScrollableAxes(.horizontal)
+        .chartScrollPosition(x: $scrollPosition)
+        .chartXVisibleDomain(length: visibleDomainLength)
+        .chartYAxis {
+            AxisMarks(values: yAxisValues) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
+                    .foregroundStyle(.secondary.opacity(0.3))
+                AxisValueLabel()
+                    .font(.system(.caption2, design: .rounded))
+            }
+        }
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
+                    .foregroundStyle(.secondary.opacity(0.3))
+                AxisValueLabel(format: fullscreenXAxisFormat)
+                    .font(.system(.caption2, design: .rounded))
+            }
+        }
+        .chartPlotStyle { plotArea in
+            plotArea.padding(.top, 12).padding(.bottom, 28)
+        }
+        .chartXSelection(value: $chartSelectedDate)
+        .frame(height: chartHeight)
+        .simultaneousGesture(
+            MagnificationGesture()
+                .onChanged { scale in
+                    let newLength = baseVisibleDomain / Double(scale)
+                    let minLength: TimeInterval = 3600 // 最小1時間
+                    let maxLength = cachedXDomain.upperBound.timeIntervalSince(cachedXDomain.lowerBound)
+                    visibleDomainLength = min(max(newLength, minLength), maxLength)
+                }
+                .onEnded { _ in
+                    baseVisibleDomain = visibleDomainLength
+                }
+        )
+        .onChange(of: chartSelectedDate) { _, newDate in
+            guard let newDate else { return }
+            let closest = sortedEntries.min { a, b in
+                abs(a.createdAt.timeIntervalSince(newDate)) < abs(b.createdAt.timeIntervalSince(newDate))
+            }
+            if let closest {
+                selectedEntry = closest
+                showDetail = true
+                HapticManager.lightFeedback()
+            }
+        }
+    }
+
+    // MARK: - 全画面閉じる（回転→閉じる）
+
+    private func closeFullscreen() {
+        // 1. ポートレートのみに制限
+        NamiAppDelegate.allowLandscape = false
+        // 2. 全ViewControllerに回転再評価を通知
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            for window in windowScene.windows {
+                window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+            }
+            windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+        }
+        // 3. 回転完了を待ってから閉じる
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            onClose?()
+        }
+    }
+
+    // MARK: - 全画面エントリ詳細カード
+
+    private func fullscreenDetailCard(entry: MoodEntry) -> some View {
+        VStack(spacing: 10) {
+            // ヘッダー行：スコア・日時・閉じるボタン
+            HStack(spacing: 12) {
+                Text("\(entry.score)")
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+                    .foregroundStyle(themeColors.color(for: entry.score, maxScore: entry.maxScore))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.createdAt, format: .dateTime.year().month(.defaultDigits).day(.defaultDigits).hour().minute())
+                        .font(.system(.caption, design: .rounded))
+
+                    if !entry.tags.isEmpty {
+                        HStack(spacing: 3) {
+                            ForEach(Array(entry.tags.prefix(4)), id: \.self) { tag in
+                                Text(tag)
+                                    .font(.system(.caption2, design: .rounded))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(themeColors.accent.opacity(0.15)))
+                                    .foregroundStyle(themeColors.accent)
+                            }
+                            if entry.tags.count > 4 {
+                                Text("+\(entry.tags.count - 4)")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    withAnimation {
+                        showDetail = false
+                        selectedEntry = nil
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+            }
+
+            // メモ
+            if let memo = entry.memo, !memo.isEmpty {
+                HStack {
+                    Text(memo)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Spacer()
+                }
+            }
+
+            // 写真
+            if let photoPath = entry.photoPath,
+               let image = MediaManager.loadPhoto(at: photoPath)
+            {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxHeight: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.ultraThinMaterial)
+        )
+        .padding(.horizontal)
+    }
+}
+
+// MARK: - プレビュー
+
+#Preview("空データ") {
+    GraphView()
+        .modelContainer(for: MoodEntry.self, inMemory: true)
+        .environment(\.themeManager, ThemeManager())
+}
+
+#Preview("180日テストデータ") {
+    GraphView()
+        .modelContainer(DebugDataSeeder.previewContainer())
+        .environment(\.themeManager, ThemeManager())
+}

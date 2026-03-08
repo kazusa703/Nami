@@ -1,3689 +1,4313 @@
 {
-  "sourceLanguage": "ja",
-  "strings": {
-    "": {},
-    "-": {},
-    "(%lld日)": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "(%lld days)"
+  "sourceLanguage" : "ja",
+  "strings" : {
+    "" : {
+
+    },
+    "-" : {
+
+    },
+    "-10〜10" : {
+
+    },
+    "・" : {
+
+    },
+    "?.?" : {
+
+    },
+    "(%lld)" : {
+
+    },
+    "(%lld%%)" : {
+
+    },
+    "(%lld回)" : {
+
+    },
+    "(%lld日)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(%lld days)"
+          }
+        }
+      }
+    },
+    "[利用規約](https://kazusa703.github.io/nami-support/ja/terms.html) ・ [プライバシーポリシー](https://kazusa703.github.io/nami-support/ja/privacy.html)" : {
+
+    },
+    "「%@」" : {
+
+    },
+    "「%@」あり" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With \"%@\""
+          }
+        }
+      }
+    },
+    "「%@」カテゴリと配下の%lld個のタグを全て削除します。過去の記録には影響しません。" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "「%1$@」カテゴリと配下の%2$lld個のタグを全て削除します。過去の記録には影響しません。"
+          }
+        }
+      }
+    },
+    "「%@」カテゴリを削除" : {
+
+    },
+    "「%@」の日 vs それ以外の日" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days with \"%@\" vs. other days"
+          }
+        }
+      }
+    },
+    "「%@」はデフォルトタグです。削除しても過去の記録には影響しません。" : {
+
+    },
+    "「%@」を削除しますか？過去の記録には影響しません。" : {
+
+    },
+    "「%@」を記録した日（%lld日）とそれ以外の日（%lld日）の平均スコアを比較しています。サンプル数が少ない場合、傾向が安定しない可能性があります。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comparing average scores between days with \"%1$@\" (%2$lld days) and other days (%3$lld days). Trends may be unstable with small sample sizes."
+          }
+        }
+      }
+    },
+    "「記録」タブから最初の1件を記録してみましょう" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try recording your first entry from the Record tab"
+          }
+        }
+      }
+    },
+    "/ %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/ %lld"
+          }
+        }
+      }
+    },
+    "/%lld" : {
+
+    },
+    "&" : {
+
+    },
+    "%@ 〜 %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ - %2$@"
+          }
+        }
+      }
+    },
+    "%@ のスコア %lld を削除します" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ のスコア %2$lld を削除します"
+          }
+        }
+      }
+    },
+    "%@が最低" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is lowest"
+          }
+        }
+      }
+    },
+    "%@が最高" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ is best"
+          }
+        }
+      }
+    },
+    "%@タグ%@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@タグ%2$@"
+          }
+        }
+      }
+    },
+    "%@月は全体的に好調な1ヶ月でした。この調子を大切に！" : {
+
+    },
+    "%@月は好調でした。%@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@月は好調でした。%2$@"
+          }
+        }
+      }
+    },
+    "%@月は少し辛い1ヶ月でしたが、記録を続けているあなたは素晴らしいです" : {
+
+    },
+    "%@月は少し辛い時期でした。%@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@月は少し辛い時期でした。%2$@"
+          }
+        }
+      }
+    },
+    "%@月は気分の波がある1ヶ月でした。自分に優しくしてあげてください" : {
+
+    },
+    "%@月は波がありました。%@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@月は波がありました。%2$@"
+          }
+        }
+      }
+    },
+    "%@月は穏やかな1ヶ月でした" : {
+
+    },
+    "%@月は穏やかな1ヶ月でした。%@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@月は穏やかな1ヶ月でした。%2$@"
+          }
+        }
+      }
+    },
+    "%lld" : {
+
+    },
+    "%lld 〜 %lld" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld 〜 %2$lld"
+          }
+        }
+      }
+    },
+    "%lld / %lld" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld"
           }
         }
       }
     },
-    "「%@」あり": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With \"%@\""
+    "%lld〜%lldでタップして記録" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld〜%2$lldでタップして記録"
           }
         }
       }
     },
-    "「%@」の日 vs それ以外の日": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Days with \"%@\" vs. other days"
+    "%lld/%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld/%2$lld"
           }
         }
       }
+    },
+    "%lld%%" : {
+
     },
-    "「%@」を記録した日（%lld日）とそれ以外の日（%lld日）の平均スコアを比較しています。サンプル数が少ない場合、傾向が安定しない可能性があります。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Comparing average scores between days with \"%1$@\" (%2$lld days) and other days (%3$lld days). Trends may be unstable with small sample sizes."
+    "%lld件" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld entries"
           }
         }
       }
     },
-    "「記録」タブから最初の1件を記録してみましょう": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try recording your first entry from the Record tab"
+    "%lld件の記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld records"
           }
         }
       }
     },
-    "/ %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "/ %lld"
+    "%lld回" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld times"
           }
         }
       }
     },
-    "/%lld": {},
-    "&": {},
-    "%@ 〜 %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$@ - %2$@"
+    "%lld回記録しました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded %lld times"
           }
         }
       }
     },
-    "%@が最低": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ is lowest"
+    "%lld年" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
           }
         }
       }
     },
-    "%@が最高": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ is best"
+    "%lld年%lld月%lld日" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld/%2$lld/%3$lld"
           }
         }
       }
     },
-    "%@タグ%@": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@タグ%2$@"
+    "%lld日" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld days"
           }
         }
       }
     },
-    "%lld": {},
-    "%lld/%lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld/%2$lld"
+    "%lld日分" : {
+
+    },
+    "%lld日間に%lld回記録しました" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld日間に%2$lld回記録しました"
           }
         }
       }
     },
-    "%lld→%lld": {
-      "localizations": {
-        "ja": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$lld→%2$lld"
+    "%lld月" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Month %lld"
           }
         }
       }
     },
-    "%lld件": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld entries"
+    "※ %lld件未満のタグは選択できません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "* Tags with fewer than %lld entries cannot be selected"
           }
         }
       }
+    },
+    "+" : {
+
     },
-    "%lld件の記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld records"
+    "+%lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%lld"
           }
         }
       }
     },
-    "%lld回": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld times"
+    "1 〜 %lld" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 - %lld"
           }
         }
       }
     },
-    "%lld回記録しました": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recorded %lld times"
+    "1〜%lldでタップして記録" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap 1-%lld to record"
           }
         }
       }
     },
-    "%lld年": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld"
+    "1〜10" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1-10"
           }
         }
       }
     },
-    "%lld年%lld月%lld日": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%1$lld/%2$lld/%3$lld"
+    "1〜30" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1-30"
           }
         }
       }
     },
-    "%lld日": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld days"
+    "1〜100" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1-100"
           }
         }
       }
     },
-    "%lld月": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Month %lld"
+    "1ヶ月" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Month"
           }
         }
       }
     },
-    "※ %lld件未満のタグは選択できません": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "* Tags with fewer than %lld entries cannot be selected"
+    "1回/日" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Once/day"
           }
         }
       }
     },
-    "+%lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "+%lld"
+    "1年" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Year"
           }
         }
       }
     },
-    "1": {},
-    "1 〜 %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 - %lld"
+    "1年前のデータがありません" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No data from one year ago"
           }
         }
       }
     },
-    "1〜%lldでタップして記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap 1-%lld to record"
+    "1年前の同じ月" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Same month last year"
           }
         }
       }
     },
-    "1〜10": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1-10"
+    "1年前の同じ週" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Same week last year"
           }
         }
       }
     },
-    "1〜30": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1-30"
+    "1週間" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Week"
           }
         }
       }
     },
-    "1〜100": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1-100"
+    "3ヶ月" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "3 Months"
           }
         }
       }
     },
-    "1ヶ月": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 Month"
+    "3日以上残る" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Persists 3+ days"
           }
         }
       }
     },
-    "1回/日": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Once/day"
+    "5:00-11:00" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5:00-11:00"
           }
         }
       }
     },
-    "1年": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 Year"
+    "6ヶ月" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 Months"
           }
         }
       }
     },
-    "1年前の同じ月": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Same month last year"
+    "11:00-17:00" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "11:00-17:00"
           }
         }
       }
     },
-    "1年前の同じ週": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Same week last year"
+    "17:00-21:00" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "17:00-21:00"
           }
         }
       }
     },
-    "1年前のデータがありません": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No data from one year ago"
+    "21:00-5:00" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "21:00-5:00"
           }
         }
       }
     },
-    "1週間": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1 Week"
+    "AIインサイト" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Insights"
           }
         }
       }
     },
-    "3ヶ月": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "3 Months"
+    "Apple IDで安全に管理" : {
+
+    },
+    "CSVファイルの作成中にエラーが発生しました。ストレージの空き容量を確認してください。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An error occurred while creating the CSV file. Please check available storage."
           }
         }
       }
     },
-    "5:00-11:00": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "5:00-11:00"
+    "Forest" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forest"
           }
         }
       }
+    },
+    "Generated %@" : {
+
     },
-    "6ヶ月": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "6 Months"
+    "iCloudアカウントが未設定です" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud account not set up"
           }
         }
       }
     },
-    "11:00-17:00": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "11:00-17:00"
+    "iCloudアカウントに接続中" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected to iCloud"
           }
         }
       }
     },
-    "17:00-21:00": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "17:00-21:00"
+    "iCloudを有効にするには、設定アプリでiCloudにサインインしてください。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To enable iCloud, sign in to iCloud in the Settings app."
           }
         }
       }
     },
-    "21:00-5:00": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "21:00-5:00"
+    "iCloud同期" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud Sync"
           }
         }
       }
     },
-    "AIインサイト": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AI Insights"
+    "Lavender" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lavender"
           }
         }
       }
     },
-    "CSVファイルの作成中にエラーが発生しました。ストレージの空き容量を確認してください。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "An error occurred while creating the CSV file. Please check available storage."
+    "Mono Gold" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mono Gold"
           }
         }
       }
     },
-    "Forest": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Forest"
+    "Nami" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nami"
           }
         }
       }
     },
-    "iCloudアカウントが未設定です": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud account not set up"
+    "Nami - Mood Tracker" : {
+
+    },
+    "Nami PRO" : {
+
+    },
+    "Nami 月間レポート" : {
+
+    },
+    "Ocean" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocean"
           }
         }
       }
+    },
+    "OK" : {
+
+    },
+    "PDFレポートをエクスポート" : {
+
+    },
+    "PDFレポートを出力" : {
+
+    },
+    "PRO" : {
+
     },
-    "iCloudアカウントに接続中": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connected to iCloud"
+    "PROでできること" : {
+
+    },
+    "PROの機能を詳しく見る" : {
+
+    },
+    "Topタグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Top Tags"
           }
         }
       }
+    },
+    "アイコン" : {
+
     },
-    "iCloudを有効にするには、設定アプリでiCloudにサインインしてください。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "To enable iCloud, sign in to iCloud in the Settings app."
+    "アクティビティ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activity"
           }
         }
       }
     },
-    "iCloud同期": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud Sync"
+    "アクティブ: %lld/%lld" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "アクティブ: %1$lld/%2$lld"
           }
         }
       }
     },
-    "Lavender": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lavender"
+    "アクティブにするタグを選んでください" : {
+
+    },
+    "あと%lld個のカスタムタグを作成できます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can create %lld more custom tags."
           }
         }
       }
+    },
+    "あと%lld日" : {
+
     },
-    "Mono Gold": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mono Gold"
+    "あと%lld日分のデータで表示されます" : {
+
+    },
+    "あなただけの気付きを自動で発見" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatically discover personalized insights"
           }
         }
       }
     },
-    "Nami": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nami"
+    "あなたの1週間のリズム" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Weekly Rhythm"
           }
         }
       }
     },
-    "Ocean": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ocean"
+    "あなたの好調の秘密は「%@」がないことかもしれません（好調時の不在率%lld%%）" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "あなたの好調の秘密は「%1$@」がないことかもしれません（好調時の不在率%2$lld%%）"
           }
         }
       }
     },
-    "OK": {},
-    "アクティビティ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Activity"
+    "あの頃の自分と比較" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compare with Past Self"
           }
         }
       }
     },
-    "あと%lld個のカスタムタグを作成できます。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You can create %lld more custom tags."
+    "アプリを開かずに記録できます。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record without opening the app."
           }
         }
       }
     },
-    "あの頃の自分と比較": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Compare with Past Self"
+    "アプリ情報" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
           }
         }
       }
+    },
+    "いつでもキャンセル可能・自動更新" : {
+
     },
-    "あなただけの気付きを自動で発見": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Automatically discover personalized insights"
+    "インサイト" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insights"
           }
         }
       }
     },
-    "あなたの1週間のリズム": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your Weekly Rhythm"
+    "インライン" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inline"
           }
         }
       }
     },
-    "アプリを開かずに記録できます。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record without opening the app."
+    "ウィジェット" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets"
           }
         }
       }
     },
-    "アプリ情報": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "About"
+    "ウィジェットから%lld件の記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld entries from widget"
           }
         }
       }
     },
-    "インサイト": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insights"
+    "ウィジェットからの記録はありません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No entries from widgets"
           }
         }
       }
     },
-    "インライン": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inline"
+    "ウィジェットから記録 — メモやタグを追加できます" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded from widget — add memo or tags"
           }
         }
       }
     },
-    "ウィジェット": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Widgets"
+    "ウィジェット記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widget Entries"
           }
         }
       }
     },
-    "ウィジェットから%lld件の記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld entries from widget"
+    "ウィジェット記録を管理" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Widget Entries"
           }
         }
       }
     },
-    "ウィジェットからの記録はありません": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No entries from widgets"
+    "エクスポートに失敗しました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Failed"
           }
         }
       }
     },
-    "ウィジェットから記録 — メモやタグを追加できます": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recorded from widget — add memo or tags"
+    "カスタム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom"
           }
         }
       }
     },
-    "ウィジェット記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Widget Entries"
+    "カスタムタグの上限に達しました。プレミアムプランで無制限に。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Custom tag limit reached. Upgrade to Premium for unlimited tags."
           }
         }
       }
     },
-    "ウィジェット記録を管理": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manage Widget Entries"
+    "カスタムタグを追加" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Custom Tag"
           }
         }
       }
     },
-    "エクスポートに失敗しました": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Export Failed"
+    "カテゴリ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category"
           }
         }
       }
     },
-    "カスタム": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Custom"
+    "カテゴリを削除" : {
+
+    },
+    "カテゴリを追加" : {
+
+    },
+    "カテゴリ名" : {
+
+    },
+    "カメラが利用できません" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera is not available"
           }
         }
       }
     },
-    "カスタムタグの上限に達しました。プレミアムプランで無制限に。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Custom tag limit reached. Upgrade to Premium for unlimited tags."
+    "キャンセル" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
           }
         }
       }
     },
-    "カスタムタグを追加": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add Custom Tag"
+    "グラフ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Graph"
           }
         }
       }
     },
-    "カテゴリ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Category"
+    "グループ" : {
+
+    },
+    "このタグの比較に十分なデータがありません。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough data to compare this tag."
           }
         }
       }
     },
-    "カメラが利用できません": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Camera is not available"
+    "この操作は取り消せません。%lld件の記録がすべて削除されます。" : {
+
+    },
+    "この日は記録がありません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No records on this day"
           }
         }
       }
     },
-    "キャンセル": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cancel"
+    "この月のデータがありません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No data for this month"
           }
         }
       }
+    },
+    "この期間にはデータがありません" : {
+
     },
-    "グラフ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Graph"
+    "この期間のデータがありません。\n気分を記録してグラフを見てみましょう。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No data for this period.\nRecord your mood to see the graph."
           }
         }
       }
     },
-    "グループ": {},
-    "このタグの比較に十分なデータがありません。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not enough data to compare this tag."
+    "この期間のデータは%lld件です。20件以上でより正確な分析になります。" : {
+
+    },
+    "この記録を削除しますか？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete this entry?"
           }
         }
       }
     },
-    "この操作は取り消せません。%lld件の記録がすべて削除されます。": {},
-    "この日は記録がありません": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No records on this day"
+    "サブスクリプションを管理" : {
+
+    },
+    "サポート" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support"
           }
         }
       }
     },
-    "この期間のデータがありません。\n気分を記録してグラフを見てみましょう。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No data for this period.\nRecord your mood to see the graph."
+    "サマリーをシェア" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share Summary"
           }
         }
       }
     },
-    "サポート": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Support"
+    "シェアする" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share"
           }
         }
       }
     },
-    "サマリーをシェア": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Share Summary"
+    "シンプル" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simple"
           }
         }
       }
+    },
+    "スキップ" : {
+
     },
-    "シェアする": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Share"
+    "スキップしてOK！\n設定 > 感情タグ管理 からタグを追加できます" : {
+
+    },
+    "スコア" : {
+
+    },
+    "スコア・ストリーク・ミニグラフ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score, streak, and mini graph"
           }
         }
       }
     },
-    "シンプル": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Simple"
+    "スコア・トレンド・7日間のバーチャート" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score, trend, and 7-day bar chart"
           }
         }
       }
     },
-    "スキップ": {},
-    "スコア": {},
-    "スコア・ストリーク・ミニグラフ": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Score, streak, and mini graph"
+    "スコアが低い時期からの回復時、%lld%%で「%@」が最初のトリガーです" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "スコアが低い時期からの回復時、%1$lld%%で「%2$@」が最初のトリガーです"
           }
         }
       }
     },
-    "スコア・トレンド・7日間のバーチャート": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Score, trend, and 7-day bar chart"
+    "スコアゲージ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score gauge"
           }
         }
       }
     },
-    "スコアゲージ": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Score gauge"
+    "スコアとストリークをテキスト表示" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score and streak as text"
           }
         }
       }
     },
-    "スコアとストリークをテキスト表示": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Score and streak as text"
+    "スコア分布" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score Distribution"
           }
         }
       }
     },
-    "スコア分布": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Score Distribution"
+    "スコア分布の比較" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score Distribution Comparison"
           }
         }
       }
     },
-    "スコア分布の比較": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Score Distribution Comparison"
+    "スコア範囲の変更は今後の記録に適用されます。過去の記録は元の範囲のまま保持され、グラフ上では自動的にスケーリングされます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score range changes apply to future records. Past records retain their original range and are automatically scaled on graphs."
           }
         }
       }
     },
-    "スコア範囲の変更は今後の記録に適用されます。過去の記録は元の範囲のまま保持され、グラフ上では自動的にスケーリングされます。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Score range changes apply to future records. Past records retain their original range and are automatically scaled on graphs."
+    "スコア範囲は月に1回のみ変更できます。あと%lld日お待ちください。" : {
+
+    },
+    "スコア範囲を「%lld〜%lld」から「%lld〜%lld」に変更します。\n\n・今後の記録が新しい範囲で保存されます\n・過去の記録は元の範囲のまま保持されます\n・グラフでは異なる範囲のスコアが自動スケーリングされます\n・変更地点にグラフ上で縦線が表示されます" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "スコア範囲を「%1$lld〜%2$lld」から「%3$lld〜%4$lld」に変更します。\n\n・今後の記録が新しい範囲で保存されます\n・過去の記録は元の範囲のまま保持されます\n・グラフでは異なる範囲のスコアが自動スケーリングされます\n・変更地点にグラフ上で縦線が表示されます"
           }
         }
       }
     },
-    "スコア範囲を「1〜%lld」から「1〜%lld」に変更します。\n\n・今後の記録が新しい範囲で保存されます\n・過去の記録は元の範囲のまま保持されます\n・グラフでは異なる範囲のスコアが自動スケーリングされます\n・変更地点にグラフ上で赤い縦線が表示されます": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Change score range from \"1-%1$lld\" to \"1-%2$lld\".\n\n- Future records will use the new range\n- Past records retain their original range\n- Different ranges are auto-scaled on graphs\n- A red vertical line marks the change point"
+    "スコア範囲を「1〜%lld」から「1〜%lld」に変更します。\n\n・今後の記録が新しい範囲で保存されます\n・過去の記録は元の範囲のまま保持されます\n・グラフでは異なる範囲のスコアが自動スケーリングされます\n・変更地点にグラフ上で赤い縦線が表示されます" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change score range from \"1-%1$lld\" to \"1-%2$lld\".\n\n- Future records will use the new range\n- Past records retain their original range\n- Different ranges are auto-scaled on graphs\n- A red vertical line marks the change point"
           }
         }
       }
     },
-    "スコア範囲を変更しますか？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Change score range?"
+    "スコア範囲を変更しますか？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change score range?"
           }
         }
       }
     },
-    "ステップ": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Step"
+    "ステップ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step"
           }
         }
       }
     },
-    "ストリーク": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Streak"
+    "ストリーク" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Streak"
           }
         }
       }
     },
-    "すべて": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All"
+    "すべて" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
           }
         }
       }
     },
-    "すべてのデータを削除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete All Data"
+    "すべてのデータを削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete All Data"
           }
         }
       }
     },
-    "すべてのデータを削除しますか？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete all data?"
+    "すべてのデータを削除しますか？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete all data?"
           }
         }
       }
+    },
+    "すべてのプランで全PRO機能が使えます" : {
+
     },
-    "この記録を削除しますか？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete this entry?"
+    "すべての機能を解放" : {
+
+    },
+    "すべての記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Records"
           }
         }
       }
     },
-    "すべての記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All Records"
+    "すべての記録を見る" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View All Records"
           }
         }
       }
     },
-    "すべての記録を見る": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "View All Records"
+    "スライダー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slider"
           }
         }
       }
     },
-    "スライダー": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Slider"
+    "タグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags"
           }
         }
       }
     },
-    "タグ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tags"
+    "タグあり" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With Tag"
           }
         }
       }
+    },
+    "タグがまだありません" : {
+
+    },
+    "タグごとのスコア差が小さいため、傾向は見られません" : {
+
     },
-    "タグあり": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "With Tag"
+    "タグシナジー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Synergy"
           }
         }
       }
     },
-    "タグで自己理解": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Self-understanding via Tags"
+    "タグで自己理解" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Self-understanding via Tags"
           }
         }
       }
     },
-    "タグなし": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Without Tag"
+    "タグなし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Without Tag"
           }
         }
       }
     },
-    "タグの影響分析": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag Impact Analysis"
+    "タグの影響分析" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Impact Analysis"
           }
         }
       }
+    },
+    "タグの整理" : {
+
+    },
+    "タグの整理が必要です" : {
+
+    },
+    "タグをタップして切替" : {
+
     },
-    "タグを追加": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add Tag"
+    "タグを削除" : {
+
+    },
+    "タグを追加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Tag"
           }
         }
       }
     },
-    "タグを選択": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select a Tag"
+    "タグを選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a Tag"
           }
         }
       }
     },
-    "タグ使用日の翌日スコアと平均との差": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Difference between next-day score and average when tag was used"
+    "タグ使用日の翌日スコアと平均との差" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Difference between next-day score and average when tag was used"
           }
         }
       }
     },
-    "タグ使用頻度": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag Frequency"
+    "タグ使用頻度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Frequency"
           }
         }
       }
     },
-    "タグ共起パターン": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag Co-occurrence Patterns"
+    "タグ共起パターン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Co-occurrence Patterns"
           }
         }
       }
     },
-    "タグ分析": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag Analysis"
+    "タグ分析" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Analysis"
           }
         }
       }
     },
-    "タグ別平均スコア": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Average Score by Tag"
+    "タグ別平均スコア" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average Score by Tag"
           }
         }
       }
     },
-    "タグ名": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag Name"
+    "タグ名" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Name"
           }
         }
       }
+    },
+    "タグ影響度" : {
+
+    },
+    "タグ相関" : {
+
     },
-    "タップしてメモやタグを追加": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap to add memo or tags"
+    "タグ連鎖パターン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag Chain Patterns"
           }
         }
       }
     },
-    "タップして気分を%lldとして記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap to record mood as %lld"
+    "タップしてメモやタグを追加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to add memo or tags"
           }
         }
       }
     },
-    "データ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Data"
+    "タップして全機能を解放" : {
+
+    },
+    "タップして気分を%lldとして記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to record mood as %lld"
           }
         }
       }
     },
-    "データなし": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No Data"
+    "データ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data"
           }
         }
       }
+    },
+    "データが許可されていない場合は、設定 > ヘルスケア > データアクセスとデバイス > Nami で確認してください。" : {
+
     },
-    "データをエクスポート（CSV）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Export Data (CSV)"
+    "データなし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Data"
           }
         }
       }
     },
-    "データ不足": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Insufficient Data"
+    "データのばらつきが増えるとパターンが見えてきます。記録を続けてみてください。" : {
+
+    },
+    "データをエクスポート（CSV）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Data (CSV)"
           }
         }
       }
     },
-    "テーマ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Theme"
+    "データ不足" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insufficient Data"
           }
         }
       }
     },
-    "デフォルト": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Default"
+    "テーマ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
           }
         }
       }
     },
-    "どの活動や感情がスコアに影響するか": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "See which activities and emotions affect your score"
+    "デフォルト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default"
           }
         }
       }
     },
-    "トレンド・バーチャート + スコアボタンで直接記録": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Trend, bar chart + record directly with score buttons"
+    "どの活動や感情がスコアに影響するか" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See which activities and emotions affect your score"
           }
         }
       }
     },
-    "なし": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "None"
+    "トレンド・バーチャート + スコアボタンで直接記録" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trend, bar chart + record directly with score buttons"
           }
         }
       }
     },
-    "ネガティブ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Negative"
+    "なし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
           }
         }
       }
     },
-    "バージョン": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Version"
+    "ネガティブ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negative"
           }
         }
       }
+    },
+    "ネガティブ〜ポジティブ" : {
+
     },
-    "ハイライト": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Highlight"
+    "バージョン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
           }
         }
       }
     },
-    "フィルター": {},
-    "プライバシーポリシー": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Privacy Policy"
+    "ハイライト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highlight"
           }
         }
       }
     },
-    "プレミアム": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Premium"
+    "フィルター" : {
+
+    },
+    "ふつう" : {
+
+    },
+    "プライバシーポリシー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
           }
         }
       }
+    },
+    "プランを読み込み中..." : {
+
     },
-    "プレミアムプラン: 無制限にカスタムタグを作成できます。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Premium Plan: Create unlimited custom tags."
+    "プランを選ぶ" : {
+
+    },
+    "プレミアム" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premium"
           }
         }
       }
     },
-    "プレミアムへのアップグレードありがとうございます！広告は非表示になりました。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Thank you for upgrading to Premium! Ads are now hidden."
+    "プレミアムで全機能を解放" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock all features with Premium"
           }
         }
       }
     },
-    "ホーム画面のウィジェットからスコアボタンをタップして記録できます": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap score buttons on your home screen widget to record"
+    "プレミアムで解放" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock with Premium"
           }
         }
       }
     },
-    "ホーム画面を長押し → 左上の＋ → 「Nami」で検索して追加できます。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Long press home screen → tap + in top left → search for \"Nami\" to add."
+    "プレミアムプラン: 無制限にカスタムタグを作成できます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premium Plan: Create unlimited custom tags."
           }
         }
       }
+    },
+    "プレミアムプランが終了しました。アクティブにするカスタムタグを%lld個まで選んでください。残りは「休止中」になりますが、データは保持されます。" : {
+
+    },
+    "プレミアムへのアップグレードありがとうございます！" : {
+
     },
-    "ホーム画面を長押し → 左上の＋ → 「Nami」で検索して追加できます。アプリを開かずに記録できます。": {},
-    "ボイス": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Voice"
+    "プレミアムへのアップグレードありがとうございます！広告は非表示になりました。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thank you for upgrading to Premium! Ads are now hidden."
           }
         }
       }
     },
-    "ボイスメモを録音": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record a voice memo"
+    "ベストの日" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best day"
           }
         }
       }
     },
-    "ポジティブ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Positive"
+    "ヘルスケア" : {
+
+    },
+    "ヘルスケアデータが見つかりません。iPhoneを持ち歩くか、Apple Watchを使用すると歩数や睡眠データが自動で記録されます。" : {
+
+    },
+    "ヘルスケアデータにアクセスするには、設定 > ヘルスケア > データアクセスとデバイス > Nami で許可してください。" : {
+
+    },
+    "ヘルスケアと気分" : {
+
+    },
+    "ヘルスケアへのアクセスが許可されていません" : {
+
+    },
+    "ヘルスケア連携" : {
+
+    },
+    "ホーム画面のウィジェットからスコアボタンをタップして記録できます" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap score buttons on your home screen widget to record"
           }
         }
       }
     },
-    "ボタングリッド": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Button Grid"
+    "ホーム画面を長押し → 左上の＋ → 「Nami」で検索して追加できます。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Long press home screen → tap + in top left → search for \"Nami\" to add."
           }
         }
       }
+    },
+    "ホーム画面を長押し → 左上の＋ → 「Nami」で検索して追加できます。アプリを開かずに記録できます。" : {
+
     },
-    "ミニマル・高級感": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Minimal & luxurious"
+    "ボイス" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voice"
           }
         }
       }
     },
-    "メモ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Memo"
+    "ボイスメモを録音" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record a voice memo"
           }
         }
       }
     },
-    "メモを編集": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Edit Memo"
+    "ポジティブ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Positive"
           }
         }
       }
     },
-    "メモを追加（任意）": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add memo (optional)"
+    "ポジティブタグ率" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Positive tag rate"
           }
         }
       }
     },
-    "メモ編集": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Edit Memo"
+    "ポジティブ率" : {
+
+    },
+    "ボタングリッド" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Button Grid"
           }
         }
       }
     },
-    "よく一緒に使うタグ": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Commonly Used Together"
+    "ミニマル・高級感" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimal & luxurious"
           }
         }
       }
     },
-    "よく使ったタグ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frequently Used Tags"
+    "メモ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memo"
           }
         }
       }
     },
-    "ライブラリから選択": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose from Library"
+    "メモやタグで検索" : {
+
+    },
+    "メモを編集" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Memo"
           }
         }
       }
     },
-    "リマインダー": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reminder"
+    "メモを追加（任意）" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add memo (optional)"
           }
         }
       }
     },
-    "リマインダーを受け取るには、設定アプリで通知を許可してください。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Please enable notifications in the Settings app to receive reminders."
+    "メモ編集" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Memo"
           }
         }
       }
+    },
+    "ユーザーに愛されています" : {
+
     },
-    "リマインダー通知": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reminder Notification"
+    "よく一緒に使うタグ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commonly Used Together"
           }
         }
       }
     },
-    "リラックスした": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Relaxed"
+    "よく使ったタグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frequently Used Tags"
           }
         }
       }
     },
-    "ローポイント": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Low Point"
+    "ライブラリから選択" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose from Library"
           }
         }
       }
     },
-    "ロック画面": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lock Screen"
+    "リマインダー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminder"
           }
         }
       }
     },
-    "上のタグを選ぶと、そのタグがある日とない日のスコアを比較します。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select a tag above to compare scores on days with and without it."
+    "リマインダーを受け取るには、設定アプリで通知を許可してください。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please enable notifications in the Settings app to receive reminders."
           }
         }
       }
     },
-    "上のボタンをタップして\n最初の記録をつけてみましょう": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap a button above\nto create your first record"
+    "リマインダー通知" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminder Notification"
           }
         }
       }
     },
-    "不安だった": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Felt anxious"
+    "リラックスした" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relaxed"
           }
         }
       }
     },
-    "不安定": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unstable"
+    "レッドゾーン" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Red Zone"
           }
         }
       }
     },
-    "中": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Medium"
+    "ローポイント" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low Point"
           }
         }
       }
     },
-    "今の気分は？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "How are you feeling?"
+    "ロック画面" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lock Screen"
           }
         }
       }
     },
-    "今の気分を記録して、自分の波を振り返りましょう。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record your mood and reflect on your waves."
+    "ワーストの日" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worst day"
           }
         }
       }
     },
-    "今の気持ちをひとこと...": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "How are you feeling..."
+    "一度きりの購入・自動更新なし" : {
+
+    },
+    "上のタグを選ぶと、そのタグがある日とない日のスコアを比較します。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a tag above to compare scores on days with and without it."
           }
         }
       }
     },
-    "今年": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Year"
+    "上のボタンをタップして\n最初の記録をつけてみましょう" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a button above\nto create your first record"
           }
         }
       }
     },
-    "今日": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Today"
+    "不安だった" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Felt anxious"
           }
         }
       }
     },
-    "今日の気分は？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "How are you feeling today?"
+    "不安定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unstable"
           }
         }
       }
     },
-    "今月": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Month"
+    "不調からの回復時" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When recovering from lows"
           }
         }
       }
     },
-    "今月のまとめ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Month's Summary"
+    "不調時に多いタグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags on bad days"
           }
         }
       }
     },
-    "今週": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Week"
+    "中" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medium"
           }
         }
       }
     },
-    "今週のまとめ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This Week's Summary"
+    "今の気分は？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How are you feeling?"
           }
         }
       }
     },
-    "仕事がんばった": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Worked hard"
+    "今の気分を記録して、自分の波を振り返りましょう。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record your mood and reflect on your waves."
           }
         }
       }
     },
-    "件": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "entries"
+    "今の気持ちをひとこと..." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How are you feeling..."
           }
         }
       }
     },
-    "低": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Low"
+    "今年" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Year"
           }
         }
       }
     },
-    "低いほど気分が安定 ・ 高いほど波が大きい": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lower = more stable, Higher = more volatile"
+    "今日" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
           }
         }
       }
     },
-    "何曜日が好調か、時間帯ごとの波を分析": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Analyze which days and times of day you feel best"
+    "今日の気分は？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How are you feeling today?"
           }
         }
       }
     },
-    "保存": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Save"
+    "今月" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Month"
           }
         }
       }
+    },
+    "今月のデータが少ないため、まとめを表示できません（あと%lld件）" : {
+
     },
-    "停止": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stop"
+    "今月のまとめ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Month's Summary"
           }
         }
       }
     },
-    "去年": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last year"
+    "今月のレポート" : {
+
+    },
+    "今週" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Week"
           }
         }
       }
     },
-    "去年と同じくらいの安定したペースです": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You're maintaining a steady pace from last year"
+    "今週のまとめ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Week's Summary"
           }
         }
       }
     },
-    "去年の今頃よりスコアが上がっています。あなたは成長しています": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your score is higher than this time last year. You're growing"
+    "仕事がんばった" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worked hard"
           }
         }
       }
     },
-    "先月": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last Month"
+    "件" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "entries"
           }
         }
       }
+    },
+    "休止中" : {
+
     },
-    "先週": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last Week"
+    "位置情報が許可されていません" : {
+
+    },
+    "低" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Low"
           }
         }
       }
     },
-    "先週のふりかえり": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Last Week Review"
+    "低いほど気分が安定 ・ 高いほど波が大きい" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower = more stable, Higher = more volatile"
           }
         }
       }
     },
-    "先週よりも少し上向いています。一歩ずつ前に進んでいます": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Things are slightly looking up from last week. One step at a time."
+    "何曜日が好調か、時間帯ごとの波を分析" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyze which days and times of day you feel best"
           }
         }
       }
     },
-    "入力方式": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Input Method"
+    "保存" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
           }
         }
       }
     },
-    "全体的に好調な1週間でした。この調子を大切に！": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "An overall great week. Keep it up!"
+    "停止" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
           }
         }
       }
     },
-    "全期間": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "All Time"
+    "先月" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Month"
           }
         }
       }
+    },
+    "先月と同じくらいの安定したペースでした" : {
+
+    },
+    "先月のデータがありません" : {
+
+    },
+    "先月のふりかえり" : {
+
+    },
+    "先月のレポート" : {
+
+    },
+    "先月の記録が%lld件のため、先月のレポートは生成できません（10件以上必要）" : {
+
+    },
+    "先月の記録がないため、今月のみ選択できます" : {
+
     },
-    "共起率%lld%%": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Co-occurrence %lld%%"
+    "先月の記録は%lld件です。3件以上でふりかえりが表示されます。" : {
+
+    },
+    "先月より%@と少し下がりました" : {
+
+    },
+    "先月より+%@と上昇しました" : {
+
+    },
+    "先週" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Week"
           }
         }
       }
     },
-    "円形": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Circular"
+    "先週のふりかえり" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Week Review"
           }
         }
       }
     },
-    "最低スコア": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lowest Score"
+    "先週よりも少し上向いています。一歩ずつ前に進んでいます" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Things are slightly looking up from last week. One step at a time."
           }
         }
       }
     },
-    "最多: %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mode: %lld"
+    "入力方式" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Input Method"
           }
         }
       }
     },
-    "最大60秒": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Up to 60 seconds"
+    "全体的に好調な1週間でした。この調子を大切に！" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An overall great week. Keep it up!"
           }
         }
       }
     },
-    "最新スコア + スコアボタンで直接記録": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Latest score + record directly with score buttons"
+    "全期間" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Time"
           }
         }
       }
     },
-    "最新スコアと7日間のカラーストリップ": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Latest score and 7-day color strip"
+    "全期間（%lld件）のデータに基づく例" : {
+
+    },
+    "共起率%lld%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co-occurrence %lld%%"
           }
         }
       }
     },
-    "最新の記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Latest Record"
+    "円形" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Circular"
           }
         }
       }
+    },
+    "再読み込み" : {
+
+    },
+    "最も好調: %@" : {
+
     },
-    "最長記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Best Record"
+    "最低スコア" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lowest Score"
           }
         }
       }
     },
-    "最高スコア": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Highest Score"
+    "最多: %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode: %lld"
           }
         }
       }
     },
-    "写真": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Photo"
+    "最大60秒" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up to 60 seconds"
           }
         }
       }
     },
-    "分析するタグ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag to Analyze"
+    "最新スコア + スコアボタンで直接記録" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest score + record directly with score buttons"
           }
         }
       }
     },
-    "利用規約": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Terms of Service"
+    "最新スコアと7日間のカラーストリップ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest score and 7-day color strip"
           }
         }
       }
     },
-    "削除": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete"
+    "最新の記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest Record"
           }
         }
       }
     },
-    "削除する": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Delete"
+    "最近 %@ vs 通常 %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "最近 %1$@ vs 通常 %2$@"
           }
         }
       }
     },
-    "前回の値を維持": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carrying previous value"
+    "最近、普段ならスコアが上がるはずの「%@」が効いていません（通常%@ → 最近%@）" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "最近、普段ならスコアが上がるはずの「%1$@」が効いていません（通常%2$@ → 最近%3$@）"
           }
         }
       }
     },
-    "前期比": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "vs. Previous"
+    "最長記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best Record"
           }
         }
       }
     },
-    "半年": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "6 Months"
+    "最高スコア" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highest Score"
           }
         }
       }
     },
-    "合計記録": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Total Records"
+    "写真" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo"
           }
         }
       }
     },
-    "同じ名前のタグが既に存在します": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A tag with this name already exists"
+    "写真の読み込みに失敗しました" : {
+
+    },
+    "出現率" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance rate"
           }
         }
       }
     },
-    "名前": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Name"
+    "出現率 %lld%%" : {
+
+    },
+    "分析するタグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag to Analyze"
           }
         }
       }
+    },
+    "別の期間を選択するか、「全期間」に切り替えてください" : {
+
     },
-    "商品情報を再取得": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Retry Loading Product"
+    "利用規約" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Service"
           }
         }
       }
     },
-    "商品情報を取得できませんでした": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Could not retrieve product information"
+    "削除" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
           }
         }
       }
     },
-    "回": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "times"
+    "削除する" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
           }
         }
       }
     },
-    "回数": {},
-    "土曜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sat"
+    "前回の値を維持" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carrying previous value"
           }
         }
       }
     },
-    "変動幅": {},
-    "変更": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Change"
+    "前期比" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vs. Previous"
           }
         }
       }
     },
-    "変更する": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Change"
+    "効果の変化" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effect change"
           }
         }
       }
     },
-    "夕": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Evening"
+    "半年" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6 Months"
           }
         }
       }
     },
-    "夜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Night"
+    "単体" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo"
           }
         }
       }
     },
-    "大": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Large"
+    "単体: %@ / %@" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "単体: %1$@ / %2$@"
           }
         }
       }
     },
-    "安定したリズムの1週間でした": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A week with a stable rhythm."
+    "去年" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last year"
           }
         }
       }
     },
-    "安定化": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stabilizing"
+    "去年と同じくらいの安定したペースです" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You're maintaining a steady pace from last year"
           }
         }
       }
     },
-    "小": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Small"
+    "去年の今頃よりスコアが上がっています。あなたは成長しています" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your score is higher than this time last year. You're growing"
           }
         }
       }
     },
-    "少し下がっていますが、波があるのは自然なことです": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "It's slightly lower, but fluctuations are natural"
+    "合計記録" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Records"
           }
         }
       }
     },
-    "少し辛い1週間でしたが、記録を続けているあなたは素晴らしいです": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "It was a difficult week, but keeping records shows your strength."
+    "同じ名前のカテゴリが既に存在します" : {
+
+    },
+    "同じ名前のタグが既に存在します" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tag with this name already exists"
           }
         }
       }
     },
-    "平均": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Average"
+    "名前" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
           }
         }
       }
+    },
+    "商品情報の取得に失敗しました" : {
+
     },
-    "平均スコア": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Average Score"
+    "商品情報を再取得" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry Loading Product"
           }
         }
       }
     },
-    "広告は非表示になっています": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ads are hidden"
+    "商品情報を取得できませんでした" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not retrieve product information"
           }
         }
       }
     },
-    "広告を除去": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Remove Ads"
+    "回" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "times"
           }
         }
       }
     },
-    "影響を見る": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "See Impact"
+    "回復トリガー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery Triggers"
           }
         }
       }
     },
-    "後半にかけてさらに調子が上がった、充実した1週間でした": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A fulfilling week with momentum building toward the end."
+    "回復のカギ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key to recovery"
           }
         }
       }
     },
-    "後半にかけて少し疲れが出たようです。今週はしっかり休息を": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fatigue crept in toward the end. Make sure to rest this week."
+    "回復の予兆" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovery sign"
           }
         }
       }
     },
-    "後半に盛り返しました。回復力がある証拠です": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You bounced back in the second half — a sign of resilience."
+    "回数" : {
+
+    },
+    "土曜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sat"
           }
         }
       }
+    },
+    "基準" : {
+
     },
-    "復元に失敗しました: %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore failed: %@"
+    "変動幅" : {
+
+    },
+    "変更" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
           }
         }
       }
     },
-    "復元可能な購入が見つかりませんでした": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No restorable purchases found"
+    "変更する" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
           }
         }
       }
     },
-    "感情タグ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Emotion Tags"
+    "変更後30日間は再変更できません。慎重にお選びください。" : {
+
+    },
+    "夕" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Evening"
           }
         }
       }
     },
-    "感情タグを管理": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manage Emotion Tags"
+    "夜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Night"
           }
         }
       }
     },
-    "感謝": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Grateful"
+    "大" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large"
           }
         }
       }
+    },
+    "天気" : {
+
+    },
+    "天気・気圧と気分" : {
+
+    },
+    "天気データの取得には位置情報が必要です" : {
+
+    },
+    "天気データを集めています... (%lld/5件)" : {
+
+    },
+    "天気と気分" : {
+
     },
-    "折れ線": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Line"
+    "天気を自動記録" : {
+
+    },
+    "天気傾向: %@" : {
+
+    },
+    "天気別の気分" : {
+
+    },
+    "好調な日の%lld%%で「%@」が記録されています。あなたの気分を支えるキータグです。" : {
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "好調な日の%1$lld%%で「%2$@」が記録されています。あなたの気分を支えるキータグです。"
           }
         }
       }
     },
-    "撮り直し": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Retake"
+    "好調のカギ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Key to good days"
           }
         }
       }
     },
-    "撮影する": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Take Photo"
+    "好調の秘密" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secret of good days"
           }
         }
       }
     },
-    "日": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Daily"
+    "好調時に多いタグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags on good days"
           }
         }
       }
     },
-    "日時": {},
-    "日時,スコア,最大スコア,メモ,タグ\n": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Date,Score,Max Score,Memo,Tags\n"
+    "好調時に少ないタグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags absent on good days"
           }
         }
       }
     },
-    "日曜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sun"
+    "安定したリズムの1週間でした" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A week with a stable rhythm."
           }
         }
       }
     },
-    "日記録": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "days"
+    "安定化" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stabilizing"
           }
         }
       }
     },
-    "日連続": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "days in a row"
+    "安定度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stability"
           }
         }
       }
     },
-    "昼": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Afternoon"
+    "小" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Small"
           }
         }
       }
     },
-    "時間": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hourly"
+    "少し下がっていますが、波があるのは自然なことです" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It's slightly lower, but fluctuations are natural"
           }
         }
       }
     },
-    "時間帯別平均": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Time of Day Averages"
+    "少し辛い1週間でしたが、記録を続けているあなたは素晴らしいです" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It was a difficult week, but keeping records shows your strength."
           }
         }
       }
     },
-    "曜日": {},
-    "曜日・時間帯の傾向": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Day & Time Trends"
+    "差分" : {
+
+    },
+    "平均" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average"
           }
         }
       }
     },
-    "曜日別平均": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Weekday Averages"
+    "平均スコア" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average Score"
           }
         }
       }
+    },
+    "年額プラン" : {
+
     },
-    "月": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monthly"
+    "年額プラン ・ 次回更新: %@" : {
+
+    },
+    "広告は非表示になっています" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ads are hidden"
           }
         }
       }
     },
-    "月曜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mon"
+    "広告を除去" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Ads"
           }
         }
       }
+    },
+    "広告を非表示にする" : {
+
     },
-    "月間": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monthly"
+    "影響を見る" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See Impact"
           }
         }
       }
     },
-    "月間カレンダー": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monthly Calendar"
+    "後半にかけてさらに調子が上がった、充実した1週間でした" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A fulfilling week with momentum building toward the end."
           }
         }
       }
     },
-    "朝": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Morning"
+    "後半にかけて少し疲れが出たようです。今週はしっかり休息を" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fatigue crept in toward the end. Make sure to rest this week."
           }
         }
       }
     },
-    "期間": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Period"
+    "後半に盛り返しました。回復力がある証拠です" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You bounced back in the second half — a sign of resilience."
           }
         }
       }
     },
-    "木曜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Thu"
+    "復元" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore"
           }
         }
       }
     },
-    "未補完": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Needs Details"
+    "復元に失敗しました: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore failed: %@"
           }
         }
       }
     },
-    "楽しかった": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Had fun"
+    "復元可能な購入が見つかりませんでした" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No restorable purchases found"
           }
         }
       }
     },
-    "横ばい": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Steady"
+    "感情タグ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Emotion Tags"
           }
         }
       }
     },
-    "毎日の記録習慣をトラッキング": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Track your daily recording habit"
+    "感情タグを管理" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage Emotion Tags"
           }
         }
       }
     },
-    "毎日指定した時刻に気分記録のリマインダーを受け取ります。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Receive a daily reminder to record your mood at the specified time."
+    "感謝" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grateful"
           }
         }
       }
     },
-    "気分スコア %lld": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mood score %lld"
+    "折れ線" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line"
           }
         }
       }
     },
-    "気分の安定度": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mood Stability"
+    "撮り直し" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retake"
           }
         }
       }
     },
-    "気分の波がある1週間でした。自分に優しくしてあげてください": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A week of ups and downs. Be kind to yourself."
+    "撮影する" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take Photo"
           }
         }
       }
     },
-    "気分の波を可視化": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Visualize Your Mood Waves"
+    "日" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily"
           }
         }
       }
     },
-    "気分を記録すると、ここに統計が表示されます。": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record your mood to see statistics here."
+    "日時" : {
+
+    },
+    "日時,スコア,最大スコア,メモ,タグ\n" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date,Score,Max Score,Memo,Tags\n"
           }
         }
       }
     },
-    "気分記録と感情タグはiCloudに自動バックアップされます。写真とボイスメモはこのデバイスにのみ保存されます。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mood records and emotion tags are automatically backed up to iCloud. Photos and voice memos are stored on this device only."
+    "日曜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sun"
           }
         }
       }
     },
-    "水曜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wed"
+    "日記録" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "days"
           }
         }
       }
     },
-    "海・波のイメージ、爽やか": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ocean & waves, refreshing"
+    "日連続" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "days in a row"
           }
         }
       }
     },
-    "火曜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tue"
+    "昼" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Afternoon"
           }
         }
       }
     },
-    "現在": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current"
+    "時間" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hourly"
           }
         }
       }
     },
-    "現在のスコア範囲": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Current Score Range"
+    "時間帯別平均" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time of Day Averages"
           }
         }
       }
     },
-    "疲れた": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tired"
+    "普段より低い" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lower than usual"
           }
         }
       }
     },
-    "発見": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Discoveries"
+    "曜日" : {
+
+    },
+    "曜日・時間帯の傾向" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day & Time Trends"
           }
         }
       }
     },
-    "穏やか・癒し": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Calm & soothing"
+    "曜日別平均" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekday Averages"
           }
         }
       }
     },
-    "穏やかな1週間でした": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A calm week."
+    "月" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly"
           }
         }
       }
     },
-    "範囲変更": {},
-    "範囲変更後のグラフには、変更地点に赤い縦線が表示されます。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "A red vertical line marks the range change point on graphs."
+    "月曜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mon"
           }
         }
       }
     },
-    "細かめ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Detailed"
+    "月間" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly"
           }
         }
       }
     },
-    "統計": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stats"
+    "月間カレンダー" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly Calendar"
           }
         }
       }
     },
-    "統計カード・チャート + スコアボタンで直接記録": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stats cards, chart + record directly with score buttons"
+    "月間サマリー" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly Summary"
           }
         }
       }
+    },
+    "月額・年額・買い切りから選べます" : {
+
+    },
+    "月額プラン" : {
+
+    },
+    "月額プラン ・ 次回更新: %@" : {
+
+    },
+    "有効" : {
+
     },
-    "統計カード・バーチャート・カラーマップ": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stats card, bar chart, and color map"
+    "有効にすると、記録時に現在地の天気・気温・気圧を自動で取得します。統計画面で天気と気分の相関を分析できます。" : {
+
+    },
+    "朝" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Morning"
           }
         }
       }
     },
-    "維持": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carried"
+    "期間" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Period"
           }
         }
       }
     },
-    "翌日効果": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Next-Day Effect"
+    "木曜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thu"
           }
         }
       }
     },
-    "自分の気分の全体像を可視化": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Visualize your overall mood picture"
+    "未補完" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs Details"
           }
         }
       }
     },
-    "自己ベスト更新中！": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "New personal best!"
+    "楽しかった" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Had fun"
           }
         }
       }
     },
-    "自然・ウェルネス": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nature & wellness"
+    "横ばい" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steady"
           }
         }
       }
     },
-    "芝生": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Heatmap"
+    "次回の不調時はまずこれを試してみませんか？" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try this next time you're feeling low"
           }
         }
       }
     },
-    "補完が必要なエントリはありません": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No entries need details"
+    "歩数・睡眠・運動量と気分の関連を統計画面で分析できます。データは外部に送信されません。" : {
+
+    },
+    "残響効果" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aftereffect"
           }
         }
       }
     },
-    "複数回/日": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Multiple/day"
+    "毎日の記録習慣をトラッキング" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Track your daily recording habit"
           }
         }
       }
     },
-    "要因": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Factors"
+    "毎日指定した時刻に気分記録のリマインダーを受け取ります。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Receive a daily reminder to record your mood at the specified time."
           }
         }
       }
+    },
+    "気分アップ要因" : {
+
     },
-    "触覚フィードバック": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Haptic Feedback"
+    "気分スコア %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mood score %lld"
           }
         }
       }
     },
-    "記録": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record"
+    "気分ダウン要因" : {
+
+    },
+    "気分の安定度" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mood Stability"
           }
         }
       }
     },
-    "記録した日": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Days recorded"
+    "気分の波がある1週間でした。自分に優しくしてあげてください" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A week of ups and downs. Be kind to yourself."
           }
         }
       }
     },
-    "記録が増えるほど、折れ線グラフ・ステップチャート・\nカレンダーヒートマップで気分の変化が見えてきます": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "As you record more, you'll see mood changes through line graphs, step charts, and calendar heatmaps."
+    "気分の波を可視化" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visualize Your Mood Waves"
           }
         }
       }
+    },
+    "気分バランス" : {
+
     },
-    "記録しました": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recorded"
+    "気分を記録すると、ここに統計が表示されます。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record your mood to see statistics here."
           }
         }
       }
     },
-    "記録しました — メモやタグを追加できます": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recorded — add a memo or tags"
+    "気分記録と感情タグはiCloudに自動バックアップされます。写真とボイスメモはこのデバイスにのみ保存されます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mood records and emotion tags are automatically backed up to iCloud. Photos and voice memos are stored on this device only."
           }
         }
       }
     },
-    "記録する": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record"
+    "気圧帯別の気分" : {
+
+    },
+    "水曜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wed"
           }
         }
       }
+    },
+    "波をもっと深く読む" : {
+
     },
-    "記録なし": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No record"
+    "海・波のイメージ、爽やか" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocean & waves, refreshing"
           }
         }
       }
     },
-    "記録の詳細": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record Details"
+    "火曜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tue"
           }
         }
       }
     },
-    "記録を始めると、\nあなたの気分のパターンが見えてきます": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Start recording to discover\nyour mood patterns"
+    "無料プランではカスタムタグ%lld個まで利用できます。\n残りのタグは休止中になりますが、データは保持されます。" : {
+
+    },
+    "現在" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current"
           }
         }
       }
     },
-    "記録回数 → スコア": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Record Count → Score"
+    "現在のスコア範囲" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Score Range"
           }
         }
       }
     },
-    "記録時に感情や要因のタグを付けて、パターンを分析できます。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add emotion or factor tags to records to analyze patterns."
+    "疲れた" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tired"
           }
         }
       }
     },
-    "記録設定": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recording Settings"
+    "発見" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discoveries"
           }
         }
       }
     },
-    "設定": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Settings"
+    "目次" : {
+
+    },
+    "相乗効果" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synergy"
           }
         }
       }
+    },
+    "確定" : {
+
     },
-    "設定を開く": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open Settings"
+    "穏やか・癒し" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calm & soothing"
           }
         }
       }
     },
-    "詳細": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Precise"
+    "穏やかな1週間でした" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A calm week."
           }
         }
       }
     },
-    "詳細なしで閉じる": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close without details"
+    "範囲変更" : {
+
+    },
+    "範囲変更後のグラフには、変更地点に縦線が表示されます。" : {
+
+    },
+    "範囲変更後のグラフには、変更地点に赤い縦線が表示されます。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A red vertical line marks the range change point on graphs."
           }
         }
       }
     },
-    "詳細を追加": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add Details"
+    "細かめ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detailed"
           }
         }
       }
     },
-    "購入が保留中です": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Purchase is pending"
+    "終了日をタップしてください" : {
+
+    },
+    "組み合わせ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Combined"
           }
         }
       }
+    },
+    "組み合わせ: %@" : {
+
     },
-    "購入すると、グラフ画面と統計画面の広告が永久に非表示になります。機能制限はありません。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Purchasing permanently removes ads from the Graph and Stats screens. No feature restrictions."
+    "統計" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stats"
           }
         }
       }
     },
-    "購入に失敗しました: %@": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Purchase failed: %@"
+    "統計カード・チャート + スコアボタンで直接記録" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stats cards, chart + record directly with score buttons"
           }
         }
       }
     },
-    "購入はApple IDに紐付けられ、[利用規約](https://kazusa703.github.io/nami-support/ja/terms.html)と[プライバシーポリシー](https://kazusa703.github.io/nami-support/ja/privacy.html)が適用されます。": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Purchase is tied to your Apple ID. [Terms of Service](https://kazusa703.github.io/nami-support/en/terms.html) and [Privacy Policy](https://kazusa703.github.io/nami-support/en/privacy.html) apply."
+    "統計カード・バーチャート・カラーマップ" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stats card, bar chart, and color map"
           }
         }
       }
     },
-    "購入を復元": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore Purchase"
+    "維持" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Carried"
           }
         }
       }
     },
-    "購入完了": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Purchase Complete"
+    "翌日効果" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next-Day Effect"
           }
         }
       }
     },
-    "辛い日が多かったですが、少しずつ上向いています": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Many tough days, but things are gradually improving."
+    "自分の気分の全体像を可視化" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visualize your overall mood picture"
           }
         }
       }
     },
-    "辛い時期もありましたが、後半に持ち直しました": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "There were tough moments, but you recovered in the second half."
+    "自己ベスト更新中！" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New personal best!"
           }
         }
       }
     },
-    "追加": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Add"
+    "自然・ウェルネス" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nature & wellness"
           }
         }
       }
     },
-    "通知が許可されていません": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notifications Not Allowed"
+    "芝生" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heatmap"
           }
         }
       }
     },
-    "通知時刻": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Notification Time"
+    "行動とスコアのズレ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Action-Score Divergence"
           }
         }
       }
     },
-    "連続記録ストリーク": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recording Streak"
+    "補完が必要なエントリはありません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No entries need details"
           }
         }
       }
     },
-    "週": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Weekly"
+    "複数回/日" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multiple/day"
           }
         }
       }
     },
-    "週間": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Weekly"
+    "要因" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Factors"
           }
         }
       }
     },
-    "金曜": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fri"
+    "触覚フィードバック" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haptic Feedback"
           }
         }
       }
     },
-    "録り直し": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Re-record"
+    "記録" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record"
           }
         }
       }
     },
-    "長方形": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rectangular"
+    "記録エラー" : {
+
+    },
+    "記録が増えるほど、折れ線グラフ・ステップチャート・\nカレンダーヒートマップで気分の変化が見えてきます" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "As you record more, you'll see mood changes through line graphs, step charts, and calendar heatmaps."
           }
         }
       }
     },
-    "閉じる": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Close"
+    "記録が増えるほど、折れ線グラフ・棒グラフ・\nカレンダーヒートマップで気分の変化が見えてきます" : {
+
+    },
+    "記録した日" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days recorded"
           }
         }
       }
     },
-    "高": {
-      "extractionState": "stale",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "High"
+    "記録しました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded"
           }
         }
       }
     },
-    "高度な分析": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Advanced Analytics"
+    "記録しました — メモやタグを追加できます" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded — add a memo or tags"
           }
         }
       }
     },
-    "プレミアムで解放": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unlock with Premium"
+    "記録する" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record"
           }
         }
       }
     },
-    "好調時に多いタグ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tags on good days"
+    "記録なし" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No record"
           }
         }
       }
     },
-    "好調時に少ないタグ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tags absent on good days"
+    "記録の詳細" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Details"
           }
         }
       }
     },
-    "不調時に多いタグ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tags on bad days"
+    "記録を始めると、\nあなたの気分のパターンが見えてきます" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start recording to discover\nyour mood patterns"
           }
         }
       }
+    },
+    "記録回数" : {
+
     },
-    "月間サマリー": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Monthly Summary"
+    "記録回数 → スコア" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Count → Score"
           }
         }
       }
     },
-    "記録日数": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Active days"
+    "記録日数" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Active days"
           }
         }
       }
     },
-    "タグ連鎖パターン": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag Chain Patterns"
+    "記録時に感情や要因のタグを付けて、パターンを分析できます。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add emotion or factor tags to records to analyze patterns."
           }
         }
       }
     },
-    "負のループ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Negative loop"
+    "記録設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording Settings"
           }
         }
       }
     },
-    "回復の予兆": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recovery sign"
+    "設定" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
           }
         }
       }
     },
-    "残響効果": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Aftereffect"
+    "設定を開く" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
           }
         }
       }
     },
-    "行動とスコアのズレ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Action-Score Divergence"
+    "詳細" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Precise"
           }
         }
       }
     },
-    "普段より低い": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lower than usual"
+    "詳細なしで閉じる" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close without details"
           }
         }
       }
     },
-    "隠れた疲れの兆候かもしれません": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "May indicate hidden fatigue"
+    "詳細を追加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Details"
           }
         }
       }
     },
-    "回復トリガー": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recovery Triggers"
+    "負のループ" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Negative loop"
           }
         }
       }
     },
-    "不調からの回復時": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "When recovering from lows"
+    "買い切りプラン ・ 永久利用" : {
+
+    },
+    "購入が保留中です" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase is pending"
           }
         }
       }
     },
-    "次回の不調時はまずこれを試してみませんか？": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Try this next time you're feeling low"
+    "購入すると、グラフ画面と統計画面の広告が永久に非表示になります。機能制限はありません。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchasing permanently removes ads from the Graph and Stats screens. No feature restrictions."
           }
         }
       }
     },
-    "タグシナジー": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tag Synergy"
+    "購入に失敗しました: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase failed: %@"
           }
         }
       }
     },
-    "相乗効果": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Synergy"
+    "購入はApple IDに紐付けられ、[利用規約](https://kazusa703.github.io/nami-support/ja/terms.html)と[プライバシーポリシー](https://kazusa703.github.io/nami-support/ja/privacy.html)が適用されます。" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase is tied to your Apple ID. [Terms of Service](https://kazusa703.github.io/nami-support/en/terms.html) and [Privacy Policy](https://kazusa703.github.io/nami-support/en/privacy.html) apply."
           }
         }
       }
     },
-    "レッドゾーン": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Red Zone"
+    "購入を復元" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore Purchase"
           }
         }
       }
     },
-    "単体": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Solo"
+    "購入完了" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchase Complete"
           }
         }
       }
     },
-    "組み合わせ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Combined"
+    "辛い日が多かったですが、少しずつ上向いています" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Many tough days, but things are gradually improving."
           }
         }
       }
     },
-    "出現率": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Appearance rate"
+    "辛い時期もありましたが、後半に持ち直しました" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There were tough moments, but you recovered in the second half."
           }
         }
       }
     },
-    "ベストの日": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Best day"
+    "追加" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add"
           }
         }
       }
     },
-    "ワーストの日": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Worst day"
+    "逆インサイト" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reverse Insights"
           }
         }
       }
     },
-    "ポジティブタグ率": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Positive tag rate"
+    "通知が許可されていません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications Not Allowed"
           }
         }
       }
     },
-    "安定度": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stability"
+    "通知時刻" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notification Time"
           }
         }
       }
     },
-    "逆インサイト": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reverse Insights"
+    "連続記録ストリーク" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording Streak"
           }
         }
       }
     },
-    "好調の秘密": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Secret of good days"
+    "週" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly"
           }
         }
       }
     },
-    "好調のカギ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Key to good days"
+    "週間" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly"
           }
         }
       }
     },
-    "効果の変化": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Effect change"
+    "金曜" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fri"
           }
         }
       }
     },
-    "回復のカギ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Key to recovery"
+    "録り直し" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Re-record"
           }
         }
       }
+    },
+    "録音を停止" : {
+
     },
-    "プレミアムで全機能を解放": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unlock all features with Premium"
+    "録音を開始" : {
+
+    },
+    "長方形" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rectangular"
           }
         }
       }
     },
-    "この月のデータがありません": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No data for this month"
+    "閉じる" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
           }
         }
       }
+    },
+    "開始" : {
+
     },
-    "3日以上残る": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Persists 3+ days"
+    "隠れた疲れの兆候かもしれません" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "May indicate hidden fatigue"
           }
         }
       }
     },
-    "Topタグ": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Top Tags"
+    "高" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High"
           }
         }
       }
     },
-    "復元": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restore"
+    "高度な分析" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced Analytics"
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }

@@ -34,6 +34,8 @@ enum AppConstants {
     static let scoreRangeMaxKey = "scoreRangeMax"
     /// UserDefaultsキー：スコア入力方式
     static let scoreInputTypeKey = "scoreInputType"
+    /// UserDefaultsキー：スコア範囲下限
+    static let scoreRangeMinKey = "scoreRangeMin"
     /// UserDefaultsキー：スコア範囲の最終変更日
     static let lastScoreRangeChangeDateKey = "lastScoreRangeChangeDate"
 
@@ -42,19 +44,35 @@ enum AppConstants {
 }
 
 /// スコア範囲のプリセット
-enum ScoreRange: Int, CaseIterable, Identifiable {
-    case ten = 10
-    case thirty = 30
-    case hundred = 100
+enum ScoreRange: String, CaseIterable, Identifiable {
+    case ten
+    case hundred
+    case bipolar
 
-    var id: Int { rawValue }
+    var id: String {
+        rawValue
+    }
+
+    var minScore: Int {
+        switch self {
+        case .bipolar: return -10
+        default: return 1
+        }
+    }
+
+    var maxScore: Int {
+        switch self {
+        case .hundred: return 100
+        default: return 10
+        }
+    }
 
     /// 表示名
     var displayName: String {
         switch self {
         case .ten: return String(localized: "1〜10")
-        case .thirty: return String(localized: "1〜30")
         case .hundred: return String(localized: "1〜100")
+        case .bipolar: return String(localized: "-10〜10")
         }
     }
 
@@ -62,18 +80,27 @@ enum ScoreRange: Int, CaseIterable, Identifiable {
     var description: String {
         switch self {
         case .ten: return String(localized: "シンプル")
-        case .thirty: return String(localized: "細かめ")
         case .hundred: return String(localized: "詳細")
+        case .bipolar: return String(localized: "ネガティブ〜ポジティブ")
         }
+    }
+
+    /// UserDefaults の min/max 値から ScoreRange を復元
+    static func from(min: Int, max: Int) -> ScoreRange {
+        if min == -10 && max == 10 { return .bipolar }
+        if max == 100 { return .hundred }
+        return .ten
     }
 }
 
 /// スコア入力方式
 enum ScoreInputType: String, CaseIterable, Identifiable {
-    case buttons = "buttons"
-    case slider = "slider"
+    case buttons
+    case slider
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// 表示名
     var displayName: String {

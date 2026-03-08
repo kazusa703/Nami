@@ -94,7 +94,9 @@ class HealthKitManager {
             try await store.requestAuthorization(toShare: [], read: readTypes)
             return true
         } catch {
-            print("HealthKit authorization failed: \(error)")
+            #if DEBUG
+                print("HealthKit authorization failed: \(error)")
+            #endif
             return false
         }
     }
