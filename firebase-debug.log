@@ -1,0 +1,108 @@
+[debug] [2026-02-09T08:47:29.882Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-09T08:47:29.883Z] > authorizing via signed-in user (kazusakazusa713@gmail.com)
+[debug] [2026-02-09T08:47:29.883Z] Checked if tokens are valid: false, expires at: 1770584251926
+[debug] [2026-02-09T08:47:29.883Z] Checked if tokens are valid: false, expires at: 1770584251926
+[debug] [2026-02-09T08:47:29.883Z] > refreshing access token with scopes: []
+[debug] [2026-02-09T08:47:29.884Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-02-09T08:47:29.884Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-09T08:47:29.888Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-09T08:47:29.888Z] > authorizing via signed-in user (kazusakazusa713@gmail.com)
+[debug] [2026-02-09T08:47:29.888Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-09T08:47:29.888Z] > authorizing via signed-in user (kazusakazusa713@gmail.com)
+[debug] [2026-02-09T08:47:29.889Z] Checked if tokens are valid: false, expires at: 1770584251926
+[debug] [2026-02-09T08:47:29.889Z] Checked if tokens are valid: false, expires at: 1770584251926
+[debug] [2026-02-09T08:47:29.889Z] > refreshing access token with scopes: []
+[debug] [2026-02-09T08:47:29.889Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-02-09T08:47:29.889Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-09T08:47:29.889Z] Checked if tokens are valid: false, expires at: 1770584251926
+[debug] [2026-02-09T08:47:29.889Z] Checked if tokens are valid: false, expires at: 1770584251926
+[debug] [2026-02-09T08:47:29.889Z] > refreshing access token with scopes: []
+[debug] [2026-02-09T08:47:29.889Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-02-09T08:47:29.889Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-09T08:47:30.001Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-02-09T08:47:30.001Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-09T08:47:30.028Z] >>> [apiv2][query] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo [none]
+[debug] [2026-02-09T08:47:30.030Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-02-09T08:47:30.030Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-09T08:47:30.048Z] >>> [apiv2][query] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo [none]
+[debug] [2026-02-09T08:47:30.049Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-02-09T08:47:30.049Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-02-09T08:47:30.058Z] >>> [apiv2][query] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo [none]
+[debug] [2026-02-09T08:47:30.382Z] <<< [apiv2][status] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo 200
+[debug] [2026-02-09T08:47:30.383Z] <<< [apiv2][body] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo {"name":"projects/diary7-80022/billingInfo","projectId":"diary7-80022","billingAccountName":"billingAccounts/01CA27-F54A4F-A8E2EB","billingEnabled":true}
+[debug] [2026-02-09T08:47:30.388Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:30.389Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:30.400Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:30.400Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:30.400Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:30.400Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:30.400Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com [none]
+[debug] [2026-02-09T08:47:30.400Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:30.401Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com [none]
+[debug] [2026-02-09T08:47:30.401Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:30.402Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com [none]
+[debug] [2026-02-09T08:47:30.402Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:31.414Z] <<< [apiv2][status] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo 200
+[debug] [2026-02-09T08:47:31.415Z] <<< [apiv2][body] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo {"name":"projects/diary7-80022/billingInfo","projectId":"diary7-80022","billingAccountName":"billingAccounts/01CA27-F54A4F-A8E2EB","billingEnabled":true}
+[debug] [2026-02-09T08:47:31.417Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.417Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.422Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.422Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.422Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.422Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.423Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com [none]
+[debug] [2026-02-09T08:47:31.423Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:31.424Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com [none]
+[debug] [2026-02-09T08:47:31.424Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:31.425Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com [none]
+[debug] [2026-02-09T08:47:31.425Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:31.439Z] <<< [apiv2][status] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo 200
+[debug] [2026-02-09T08:47:31.439Z] <<< [apiv2][body] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo {"name":"projects/diary7-80022/billingInfo","projectId":"diary7-80022","billingAccountName":"billingAccounts/01CA27-F54A4F-A8E2EB","billingEnabled":true}
+[debug] [2026-02-09T08:47:31.440Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.440Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.442Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.442Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.442Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.442Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.442Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com [none]
+[debug] [2026-02-09T08:47:31.442Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:31.443Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com [none]
+[debug] [2026-02-09T08:47:31.443Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:31.443Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com [none]
+[debug] [2026-02-09T08:47:31.443Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com x-goog-quota-user=projects/diary7-80022
+[debug] [2026-02-09T08:47:31.450Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com 403
+[debug] [2026-02-09T08:47:31.450Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com [omitted]
+[debug] [2026-02-09T08:47:31.507Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com 200
+[debug] [2026-02-09T08:47:31.507Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com [omitted]
+[debug] [2026-02-09T08:47:31.515Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com 200
+[debug] [2026-02-09T08:47:31.515Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com [omitted]
+[debug] [2026-02-09T08:47:31.572Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-09T08:47:31.572Z] > authorizing via signed-in user (kazusakazusa713@gmail.com)
+[debug] [2026-02-09T08:47:31.572Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.573Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:31.573Z] >>> [apiv2][query] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo [none]
+[debug] [2026-02-09T08:47:32.406Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com 403
+[debug] [2026-02-09T08:47:32.406Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com [omitted]
+[debug] [2026-02-09T08:47:32.425Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com 403
+[debug] [2026-02-09T08:47:32.426Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseio.com [omitted]
+[debug] [2026-02-09T08:47:32.513Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com 200
+[debug] [2026-02-09T08:47:32.513Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com [omitted]
+[debug] [2026-02-09T08:47:32.514Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com 200
+[debug] [2026-02-09T08:47:32.514Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebaseapphosting.googleapis.com [omitted]
+[debug] [2026-02-09T08:47:32.515Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com 200
+[debug] [2026-02-09T08:47:32.515Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com [omitted]
+[debug] [2026-02-09T08:47:32.524Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com 200
+[debug] [2026-02-09T08:47:32.524Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/diary7-80022/services/firebasedataconnect.googleapis.com [omitted]
+[debug] [2026-02-09T08:47:32.578Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-09T08:47:32.578Z] > authorizing via signed-in user (kazusakazusa713@gmail.com)
+[debug] [2026-02-09T08:47:32.579Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:32.579Z] Checked if tokens are valid: true, expires at: 1770630449049
+[debug] [2026-02-09T08:47:32.579Z] >>> [apiv2][query] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo [none]
+[debug] [2026-02-09T08:47:32.645Z] <<< [apiv2][status] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo 200
+[debug] [2026-02-09T08:47:32.646Z] <<< [apiv2][body] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo {"name":"projects/diary7-80022/billingInfo","projectId":"diary7-80022","billingAccountName":"billingAccounts/01CA27-F54A4F-A8E2EB","billingEnabled":true}
+[debug] [2026-02-09T08:47:32.649Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-09T08:47:32.649Z] > authorizing via signed-in user (kazusakazusa713@gmail.com)
+[debug] [2026-02-09T08:47:32.840Z] <<< [apiv2][status] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo 200
+[debug] [2026-02-09T08:47:32.840Z] <<< [apiv2][body] GET https://cloudbilling.googleapis.com/v1/projects/diary7-80022/billingInfo {"name":"projects/diary7-80022/billingInfo","projectId":"diary7-80022","billingAccountName":"billingAccounts/01CA27-F54A4F-A8E2EB","billingEnabled":true}
+[debug] [2026-02-09T08:47:32.844Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-02-09T08:47:32.844Z] > authorizing via signed-in user (kazusakazusa713@gmail.com)
