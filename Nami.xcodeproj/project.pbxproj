@@ -590,6 +590,7 @@
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "気分記録時に写真を撮影するために使用します";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "気分と健康データの関連を分析するために使用します";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "天気情報を取得するために現在地を使用します";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "気分記録時にボイスメモを録音するために使用します";
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "パーソナライズされた広告を表示するために使用します。広告除去を購入すると不要になります。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -632,6 +633,7 @@
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "気分記録時に写真を撮影するために使用します";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "気分と健康データの関連を分析するために使用します";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "天気情報を取得するために現在地を使用します";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "気分記録時にボイスメモを録音するために使用します";
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "パーソナライズされた広告を表示するために使用します。広告除去を購入すると不要になります。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

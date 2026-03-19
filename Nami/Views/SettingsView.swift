@@ -17,6 +17,7 @@ struct SettingsView: View {
     @Environment(\.themeManager) private var themeManager
     @Environment(\.premiumManager) private var premiumManager
     @Environment(\.healthKitManager) private var healthKitManager
+    @Environment(\.weatherManager) private var weatherManager
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MoodEntry.createdAt, order: .reverse) private var entries: [MoodEntry]
 
@@ -92,6 +93,9 @@ struct SettingsView: View {
 
                     // HealthKit連携セクション
                     healthKitSection(colors: colors)
+
+                    // 天気自動記録セクション
+                    weatherSection(colors: colors)
 
                     // iCloud同期セクション
                     iCloudSection(colors: colors)
@@ -763,6 +767,51 @@ struct SettingsView: View {
             Text(String(localized: "ヘルスケア"))
         } footer: {
             Text(String(localized: "ヘルスケアアプリの歩数・睡眠時間・安静時心拍数と気分スコアの相関を分析します。データはこのデバイス内でのみ処理されます。"))
+        }
+    }
+
+    // MARK: - 天気セクション
+
+    @ViewBuilder
+    private func weatherSection(colors: ThemeColors) -> some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { weatherManager.isEnabled },
+                set: { weatherManager.isEnabled = $0 }
+            )) {
+                HStack(spacing: 10) {
+                    Image(systemName: "cloud.sun.fill")
+                        .font(.title3)
+                        .foregroundStyle(.cyan)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "天気を自動記録"))
+                            .font(.system(.body, design: .rounded))
+                        if weatherManager.isEnabled && weatherManager.isAuthorized {
+                            Text(String(localized: "記録時に天気を自動取得します"))
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(.green)
+                        } else if weatherManager.isEnabled {
+                            Text(String(localized: "位置情報の権限を確認中..."))
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+            }
+
+            if weatherManager.isEnabled && !weatherManager.isAuthorized {
+                HStack(spacing: 8) {
+                    Image(systemName: "location.slash.fill")
+                        .foregroundStyle(.orange)
+                    Text(String(localized: "位置情報の使用を許可してください"))
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text(String(localized: "天気"))
+        } footer: {
+            Text(String(localized: "記録時に現在地の天気と気温を自動で取得します。位置情報は天気取得にのみ使用され、保存されません。"))
         }
     }
 

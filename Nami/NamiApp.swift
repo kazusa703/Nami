@@ -35,6 +35,8 @@ struct NamiApp: App {
     @State private var premiumManager = PremiumManager()
     /// HealthKitマネージャー
     @State private var healthKitManager = HealthKitManager()
+    /// 天気マネージャー
+    @State private var weatherManager = WeatherManager()
 
     /// リマインダーの有効/無効（AppStorageと同期）
     @AppStorage("reminderEnabled") private var reminderEnabled = false
@@ -94,6 +96,7 @@ struct NamiApp: App {
                 .environment(\.themeManager, themeManager)
                 .environment(\.premiumManager, premiumManager)
                 .environment(\.healthKitManager, healthKitManager)
+                .environment(\.weatherManager, weatherManager)
                 .task {
                     // デフォルトタグの初期化
                     DefaultTags.seedIfNeeded(context: sharedModelContainer.mainContext)

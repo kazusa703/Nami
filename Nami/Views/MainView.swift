@@ -15,6 +15,7 @@ struct MainView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.themeManager) private var themeManager
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.weatherManager) private var weatherManager
 
     @State private var viewModel = MoodViewModel()
     @State private var statsVM = StatsViewModel()
@@ -97,7 +98,7 @@ struct MainView: View {
                                     maxScore: scoreRange.maxValue,
                                     themeColors: colors
                                 ) { score in
-                                    viewModel.recordMood(score: score, maxScore: scoreRange.maxValue, scoreRangeMin: scoreRange.minValue, context: modelContext)
+                                    viewModel.recordMood(score: score, maxScore: scoreRange.maxValue, scoreRangeMin: scoreRange.minValue, context: modelContext, weatherManager: weatherManager)
                                 }
 
                                 // 最新の記録表示
@@ -153,7 +154,7 @@ struct MainView: View {
                                 maxScore: scoreRange.maxValue,
                                 themeColors: colors
                             ) { score in
-                                viewModel.recordMood(score: score, maxScore: scoreRange.maxValue, scoreRangeMin: scoreRange.minValue, context: modelContext)
+                                viewModel.recordMood(score: score, maxScore: scoreRange.maxValue, scoreRangeMin: scoreRange.minValue, context: modelContext, weatherManager: weatherManager)
                             }
 
                             Spacer()

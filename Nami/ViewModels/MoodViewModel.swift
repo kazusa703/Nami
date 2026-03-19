@@ -33,7 +33,8 @@ class MoodViewModel {
     ///   - maxScore: スコアの上限値
     ///   - scoreRangeMin: スコアの下限値
     ///   - context: SwiftDataのモデルコンテキスト
-    func recordMood(score: Int, maxScore: Int = 10, scoreRangeMin: Int = 1, context: ModelContext) {
+    ///   - weatherManager: 天気マネージャー（nilの場合は天気取得しない）
+    func recordMood(score: Int, maxScore: Int = 10, scoreRangeMin: Int = 1, context: ModelContext, weatherManager: WeatherManager? = nil) {
         // 連続タップによる重複記録を防止
         guard !isRecording else { return }
         isRecording = true
@@ -50,6 +51,16 @@ class MoodViewModel {
 
         // ウィジェットのタイムラインを更新
         WidgetCenter.shared.reloadAllTimelines()
+
+        // Fetch weather asynchronously after entry creation
+        if let weatherManager {
+            let capturedEntry = entry
+            Task {
+                let weather = await weatherManager.fetchCurrentWeather()
+                capturedEntry.weatherCondition = weather.condition
+                capturedEntry.weatherTemperature = weather.temperature
+            }
+        }
 
         // 記録完了アニメーション表示
         withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
