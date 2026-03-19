@@ -87,7 +87,7 @@ struct WidgetEntriesView: View {
                 isEditing: true,
                 initialMemo: entry.memo ?? "",
                 initialTags: Set(entry.tags),
-                onSave: { memo, photo, voiceMemoURL, tags in
+                onSave: { memo, photo, voiceMemoURL, tags, energyLevel in
                     // 既存エントリを更新
                     entry.memo = memo.isEmpty ? nil : String(memo.prefix(100))
                     if let photo {
@@ -97,6 +97,7 @@ struct WidgetEntriesView: View {
                         entry.voiceMemoPath = MediaManager.saveVoiceMemo(from: voiceMemoURL)
                     }
                     entry.tags = tags
+                    entry.energyLevel = energyLevel
                     editingEntry = nil
                 },
                 onSkip: {

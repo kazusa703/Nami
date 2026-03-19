@@ -40,12 +40,13 @@ struct RecordingSheet: View {
     var initialMemo: String = ""
     /// 編集モード時の初期タグ
     var initialTags: Set<String> = []
-    let onSave: (_ memo: String, _ photo: UIImage?, _ voiceMemoURL: URL?, _ tags: [String]) -> Void
+    let onSave: (_ memo: String, _ photo: UIImage?, _ voiceMemoURL: URL?, _ tags: [String], _ energyLevel: Int?) -> Void
     let onSkip: () -> Void
 
     @State private var selectedTab: RecordingTab = .memo
     @State private var memoText = ""
     @State private var selectedTags: Set<String> = []
+    @State private var selectedEnergyLevel: Int? = nil
     @State private var capturedPhoto: UIImage?
     @State private var showCamera = false
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -69,6 +70,9 @@ struct RecordingSheet: View {
             VStack(spacing: 0) {
                 // スコア表示
                 scoreHeader
+
+                // エネルギーレベル選択
+                energyLevelSelector
 
                 // タブセレクタ
                 tabSelector
@@ -352,7 +356,7 @@ struct RecordingSheet: View {
         VStack(spacing: 12) {
             // 保存ボタン
             Button {
-                onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags))
+                onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags), selectedEnergyLevel)
             } label: {
                 Text("保存")
                     .font(.system(.headline, design: .rounded))
@@ -376,6 +380,72 @@ struct RecordingSheet: View {
         }
         .padding(.horizontal)
         .padding(.bottom, 16)
+    }
+
+    // MARK: - エネルギーレベル選択
+
+    private var energyLevelSelector: some View {
+        HStack(spacing: 20) {
+            Text(String(localized: "エネルギー"))
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            ForEach(1...3, id: \.self) { level in
+                let isSelected = selectedEnergyLevel == level
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        if selectedEnergyLevel == level {
+                            selectedEnergyLevel = nil // Deselect
+                        } else {
+                            selectedEnergyLevel = level
+                        }
+                    }
+                    HapticManager.lightFeedback()
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: energyIcon(for: level))
+                            .font(.system(size: 22))
+                            .foregroundStyle(isSelected ? energyColor(for: level) : .secondary.opacity(0.5))
+                        Text(energyLabel(for: level))
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(isSelected ? energyColor(for: level) : .secondary.opacity(0.5))
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// Energy level icon name
+    private func energyIcon(for level: Int) -> String {
+        switch level {
+        case 1: return "battery.25percent"
+        case 2: return "battery.50percent"
+        case 3: return "battery.100percent"
+        default: return "battery.50percent"
+        }
+    }
+
+    /// Energy level label
+    private func energyLabel(for level: Int) -> String {
+        switch level {
+        case 1: return String(localized: "低い")
+        case 2: return String(localized: "普通")
+        case 3: return String(localized: "高い")
+        default: return ""
+        }
+    }
+
+    /// Energy level color
+    private func energyColor(for level: Int) -> Color {
+        switch level {
+        case 1: return .orange
+        case 2: return .blue
+        case 3: return .green
+        default: return .secondary
+        }
     }
 
     // MARK: - ヘルパー
@@ -415,7 +485,7 @@ struct RecordingSheet: View {
                 score: 7,
                 maxScore: 10,
                 themeColors: .ocean,
-                onSave: { _, _, _, _ in },
+                onSave: { _, _, _, _, _ in },
                 onSkip: { }
             )
         }

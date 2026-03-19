@@ -181,8 +181,8 @@ struct MainView: View {
                 maxScore: viewModel.recordedMaxScore,
                 scoreRangeMin: viewModel.recordedScoreRangeMin,
                 themeColors: themeManager.colors,
-                onSave: { memo, photo, voiceMemoURL, tags in
-                    viewModel.saveRecording(memo: memo, photo: photo, voiceMemoURL: voiceMemoURL, tags: tags)
+                onSave: { memo, photo, voiceMemoURL, tags, energyLevel in
+                    viewModel.saveRecording(memo: memo, photo: photo, voiceMemoURL: voiceMemoURL, tags: tags, energyLevel: energyLevel)
                 },
                 onSkip: {
                     viewModel.skipRecording()
@@ -281,6 +281,13 @@ struct MainView: View {
                         .foregroundStyle(colors.accent.opacity(0.6))
                 }
 
+                // エネルギーレベルアイコン
+                if let energy = entry.energyLevel {
+                    Image(systemName: energyIcon(for: energy))
+                        .font(.caption)
+                        .foregroundStyle(energyColor(for: energy))
+                }
+
                 // ウィジェット記録アイコン
                 if entry.source == "widget" {
                     Image(systemName: "square.grid.2x2")
@@ -326,6 +333,26 @@ struct MainView: View {
         )
         .padding(.horizontal)
     }
+    // MARK: - Energy Helpers
+
+    private func energyIcon(for level: Int) -> String {
+        switch level {
+        case 1: return "battery.25percent"
+        case 2: return "battery.50percent"
+        case 3: return "battery.100percent"
+        default: return "battery.50percent"
+        }
+    }
+
+    private func energyColor(for level: Int) -> Color {
+        switch level {
+        case 1: return .orange
+        case 2: return .blue
+        case 3: return .green
+        default: return .secondary
+        }
+    }
+
     // MARK: - Cache
 
     private func rebuildStreakCache() {

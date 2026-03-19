@@ -75,13 +75,14 @@ class MoodViewModel {
         }
     }
 
-    /// 統合記録を保存する（メモ + 写真 + ボイスメモ + タグ）
+    /// 統合記録を保存する（メモ + 写真 + ボイスメモ + タグ + エネルギー）
     /// - Parameters:
     ///   - memo: メモテキスト
     ///   - photo: 撮影した写真（任意）
     ///   - voiceMemoURL: ボイスメモの一時URL（任意）
     ///   - tags: 選択されたタグ名の配列
-    func saveRecording(memo: String, photo: UIImage?, voiceMemoURL: URL?, tags: [String] = []) {
+    ///   - energyLevel: エネルギーレベル（1=低, 2=普通, 3=高, nil=スキップ）
+    func saveRecording(memo: String, photo: UIImage?, voiceMemoURL: URL?, tags: [String] = [], energyLevel: Int? = nil) {
         guard let entry = lastRecordedEntry else { return }
 
         // メモ保存
@@ -101,6 +102,9 @@ class MoodViewModel {
 
         // タグ保存
         entry.tags = tags
+
+        // エネルギーレベル保存
+        entry.energyLevel = energyLevel
 
         showRecordingSheet = false
         lastRecordedEntry = nil
