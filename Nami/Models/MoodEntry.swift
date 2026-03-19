@@ -22,6 +22,9 @@ class MoodEntry {
     var voiceMemoPath: String?  // App Group内のボイスメモ相対パス
     var tags: [String] = [] // タグ名の配列（軽量マイグレーション対応）
     var source: String = "app" // 記録元: "app", "widget", "watch"（軽量マイグレーション対応）
+    var energyLevel: Int? = nil       // 1=低, 2=普通, 3=高, nil=スキップ
+    var weatherCondition: String? = nil // "sunny","cloudy","rainy","snowy","stormy","foggy"
+    var weatherTemperature: Double? = nil // 摂氏
 
     init(score: Int, maxScore: Int = 10, scoreRangeMin: Int = 1, memo: String? = nil, photoPath: String? = nil, voiceMemoPath: String? = nil, tags: [String] = [], source: String = "app", createdAt: Date = .now) {
         self.id = UUID()

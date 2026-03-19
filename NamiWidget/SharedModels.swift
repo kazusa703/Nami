@@ -44,6 +44,9 @@ class MoodEntry {
     var voiceMemoPath: String?
     var tags: [String] = []
     var source: String = "app" // 記録元: "app", "widget", "watch"
+    var energyLevel: Int? = nil       // 1=低, 2=普通, 3=高, nil=スキップ
+    var weatherCondition: String? = nil // "sunny","cloudy","rainy","snowy","stormy","foggy"
+    var weatherTemperature: Double? = nil // 摂氏
 
     init(score: Int, maxScore: Int = 10, scoreRangeMin: Int = 1, memo: String? = nil, tags: [String] = [], source: String = "app", createdAt: Date = .now) {
         self.id = UUID()
