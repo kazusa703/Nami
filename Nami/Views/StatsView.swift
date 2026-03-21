@@ -24,8 +24,18 @@ enum StatsSection: Int, CaseIterable, Identifiable {
     case streak
     case calendar
     case tagAnalysis
+    case memoKeyword
+    case sourceBreakdown
+    case recordTiming
+    case stability
+    case weatherMood
+    case energyMood
+    case locationMood
+    case recovery
     case healthKit
     case premium
+    case prediction
+    case tagFlow
     case discovery
     case activity
 
@@ -127,6 +137,7 @@ struct StatsView: View {
                 ShareSummaryView(
                     entries: entries,
                     currentMaxScore: currentMaxScore,
+                    currentMinScore: currentMinScore,
                     themeColors: themeManager.colors,
                     statsVM: statsVM
                 )
@@ -182,10 +193,33 @@ struct StatsView: View {
         if entries.contains(where: { !$0.tags.isEmpty }) {
             sections.append(.tagAnalysis)
         }
+        if entries.contains(where: { $0.memo != nil }) {
+            sections.append(.memoKeyword)
+        }
+        if Set(entries.map(\.source)).count >= 2 {
+            sections.append(.sourceBreakdown)
+        }
+        if entries.count >= 30 {
+            sections.append(.recordTiming)
+        }
+        sections.append(.stability)
+        if entries.contains(where: { $0.weatherCondition != nil }) {
+            sections.append(.weatherMood)
+        }
+        if entries.contains(where: { $0.energyLevel != nil }) {
+            sections.append(.energyMood)
+        }
+        let locationTags: Set<String> = ["自宅", "職場/学校", "外出先", "移動中", "Home", "Work/School", "Outside", "Commuting"]
+        if entries.contains(where: { !Set($0.tags).isDisjoint(with: locationTags) }) {
+            sections.append(.locationMood)
+        }
+        if entries.count >= 10 {
+            sections.append(.recovery)
+        }
         if healthKitManager.isEnabled && healthKitManager.isAuthorized {
             sections.append(.healthKit)
         }
-        sections.append(contentsOf: [.premium, .discovery, .activity])
+        sections.append(contentsOf: [.premium, .prediction, .tagFlow, .discovery, .activity])
         return sections
     }
 
@@ -205,8 +239,18 @@ struct StatsView: View {
         case .streak: streakSection(colors: colors)
         case .calendar: calendarHeatmapSection(colors: colors)
         case .tagAnalysis: tagAnalysisSection(colors: colors)
+        case .memoKeyword: memoKeywordSection(colors: colors)
+        case .sourceBreakdown: sourceBreakdownSection(colors: colors)
+        case .recordTiming: recordTimingSection(colors: colors)
+        case .stability: stabilitySection(colors: colors)
+        case .weatherMood: weatherMoodSection(colors: colors)
+        case .energyMood: energyMoodSection(colors: colors)
+        case .locationMood: locationMoodSection(colors: colors)
+        case .recovery: recoverySection(colors: colors)
         case .healthKit: healthKitCorrelationSection(colors: colors)
         case .premium: premiumAnalyticsSection(colors: colors)
+        case .prediction: predictionSection(colors: colors)
+        case .tagFlow: tagFlowSection(colors: colors)
         case .discovery: discoverySection(colors: colors)
         case .activity: activitySection(colors: colors)
         }
@@ -1710,6 +1754,725 @@ struct StatsView: View {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(.ultraThinMaterial)
                 )
+            }
+        }
+    }
+
+    // MARK: - メモキーワード分析セクション
+
+    @ViewBuilder
+    private func memoKeywordSection(colors: ThemeColors) -> some View {
+        let keywords = statsVM.memoKeywordAnalysis(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let top10 = Array(keywords.prefix(10))
+
+        if !top10.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                collapsibleHeader(String(localized: "メモキーワード分析"), sectionKey: "memoKeyword", icon: "text.magnifyingglass")
+
+                if expandedSections.contains("memoKeyword") {
+                    VStack(spacing: 0) {
+                        ForEach(top10, id: \.keyword) { item in
+                            HStack {
+                                Text(item.keyword)
+                                    .font(.system(.subheadline, design: .rounded))
+
+                                Spacer()
+
+                                Text(String(format: "%.1f", item.avgScore))
+                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                    .foregroundStyle(colors.color(for: Int(item.avgScore.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
+
+                                Text("(\(item.count)\(String(localized: "回")))")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+
+                            if item.keyword != top10.last?.keyword {
+                                Divider().padding(.leading, 12)
+                            }
+                        }
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                    )
+
+                    Text(String(localized: "メモに含まれるキーワードと平均スコアの関係"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                }
+            }
+        }
+    }
+
+    // MARK: - 記録元分析セクション
+
+    @ViewBuilder
+    private func sourceBreakdownSection(colors: ThemeColors) -> some View {
+        let sources = statsVM.sourceAnalysis(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+
+        if !sources.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                collapsibleHeader(String(localized: "記録元別分析"), sectionKey: "sourceBreakdown", icon: "square.stack.3d.up")
+
+                if expandedSections.contains("sourceBreakdown") {
+                    let sourceLabels: [String: (label: String, icon: String)] = [
+                        "app": (String(localized: "アプリ"), "iphone"),
+                        "widget": (String(localized: "ウィジェット"), "square.grid.2x2"),
+                        "watch": (String(localized: "Apple Watch"), "applewatch")
+                    ]
+
+                    HStack(spacing: 10) {
+                        ForEach(sources, id: \.source) { item in
+                            let info = sourceLabels[item.source] ?? (item.source, "questionmark.circle")
+                            VStack(spacing: 8) {
+                                Image(systemName: info.icon)
+                                    .font(.title2)
+                                    .foregroundStyle(colors.accent)
+
+                                Text(info.label)
+                                    .font(.system(.caption, design: .rounded, weight: .semibold))
+
+                                Text(String(format: "%.1f", item.avgScore))
+                                    .font(.system(.title3, design: .rounded, weight: .bold))
+                                    .foregroundStyle(colors.color(for: Int(item.avgScore.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
+
+                                Text("\(item.count)\(String(localized: "件"))")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.ultraThinMaterial)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - 記録タイミングセクション
+
+    @ViewBuilder
+    private func recordTimingSection(colors: ThemeColors) -> some View {
+        let timing = statsVM.recordingTimingAnalysis(entries: entries)
+
+        if !timing.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                collapsibleHeader(String(localized: "記録タイミング"), sectionKey: "recordTiming", icon: "clock")
+
+                if expandedSections.contains("recordTiming") {
+                    Chart {
+                        ForEach(timing, id: \.hour) { item in
+                            BarMark(
+                                x: .value(String(localized: "時間"), "\(item.hour)"),
+                                y: .value(String(localized: "件数"), item.count)
+                            )
+                            .foregroundStyle(colors.accent.gradient)
+                            .cornerRadius(3)
+                        }
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: ["0", "6", "12", "18", "23"]) { _ in
+                            AxisValueLabel()
+                                .font(.system(.caption2, design: .rounded))
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading) { _ in
+                            AxisValueLabel()
+                                .font(.system(.caption2, design: .rounded))
+                        }
+                    }
+                    .frame(height: 150)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                    )
+
+                    // Peak hour
+                    if let peak = timing.max(by: { $0.count < $1.count }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "star.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.yellow)
+                            Text(String(localized: "最も記録が多い時間帯: \(peak.hour)時台（\(peak.count)件）"))
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - 安定度スコアセクション
+
+    @ViewBuilder
+    private func stabilitySection(colors: ThemeColors) -> some View {
+        let weekStability = statsVM.stabilityScore(entries: entries, days: 7)
+        let monthStability = statsVM.stabilityScore(entries: entries, days: 30)
+
+        if weekStability != nil || monthStability != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                collapsibleHeader(String(localized: "安定度スコア"), sectionKey: "stability", icon: "waveform.path")
+
+                if expandedSections.contains("stability") {
+                    HStack(spacing: 12) {
+                        if let week = weekStability {
+                            stabilityCard(
+                                label: String(localized: "今週"),
+                                score: week,
+                                colors: colors
+                            )
+                        }
+                        if let month = monthStability {
+                            stabilityCard(
+                                label: String(localized: "今月"),
+                                score: month,
+                                colors: colors
+                            )
+                        }
+                    }
+
+                    Text(String(localized: "100に近いほど気分が安定しています"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                }
+            }
+        }
+    }
+
+    /// Stability score card
+    @ViewBuilder
+    private func stabilityCard(label: String, score: Double, colors: ThemeColors) -> some View {
+        VStack(spacing: 8) {
+            Text(String(format: "%.0f", score))
+                .font(.system(.title, design: .rounded, weight: .bold))
+                .foregroundStyle(score >= 70 ? .green : (score >= 40 ? .orange : .red))
+
+            Text(label)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            Text(score >= 70 ? String(localized: "安定") : (score >= 40 ? String(localized: "やや不安定") : String(localized: "不安定")))
+                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                .foregroundStyle(score >= 70 ? .green : (score >= 40 ? .orange : .red))
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+        )
+    }
+
+    // MARK: - 天気×気分セクション
+
+    @ViewBuilder
+    private func weatherMoodSection(colors: ThemeColors) -> some View {
+        let weatherData = statsVM.weatherMoodCorrelation(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+
+        if !weatherData.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                collapsibleHeader(String(localized: "天気×気分"), sectionKey: "weatherMood", icon: "cloud.sun.fill")
+
+                if expandedSections.contains("weatherMood") {
+                    let weatherIcons: [String: String] = [
+                        "sunny": "sun.max.fill",
+                        "cloudy": "cloud.fill",
+                        "rainy": "cloud.rain.fill",
+                        "snowy": "cloud.snow.fill",
+                        "stormy": "cloud.bolt.fill",
+                        "foggy": "cloud.fog.fill"
+                    ]
+                    let weatherLabels: [String: String] = [
+                        "sunny": String(localized: "晴れ"),
+                        "cloudy": String(localized: "曇り"),
+                        "rainy": String(localized: "雨"),
+                        "snowy": String(localized: "雪"),
+                        "stormy": String(localized: "嵐"),
+                        "foggy": String(localized: "霧")
+                    ]
+
+                    HStack(spacing: 10) {
+                        ForEach(weatherData, id: \.condition) { item in
+                            VStack(spacing: 8) {
+                                Image(systemName: weatherIcons[item.condition] ?? "questionmark.circle")
+                                    .font(.title2)
+                                    .foregroundStyle(colors.accent)
+
+                                Text(weatherLabels[item.condition] ?? item.condition)
+                                    .font(.system(.caption, design: .rounded, weight: .semibold))
+
+                                Text(String(format: "%.1f", item.avgScore))
+                                    .font(.system(.title3, design: .rounded, weight: .bold))
+                                    .foregroundStyle(colors.color(for: Int(item.avgScore.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
+
+                                Text("\(item.count)\(String(localized: "件"))")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.ultraThinMaterial)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - エネルギー×気分セクション
+
+    @ViewBuilder
+    private func energyMoodSection(colors: ThemeColors) -> some View {
+        let data = statsVM.energyMoodDivergence(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let total = data.aligned + data.divergent
+
+        if total >= 5 {
+            VStack(alignment: .leading, spacing: 12) {
+                collapsibleHeader(String(localized: "エネルギー×気分"), sectionKey: "energyMood", icon: "bolt.fill")
+
+                if expandedSections.contains("energyMood") {
+                    // Alignment ratio
+                    let alignRate = total > 0 ? Int(Double(data.aligned) / Double(total) * 100) : 0
+                    let divergeRate = total > 0 ? Int(Double(data.divergent) / Double(total) * 100) : 0
+
+                    HStack(spacing: 12) {
+                        VStack(spacing: 6) {
+                            Text("\(alignRate)%")
+                                .font(.system(.title2, design: .rounded, weight: .bold))
+                                .foregroundStyle(.green)
+                            Text(String(localized: "一致"))
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            Text("\(data.aligned)\(String(localized: "件"))")
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
+
+                        VStack(spacing: 6) {
+                            Text("\(divergeRate)%")
+                                .font(.system(.title2, design: .rounded, weight: .bold))
+                                .foregroundStyle(.orange)
+                            Text(String(localized: "乖離"))
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            Text("\(data.divergent)\(String(localized: "件"))")
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
+                    }
+
+                    // Recent divergent entries
+                    if !data.divergentEntries.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(String(localized: "最近の乖離"))
+                                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+
+                            ForEach(data.divergentEntries, id: \.date) { item in
+                                let energyIcons = [1: "battery.25percent", 2: "battery.50percent", 3: "battery.100percent"]
+                                let energyLabels = [1: String(localized: "低"), 2: String(localized: "普通"), 3: String(localized: "高")]
+
+                                HStack {
+                                    Text(item.date.formatted(.dateTime.month(.defaultDigits).day(.defaultDigits)))
+                                        .font(.system(.caption, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 50, alignment: .leading)
+
+                                    HStack(spacing: 4) {
+                                        Text(String(localized: "スコア"))
+                                            .font(.system(.caption2, design: .rounded))
+                                            .foregroundStyle(.tertiary)
+                                        Text("\(item.score)")
+                                            .font(.system(.caption, design: .rounded, weight: .bold))
+                                            .foregroundStyle(colors.color(for: item.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                                    }
+
+                                    Spacer()
+
+                                    HStack(spacing: 4) {
+                                        Image(systemName: energyIcons[item.energy] ?? "battery.50percent")
+                                            .font(.caption)
+                                            .foregroundStyle(.orange)
+                                        Text(energyLabels[item.energy] ?? "-")
+                                            .font(.system(.caption, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.horizontal, 8)
+                            }
+                        }
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
+                    }
+
+                    Text(String(localized: "気分とエネルギーが一致しているかの分析"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                }
+            }
+        }
+    }
+
+    // MARK: - 場所×気分セクション
+
+    @ViewBuilder
+    private func locationMoodSection(colors: ThemeColors) -> some View {
+        let locationData = statsVM.locationMoodAnalysis(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+
+        if !locationData.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                collapsibleHeader(String(localized: "場所×気分"), sectionKey: "locationMood", icon: "mappin.and.ellipse")
+
+                if expandedSections.contains("locationMood") {
+                    let locationIcons: [String: String] = [
+                        "自宅": "house.fill", "Home": "house.fill",
+                        "職場/学校": "building.2.fill", "Work/School": "building.2.fill",
+                        "外出先": "figure.walk", "Outside": "figure.walk",
+                        "移動中": "car.fill", "Commuting": "car.fill"
+                    ]
+
+                    VStack(spacing: 0) {
+                        ForEach(locationData, id: \.location) { item in
+                            HStack(spacing: 12) {
+                                Image(systemName: locationIcons[item.location] ?? "mappin.circle")
+                                    .font(.body)
+                                    .foregroundStyle(colors.accent)
+                                    .frame(width: 24)
+
+                                Text(item.location)
+                                    .font(.system(.subheadline, design: .rounded))
+
+                                Spacer()
+
+                                Text(String(format: "%.1f", item.avgScore))
+                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                    .foregroundStyle(colors.color(for: Int(item.avgScore.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
+
+                                Text("(\(item.count)\(String(localized: "件")))")
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+
+                            if item.location != locationData.last?.location {
+                                Divider().padding(.leading, 48)
+                            }
+                        }
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - 回復パターンセクション
+
+    @ViewBuilder
+    private func recoverySection(colors: ThemeColors) -> some View {
+        let patterns = statsVM.recoveryPatterns(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+
+        if !patterns.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                collapsibleHeader(String(localized: "回復パターン"), sectionKey: "recovery", icon: "arrow.up.heart")
+
+                if expandedSections.contains("recovery") {
+                    ForEach(Array(patterns.prefix(5).enumerated()), id: \.offset) { _, event in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(event.lowPeriodStart.formatted(.dateTime.month(.defaultDigits).day(.defaultDigits)))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+
+                                Text(event.recoveryDate.formatted(.dateTime.month(.defaultDigits).day(.defaultDigits)))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+
+                                Spacer()
+
+                                Text(String(localized: "\(event.daysToRecover)日で回復"))
+                                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                                    .foregroundStyle(.green)
+                            }
+
+                            HStack(spacing: 12) {
+                                HStack(spacing: 4) {
+                                    Text(String(localized: "低"))
+                                        .font(.system(.caption2, design: .rounded))
+                                        .foregroundStyle(.tertiary)
+                                    Text(String(format: "%.1f", event.lowScore))
+                                        .font(.system(.caption, design: .rounded, weight: .bold))
+                                        .foregroundStyle(.orange)
+                                }
+
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(.tertiary)
+
+                                HStack(spacing: 4) {
+                                    Text(String(localized: "回復"))
+                                        .font(.system(.caption2, design: .rounded))
+                                        .foregroundStyle(.tertiary)
+                                    Text(String(format: "%.1f", event.recoveryScore))
+                                        .font(.system(.caption, design: .rounded, weight: .bold))
+                                        .foregroundStyle(.green)
+                                }
+
+                                if !event.recoveryTags.isEmpty {
+                                    Spacer()
+                                    HStack(spacing: 3) {
+                                        ForEach(event.recoveryTags.prefix(2), id: \.self) { tag in
+                                            Text(tag)
+                                                .font(.system(.caption2, design: .rounded))
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Capsule().fill(colors.accent.opacity(0.1)))
+                                                .foregroundStyle(colors.accent)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
+                    }
+
+                    if patterns.count > 1 {
+                        let avgRecovery = patterns.reduce(0) { $0 + $1.daysToRecover } / patterns.count
+                        Text(String(localized: "平均回復期間: \(avgRecovery)日"))
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - スコア予測セクション（プレミアム）
+
+    @ViewBuilder
+    private func predictionSection(colors: ThemeColors) -> some View {
+        if entries.count >= PredictionEngine.minimumEntries {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkle.magnifyingglass")
+                        .foregroundStyle(premiumManager.isPremium ? colors.accent : .orange)
+                    Text(String(localized: "明日の予測"))
+                        .font(.system(.headline, design: .rounded))
+                    if !premiumManager.isPremium {
+                        Text("PRO")
+                            .font(.system(.caption2, design: .rounded, weight: .bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(.orange))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .padding(.horizontal, 4)
+
+                if premiumManager.isPremium {
+                    if let prediction = PredictionEngine.predictTomorrow(from: entries, currentMax: currentMaxScore, currentMin: currentMinScore) {
+                        let range = Double(currentMaxScore - currentMinScore)
+                        let low = prediction.rangeLow * range + Double(currentMinScore)
+                        let high = prediction.rangeHigh * range + Double(currentMinScore)
+                        let predicted = prediction.predictedScore * range + Double(currentMinScore)
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            // Predicted score
+                            HStack {
+                                Text(String(localized: "予測スコア"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(String(format: "%.1f", predicted))
+                                    .font(.system(.title2, design: .rounded, weight: .bold))
+                                    .foregroundStyle(colors.color(for: Int(predicted.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
+                            }
+
+                            // Range
+                            HStack {
+                                Text(String(localized: "予測範囲"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(String(format: "%.1f〜%.1f", low, high))
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            // Confidence
+                            HStack {
+                                Text(String(localized: "信頼度"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text(String(format: "%.0f%%", prediction.confidence * 100))
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                    .foregroundStyle(prediction.confidence >= 0.5 ? .green : .orange)
+                            }
+
+                            // Factors
+                            if !prediction.factors.isEmpty {
+                                Divider()
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(String(localized: "要因"))
+                                        .font(.system(.caption2, design: .rounded, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    ForEach(prediction.factors, id: \.self) { factor in
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 8))
+                                                .foregroundStyle(.tertiary)
+                                            Text(factor)
+                                                .font(.system(.caption, design: .rounded))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.ultraThinMaterial)
+                        )
+                    } else {
+                        Text(String(localized: "予測データを準備中です"))
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(.ultraThinMaterial)
+                            )
+                    }
+                } else {
+                    // Locked preview
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(String(localized: "明日のスコアをAIが予測します"))
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .blur(radius: 3)
+                        Button {
+                            showPremiumSheet = true
+                            HapticManager.lightFeedback()
+                        } label: {
+                            Text(String(localized: "プレミアムで解放"))
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.orange.opacity(0.2), lineWidth: 1)
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - タグ遷移マップセクション（プレミアム）
+
+    @ViewBuilder
+    private func tagFlowSection(colors: ThemeColors) -> some View {
+        let chains = statsVM.tagChainPatterns(entries: entries, currentMax: currentMaxScore)
+
+        if !chains.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .foregroundStyle(premiumManager.isPremium ? colors.accent : .orange)
+                    Text(String(localized: "タグ遷移マップ"))
+                        .font(.system(.headline, design: .rounded))
+                    if !premiumManager.isPremium {
+                        Text("PRO")
+                            .font(.system(.caption2, design: .rounded, weight: .bold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(.orange))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .padding(.horizontal, 4)
+
+                if premiumManager.isPremium {
+                    TagFlowView(transitions: chains, colors: colors)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(String(localized: "タグの流れと遷移パターンを可視化します"))
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .blur(radius: 3)
+                        Button {
+                            showPremiumSheet = true
+                            HapticManager.lightFeedback()
+                        } label: {
+                            Text(String(localized: "プレミアムで解放"))
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.orange.opacity(0.2), lineWidth: 1)
+                    )
+                }
             }
         }
     }

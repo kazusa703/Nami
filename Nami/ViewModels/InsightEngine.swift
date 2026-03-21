@@ -91,6 +91,12 @@ enum InsightEngine {
         candidates.append(contentsOf: tagCountInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
         candidates.append(contentsOf: weekendComparisonInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
         candidates.append(contentsOf: recordFrequencyInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
+        candidates.append(contentsOf: weatherMoodInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
+        candidates.append(contentsOf: energyMoodInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
+        candidates.append(contentsOf: lateNightRecordingInsight(entries: entries))
+        candidates.append(contentsOf: stabilityChangeInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
+        candidates.append(contentsOf: thresholdBreakInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
+        candidates.append(contentsOf: predictionDeviationInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
 
         // 日付ベースのローテーションを適用して上位N枚を返す
         return applyRotation(candidates: candidates)
@@ -640,6 +646,289 @@ enum InsightEngine {
 
         // 優先度順にソートして上位N枚を返す
         return Array(adjusted.sorted { $0.priority > $1.priority }.prefix(maxDisplayCards))
+    }
+
+    // MARK: - 11. 天気×気分インサイト
+
+    private static func weatherMoodInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+        var grouped: [String: [Double]] = [:]
+        for entry in entries {
+            guard let condition = entry.weatherCondition else { continue }
+            grouped[condition, default: []].append(entry.normalizedScore)
+        }
+
+        // Need 5+ entries per weather type and at least 2 types
+        let valid = grouped.filter { $0.value.count >= 5 }
+        guard valid.count >= 2 else { return [] }
+
+        let overallAvg = avg(entries.map(\.normalizedScore))
+
+        guard let best = valid.max(by: { avg($0.value) < avg($1.value) }),
+              let worst = valid.min(by: { avg($0.value) < avg($1.value) }),
+              best.key != worst.key else { return [] }
+
+        let bestDelta = (avg(best.value) - overallAvg) * Double(currentMax - currentMin)
+        let worstDelta = (overallAvg - avg(worst.value)) * Double(currentMax - currentMin)
+
+        let weatherLabels: [String: String] = [
+            "sunny": String(localized: "晴れ"),
+            "cloudy": String(localized: "曇り"),
+            "rainy": String(localized: "雨"),
+            "snowy": String(localized: "雪"),
+            "stormy": String(localized: "嵐"),
+            "foggy": String(localized: "霧")
+        ]
+
+        var results: [InsightCard] = []
+
+        if bestDelta > 0.5 {
+            let label = weatherLabels[best.key] ?? best.key
+            results.append(InsightCard(
+                id: "weather_best_\(best.key)",
+                icon: "sun.max.fill",
+                tone: .positive,
+                title: String(localized: "\(label)の日が好調"),
+                body: String(localized: "\(label)の日はスコアが平均+\(fmt(bestDelta))高い傾向があります。天気が気分に影響しているようです。"),
+                priority: min(bestDelta / 5.0, 0.8)
+            ))
+        }
+
+        if worstDelta > 0.5 {
+            let label = weatherLabels[worst.key] ?? worst.key
+            results.append(InsightCard(
+                id: "weather_worst_\(worst.key)",
+                icon: "cloud.rain.fill",
+                tone: .caution,
+                title: String(localized: "\(label)の日の傾向"),
+                body: String(localized: "\(label)の日はスコアが平均\(fmt(-worstDelta))低い傾向があります。室内で楽しめることを用意しておくのも良いかもしれません。"),
+                priority: min(worstDelta / 5.0, 0.75)
+            ))
+        }
+
+        return results
+    }
+
+    // MARK: - 12. エネルギー×気分インサイト
+
+    private static func energyMoodInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+        let energyEntries = entries.filter { $0.energyLevel != nil }
+        guard energyEntries.count >= 5 else { return [] }
+
+        // Detect divergence: high mood + low energy, or low mood + high energy
+        let overallAvg = avg(entries.map(\.normalizedScore))
+        var highMoodLowEnergy = 0
+        var lowMoodHighEnergy = 0
+        var totalChecked = 0
+
+        for entry in energyEntries {
+            guard let energy = entry.energyLevel else { continue }
+            totalChecked += 1
+            let highMood = entry.normalizedScore >= overallAvg + 0.1
+            let lowMood = entry.normalizedScore < overallAvg - 0.1
+
+            if highMood && energy == 1 {
+                highMoodLowEnergy += 1
+            } else if lowMood && energy == 3 {
+                lowMoodHighEnergy += 1
+            }
+        }
+
+        guard totalChecked >= 5 else { return [] }
+
+        var results: [InsightCard] = []
+
+        let hmleRate = Double(highMoodLowEnergy) / Double(totalChecked) * 100
+        let lmheRate = Double(lowMoodHighEnergy) / Double(totalChecked) * 100
+
+        if hmleRate >= 15 {
+            results.append(InsightCard(
+                id: "energy_high_mood_low_energy",
+                icon: "battery.25percent",
+                tone: .caution,
+                title: String(localized: "気分とエネルギーのズレ"),
+                body: String(localized: "気分は良いのにエネルギーが低い日が\(Int(hmleRate))%あります。無理していませんか？休息も大切です。"),
+                priority: min(hmleRate / 100, 0.8)
+            ))
+        }
+
+        if lmheRate >= 15 {
+            results.append(InsightCard(
+                id: "energy_low_mood_high_energy",
+                icon: "battery.100percent",
+                tone: .discovery,
+                title: String(localized: "エネルギーはあるのに"),
+                body: String(localized: "エネルギーは十分なのに気分が低い日が\(Int(lmheRate))%あります。心の面でのケアを意識してみては？"),
+                priority: min(lmheRate / 100, 0.75)
+            ))
+        }
+
+        return results
+    }
+
+    // MARK: - 13. 深夜記録インサイト
+
+    private static func lateNightRecordingInsight(entries: [MoodEntry]) -> [InsightCard] {
+        let calendar = Calendar.current
+        let now = Date.now
+        guard let twoWeeksAgo = calendar.date(byAdding: .day, value: -14, to: now),
+              let fourWeeksAgo = calendar.date(byAdding: .day, value: -28, to: now) else { return [] }
+
+        func isLateNight(_ date: Date) -> Bool {
+            let hour = calendar.component(.hour, from: date)
+            return hour >= 22 || hour < 4
+        }
+
+        let recentLate = entries.filter { $0.createdAt >= twoWeeksAgo && isLateNight($0.createdAt) }.count
+        let previousLate = entries.filter { $0.createdAt >= fourWeeksAgo && $0.createdAt < twoWeeksAgo && isLateNight($0.createdAt) }.count
+
+        // Only show if recent 2 weeks have more late night recordings than previous 2 weeks
+        guard recentLate > previousLate, recentLate >= 3 else { return [] }
+
+        let increase = recentLate - previousLate
+
+        return [InsightCard(
+            id: "late_night_increase",
+            icon: "moon.fill",
+            tone: .caution,
+            title: String(localized: "深夜の記録が増加"),
+            body: String(localized: "最近2週間で深夜（22時〜4時）の記録が\(recentLate)件あり、以前より\(increase)件増えています。睡眠リズムに変化はありますか？"),
+            priority: min(Double(increase) / 5.0, 0.8)
+        )]
+    }
+
+    // MARK: - 14. 安定度変化インサイト
+
+    private static func stabilityChangeInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+        let calendar = Calendar.current
+        let now = Date.now
+        guard let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start,
+              let lastWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart),
+              let twoWeeksAgoStart = calendar.date(byAdding: .weekOfYear, value: -2, to: thisWeekStart) else { return [] }
+
+        let thisWeek = entries.filter { $0.createdAt >= thisWeekStart }.map(\.normalizedScore)
+        let lastWeek = entries.filter { $0.createdAt >= lastWeekStart && $0.createdAt < thisWeekStart }.map(\.normalizedScore)
+
+        guard thisWeek.count >= 3, lastWeek.count >= 3 else { return [] }
+
+        // Calculate CV-based stability (0-100 scale)
+        func stability(_ scores: [Double]) -> Double {
+            let mean = avg(scores)
+            guard mean > 0 else { return 100.0 }
+            let sd = stdDev(scores)
+            let cv = sd / mean
+            return max(0, 100 - cv * 100)
+        }
+
+        let thisStability = stability(thisWeek)
+        let lastStability = stability(lastWeek)
+        let change = thisStability - lastStability
+
+        guard abs(change) > 15 else { return [] }
+
+        if change > 0 {
+            return [InsightCard(
+                id: "stability_improved",
+                icon: "waveform.path",
+                tone: .positive,
+                title: String(localized: "安定度が向上"),
+                body: String(localized: "今週は先週より気分が安定しています（安定度\(Int(lastStability))→\(Int(thisStability))）。良いリズムですね。"),
+                priority: min(change / 50, 0.8)
+            )]
+        } else {
+            return [InsightCard(
+                id: "stability_decreased",
+                icon: "waveform.path.ecg",
+                tone: .caution,
+                title: String(localized: "安定度の変化"),
+                body: String(localized: "今週は気分の波が先週より大きくなっています（安定度\(Int(lastStability))→\(Int(thisStability))）。何か心当たりはありますか？"),
+                priority: min(abs(change) / 50, 0.75)
+            )]
+        }
+    }
+
+    // MARK: - 15. 閾値ブレークインサイト
+
+    private static func thresholdBreakInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+        let calendar = Calendar.current
+        let overallAvg = avg(entries.map(\.normalizedScore))
+
+        // Build daily averages sorted by date
+        var grouped: [Date: [Double]] = [:]
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            grouped[day, default: []].append(entry.normalizedScore)
+        }
+
+        let dailyScores = grouped.map { (date: $0.key, avg: avg($0.value)) }
+            .sorted { $0.date > $1.date } // most recent first
+
+        guard dailyScores.count >= 3 else { return [] }
+
+        // Check most recent consecutive streak above or below average
+        var aboveStreak = 0
+        var belowStreak = 0
+
+        for daily in dailyScores {
+            if daily.avg >= overallAvg {
+                if belowStreak > 0 { break }
+                aboveStreak += 1
+            } else {
+                if aboveStreak > 0 { break }
+                belowStreak += 1
+            }
+        }
+
+        if aboveStreak >= 3 {
+            return [InsightCard(
+                id: "threshold_above_\(aboveStreak)",
+                icon: "chart.line.uptrend.xyaxis",
+                tone: .positive,
+                title: String(localized: "\(aboveStreak)日連続で好調"),
+                body: String(localized: "\(aboveStreak)日連続で自分の平均を超えています。好調が続いていますね！この調子を維持しましょう。"),
+                priority: min(Double(aboveStreak) / 10.0, 0.85)
+            )]
+        } else if belowStreak >= 3 {
+            return [InsightCard(
+                id: "threshold_below_\(belowStreak)",
+                icon: "chart.line.downtrend.xyaxis",
+                tone: .caution,
+                title: String(localized: "\(belowStreak)日間の低調期"),
+                body: String(localized: "\(belowStreak)日連続で平均を下回っています。自分を責めず、小さなご褒美で気分転換してみては？"),
+                priority: min(Double(belowStreak) / 10.0, 0.8)
+            )]
+        }
+
+        return []
+    }
+
+    // MARK: - 16. 予測ズレインサイト
+
+    private static func predictionDeviationInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+        guard let deviation = PredictionEngine.checkPredictionDeviation(
+            entries: entries,
+            currentMax: currentMax,
+            currentMin: currentMin
+        ) else { return [] }
+
+        if deviation.delta > 0 {
+            return [InsightCard(
+                id: "prediction_above",
+                icon: "sparkles",
+                tone: .discovery,
+                title: String(localized: "予測を上回りました"),
+                body: String(localized: "昨日の予測(\(fmt(deviation.predicted)))より実際のスコア(\(fmt(deviation.actual)))が高かったです。予想外の良いことがありましたか？"),
+                priority: min(abs(deviation.delta) / 5.0, 0.8)
+            )]
+        } else {
+            return [InsightCard(
+                id: "prediction_below",
+                icon: "questionmark.circle",
+                tone: .discovery,
+                title: String(localized: "予測とのズレ"),
+                body: String(localized: "昨日の予測(\(fmt(deviation.predicted)))より実際のスコア(\(fmt(deviation.actual)))が低めでした。予想外の出来事がありましたか？"),
+                priority: min(abs(deviation.delta) / 5.0, 0.75)
+            )]
+        }
     }
 
     // MARK: - 11. HealthKit相関インサイト
