@@ -15,6 +15,7 @@ enum WidgetConstants {
     static let scoreRangeMaxKey = "scoreRangeMax"
     static let scoreRangeMinKey = "scoreRangeMin"
     static let scoreRangeKey = "scoreRange"
+    static let pendingWidgetRecordsKey = "pendingWidgetRecords"
 
     /// App Group共有のUserDefaults
     static var sharedUserDefaults: UserDefaults {
@@ -44,12 +45,12 @@ class MoodEntry {
     var voiceMemoPath: String?
     var tags: [String] = []
     var source: String = "app" // 記録元: "app", "widget", "watch"
-    var energyLevel: Int? = nil       // 1=低, 2=普通, 3=高, nil=スキップ
-    var weatherCondition: String? = nil // "sunny","cloudy","rainy","snowy","stormy","foggy"
-    var weatherTemperature: Double? = nil // 摂氏
+    var energyLevel: Int? // 1=低, 2=普通, 3=高, nil=スキップ
+    var weatherCondition: String? // "sunny","cloudy","rainy","snowy","stormy","foggy"
+    var weatherTemperature: Double? // 摂氏
 
     init(score: Int, maxScore: Int = 10, scoreRangeMin: Int = 1, memo: String? = nil, tags: [String] = [], source: String = "app", createdAt: Date = .now) {
-        self.id = UUID()
+        id = UUID()
         self.score = score
         self.maxScore = maxScore
         self.scoreRangeMin = scoreRangeMin
@@ -78,20 +79,32 @@ func makeSharedModelContainer() -> ModelContainer? {
     let config = ModelConfiguration(
         schema: schema,
         url: WidgetConstants.sharedStoreURL,
-        allowsSave: false  // 読み取り専用
+        allowsSave: false // 読み取り専用
     )
     return try? ModelContainer(for: schema, configurations: [config])
 }
 
-/// ウィジェット用の書き込み可能なModelContainerを生成する
-/// インタラクティブウィジェットからのスコア記録に使用
-func makeWritableSharedModelContainer() -> ModelContainer? {
-    let schema = Schema([MoodEntry.self])
-    let config = ModelConfiguration(
-        schema: schema,
-        url: WidgetConstants.sharedStoreURL,
-        allowsSave: true,
-        cloudKitDatabase: .none  // ウィジェットからはCloudKit同期しない
-    )
-    return try? ModelContainer(for: schema, configurations: [config])
+// MARK: - Pending Widget Record
+
+/// Widget records mood data to UserDefaults; main app imports on launch
+struct PendingMoodRecord: Codable {
+    let score: Int
+    let maxScore: Int
+    let scoreRangeMin: Int
+    let createdAt: Date
+    let id: UUID
+}
+
+extension UserDefaults {
+    /// Queue of mood records written by the widget, pending import by the main app
+    var pendingWidgetRecords: [PendingMoodRecord] {
+        get {
+            guard let data = data(forKey: WidgetConstants.pendingWidgetRecordsKey) else { return [] }
+            return (try? JSONDecoder().decode([PendingMoodRecord].self, from: data)) ?? []
+        }
+        set {
+            let data = try? JSONEncoder().encode(newValue)
+            set(data, forKey: WidgetConstants.pendingWidgetRecordsKey)
+        }
+    }
 }

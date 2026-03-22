@@ -5,11 +5,12 @@
 //  アプリのエントリポイント
 //
 
-import SwiftUI
-import SwiftData
 import AppTrackingTransparency
 import GoogleMobileAds
+import SwiftData
+import SwiftUI
 import UIKit
+import WidgetKit
 
 // MARK: - 画面回転制御
 
@@ -18,7 +19,7 @@ class NamiAppDelegate: NSObject, UIApplicationDelegate {
     /// trueの間はランドスケープを許可する（フルスクリーンチャート用）
     static var allowLandscape = false
 
-    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+    func application(_: UIApplication, supportedInterfaceOrientationsFor _: UIWindow?) -> UIInterfaceOrientationMask {
         if NamiAppDelegate.allowLandscape {
             return [.portrait, .landscapeLeft, .landscapeRight]
         }
@@ -68,7 +69,7 @@ struct NamiApp: App {
                 schema: schema,
                 url: storeURL,
                 allowsSave: true,
-                cloudKitDatabase: .automatic  // iCloud同期を有効化
+                cloudKitDatabase: .automatic // iCloud同期を有効化
             )
 
             do {
@@ -102,6 +103,9 @@ struct NamiApp: App {
                     DefaultTags.seedIfNeeded(context: sharedModelContainer.mainContext)
                     DefaultTags.seedV2IfNeeded(context: sharedModelContainer.mainContext)
 
+                    // Import pending widget records from UserDefaults queue
+                    Self.importPendingWidgetRecords(context: sharedModelContainer.mainContext)
+
                     // WatchConnectivityの初期化
                     WatchConnectivityManager.shared.modelContainer = sharedModelContainer
                     WatchConnectivityManager.shared.activate()
@@ -129,6 +133,9 @@ struct NamiApp: App {
                         }
                     }
 
+                    // 週間サマリー通知のスケジュール（毎週月曜9時）
+                    Self.scheduleWeeklySummaryIfNeeded(context: sharedModelContainer.mainContext)
+
                     // アプリ起動時にリマインダーが有効ならスケジュールを再設定
                     if reminderEnabled {
                         let authorized = await NotificationManager.isAuthorized()
@@ -142,6 +149,33 @@ struct NamiApp: App {
                 }
         }
         .modelContainer(sharedModelContainer)
+    }
+
+    // MARK: - Widget Record Import
+
+    /// Import mood records queued by the widget via App Group UserDefaults
+    private static func importPendingWidgetRecords(context: ModelContext) {
+        let defaults = AppConstants.sharedUserDefaults
+        let pending = defaults.pendingWidgetRecords
+        guard !pending.isEmpty else { return }
+
+        for record in pending {
+            let entry = MoodEntry(
+                score: record.score,
+                maxScore: record.maxScore,
+                scoreRangeMin: record.scoreRangeMin,
+                source: "widget",
+                createdAt: record.createdAt
+            )
+            entry.id = record.id
+            context.insert(entry)
+        }
+
+        try? context.save()
+
+        // Clear the queue after successful import
+        defaults.pendingWidgetRecords = []
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: - データ移行

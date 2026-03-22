@@ -44,20 +44,50 @@ enum AppConstants {
 
     /// iCloudコンテナの識別子
     static let iCloudContainerIdentifier = "iCloud.com.imai.Nami"
+
+    /// UserDefaultsキー：ウィジェットからの未取り込みレコードキュー
+    static let pendingWidgetRecordsKey = "pendingWidgetRecords"
+}
+
+// MARK: - Pending Widget Record
+
+/// Widget records mood data to UserDefaults; main app imports on launch
+struct PendingMoodRecord: Codable {
+    let score: Int
+    let maxScore: Int
+    let scoreRangeMin: Int
+    let createdAt: Date
+    let id: UUID
+}
+
+extension UserDefaults {
+    /// Queue of mood records written by the widget, pending import by the main app
+    var pendingWidgetRecords: [PendingMoodRecord] {
+        get {
+            guard let data = data(forKey: AppConstants.pendingWidgetRecordsKey) else { return [] }
+            return (try? JSONDecoder().decode([PendingMoodRecord].self, from: data)) ?? []
+        }
+        set {
+            let data = try? JSONEncoder().encode(newValue)
+            set(data, forKey: AppConstants.pendingWidgetRecordsKey)
+        }
+    }
 }
 
 /// スコア範囲のプリセット（8パターン: 正のみ4 + 負あり4）
 enum ScoreRange: String, CaseIterable, Identifiable {
-    case pos10 = "pos10"
-    case pos30 = "pos30"
-    case pos50 = "pos50"
-    case pos100 = "pos100"
-    case neg10 = "neg10"
-    case neg30 = "neg30"
-    case neg50 = "neg50"
-    case neg100 = "neg100"
+    case pos10
+    case pos30
+    case pos50
+    case pos100
+    case neg10
+    case neg30
+    case neg50
+    case neg100
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// スコアの最小値
     var minValue: Int {
@@ -147,7 +177,8 @@ enum ScoreRange: String, CaseIterable, Identifiable {
     static func current(from defaults: UserDefaults = AppConstants.sharedUserDefaults) -> ScoreRange {
         // 新キーを優先
         if let raw = defaults.string(forKey: AppConstants.scoreRangeKey),
-           let range = ScoreRange(rawValue: raw) {
+           let range = ScoreRange(rawValue: raw)
+        {
             return range
         }
         // 旧キーからマイグレーション
@@ -174,10 +205,12 @@ enum ScoreRange: String, CaseIterable, Identifiable {
 
 /// スコア入力方式
 enum ScoreInputType: String, CaseIterable, Identifiable {
-    case buttons = "buttons"
-    case slider = "slider"
+    case buttons
+    case slider
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// 表示名
     var displayName: String {
