@@ -127,6 +127,7 @@ struct MonthlyHeatmapView: View {
         let isToday = calendar.isDateInToday(day)
         let isSelected = selectedDay.map { calendar.isDate($0, inSameDayAs: day) } ?? false
         let avgScore = averageScoreFor(entries: dayEntries)
+        let hasMultiple = dayEntries.count >= 2
 
         Button {
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -138,8 +139,16 @@ struct MonthlyHeatmapView: View {
             }
         } label: {
             ZStack {
-                // 背景色（スコアに基づく）
-                if let score = avgScore {
+                // Background color based on score
+                if hasMultiple, let morningColor = periodColor(entries: dayEntries, isMorning: true),
+                   let eveningColor = periodColor(entries: dayEntries, isMorning: false) {
+                    // Split circle: top = morning avg, bottom = evening avg
+                    VStack(spacing: 0) {
+                        morningColor.opacity(0.7)
+                        eveningColor.opacity(0.7)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else if let score = avgScore {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(colors.color(for: Int(score.rounded()), minScore: currentMinScore, maxScore: currentMaxScore).opacity(0.7))
                 } else {
@@ -147,10 +156,19 @@ struct MonthlyHeatmapView: View {
                         .fill(Color.primary.opacity(0.04))
                 }
 
-                // 日付テキスト
-                Text("\(calendar.component(.day, from: day))")
-                    .font(.system(.caption2, design: .rounded, weight: avgScore != nil ? .semibold : .regular))
-                    .foregroundStyle(avgScore != nil ? .white : .secondary)
+                // Day number text
+                VStack(spacing: 0) {
+                    Text("\(calendar.component(.day, from: day))")
+                        .font(.system(.caption2, design: .rounded, weight: avgScore != nil ? .semibold : .regular))
+                        .foregroundStyle(avgScore != nil ? .white : .secondary)
+
+                    // Multi-record dot indicator
+                    if hasMultiple {
+                        Circle()
+                            .fill(.white.opacity(0.8))
+                            .frame(width: 3, height: 3)
+                    }
+                }
             }
             .aspectRatio(1, contentMode: .fit)
             .overlay(
@@ -161,11 +179,24 @@ struct MonthlyHeatmapView: View {
         .buttonStyle(.plain)
     }
 
+    /// Returns color for morning (before 14:00) or evening (14:00+) entries.
+    /// Returns nil if no entries exist in that period, indicating single-color fallback.
+    private func periodColor(entries: [MoodEntry], isMorning: Bool) -> Color? {
+        let periodEntries = entries.filter { entry in
+            let hour = calendar.component(.hour, from: entry.createdAt)
+            return isMorning ? hour < 14 : hour >= 14
+        }
+        guard !periodEntries.isEmpty else { return nil }
+        let avg = periodEntries.reduce(0.0) { $0 + $1.normalizedScore } / Double(periodEntries.count)
+        let scaled = avg * Double(currentMaxScore - currentMinScore) + Double(currentMinScore)
+        return colors.color(for: Int(scaled.rounded()), minScore: currentMinScore, maxScore: currentMaxScore)
+    }
+
     // MARK: - 日の詳細
 
     @ViewBuilder
     private func dayDetailView(for day: Date) -> some View {
-        let dayEntries = entriesFor(day: day)
+        let dayEntries = entriesFor(day: day).sorted { $0.createdAt < $1.createdAt }
 
         VStack(spacing: 6) {
             Text(day, format: .dateTime.month(.defaultDigits).day(.defaultDigits).weekday(.wide))
@@ -177,27 +208,24 @@ struct MonthlyHeatmapView: View {
                     .foregroundStyle(.secondary)
             } else {
                 HStack(spacing: 16) {
-                    // 記録回数
+                    // Entry count
                     Label("\(dayEntries.count)件", systemImage: "pencil.line")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(.secondary)
 
-                    // 平均スコア
+                    // Average score
                     if let avg = averageScoreFor(entries: dayEntries) {
                         Label(String(localized: "平均") + String(format: " %.1f", avg), systemImage: "chart.bar.fill")
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(colors.accent)
                     }
+                }
 
-                    // スコア一覧
-                    let scores = dayEntries
-                        .sorted { $0.createdAt < $1.createdAt }
-                        .map { "\($0.score)" }
-                        .joined(separator: " → ")
-                    Text(scores)
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                // Per-entry details
+                VStack(spacing: 4) {
+                    ForEach(dayEntries, id: \.id) { entry in
+                        entryDetailRow(entry)
+                    }
                 }
             }
         }
@@ -207,6 +235,81 @@ struct MonthlyHeatmapView: View {
             RoundedRectangle(cornerRadius: 10)
                 .fill(colors.accent.opacity(0.08))
         )
+    }
+
+    /// Single entry row in day detail
+    @ViewBuilder
+    private func entryDetailRow(_ entry: MoodEntry) -> some View {
+        HStack(spacing: 6) {
+            // Score with color
+            Text("\(entry.score)")
+                .font(.system(.caption, design: .rounded, weight: .bold))
+                .foregroundStyle(
+                    colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore)
+                )
+                .frame(width: 24)
+
+            // Time
+            Text(entry.createdAt, format: .dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute())
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(.secondary)
+                .frame(width: 50, alignment: .leading)
+
+            // Energy level icon
+            if let energy = entry.energyLevel {
+                Image(systemName: energyIcon(for: energy))
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+
+            // Weather icon
+            if let weather = entry.weatherCondition {
+                Image(systemName: weatherIcon(for: weather))
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+
+            // Tags
+            if !entry.tags.isEmpty {
+                Text(entry.tags.prefix(2).joined(separator: " "))
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundStyle(colors.accent.opacity(0.8))
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+
+            // Mini memo preview (first 20 chars)
+            if let memo = entry.memo, !memo.isEmpty {
+                Text(String(memo.prefix(20)))
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    /// Icon for energy level
+    private func energyIcon(for level: Int) -> String {
+        switch level {
+        case 1: return "battery.25"
+        case 2: return "battery.50"
+        case 3: return "battery.100"
+        default: return "battery.50"
+        }
+    }
+
+    /// Icon for weather condition
+    private func weatherIcon(for condition: String) -> String {
+        switch condition {
+        case "sunny": return "sun.max.fill"
+        case "cloudy": return "cloud.fill"
+        case "rainy": return "cloud.rain.fill"
+        case "snowy": return "cloud.snow.fill"
+        case "stormy": return "cloud.bolt.fill"
+        case "foggy": return "cloud.fog.fill"
+        default: return "questionmark"
+        }
     }
 
     // MARK: - ヘルパー

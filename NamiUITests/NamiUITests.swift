@@ -413,7 +413,7 @@ final class NamiUITests: XCTestCase {
         app.swipeDown()
         sleep(1)
 
-        // 感情タグ管理を試す
+        // タグ管理を試す
         let tagManage = app.buttons.matching(NSPredicate(format: "label CONTAINS 'タグ' AND label CONTAINS '管理'")).firstMatch
         if tagManage.waitForExistence(timeout: 3) && tagManage.isHittable {
             tagManage.tap()

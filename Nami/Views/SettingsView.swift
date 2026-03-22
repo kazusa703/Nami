@@ -5,9 +5,9 @@
 //  設定画面 - テーマ切替、記録設定、リマインダー、エクスポート等
 //
 
-import SwiftUI
-import SwiftData
 import StoreKit
+import SwiftData
+import SwiftUI
 import WidgetKit
 
 /// 設定画面
@@ -53,8 +53,8 @@ struct SettingsView: View {
     @State private var showDeleteAllAlert = false
     /// 通知権限が拒否された場合のアラート
     @State private var showPermissionDeniedAlert = false
-    /// 購入成功アラート
-    @State private var showPurchaseSuccessAlert = false
+    // 購入成功アラート
+
     /// クイックタグ追加のテキスト
     @State private var quickTagName = ""
     /// クイックタグ追加のカテゴリ
@@ -108,8 +108,7 @@ struct SettingsView: View {
                 }
                 .scrollContentBackground(.hidden)
             }
-            .navigationTitle("設定")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showExportSheet) {
                 if let url = exportURL {
                     ShareSheet(items: [url])
@@ -120,68 +119,58 @@ struct SettingsView: View {
 
     // MARK: - テーマセクション
 
-    @ViewBuilder
     private func themeSection(colors: ThemeColors) -> some View {
         Section {
-            ForEach(AppTheme.allCases) { theme in
-                let isSelected = themeManager.currentTheme == theme
-                let themeColors = theme.colors
+            HStack(spacing: 0) {
+                ForEach(AppTheme.allCases) { theme in
+                    let isSelected = themeManager.currentTheme == theme
+                    let tc = theme.colors
 
-                Button {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        themeManager.currentTheme = theme
-                    }
-                    HapticManager.lightFeedback()
-                } label: {
-                    HStack(spacing: 14) {
-                        // テーマプレビューカード
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        colorScheme == .dark ? themeColors.backgroundStartDark : themeColors.backgroundStartLight,
-                                        colorScheme == .dark ? themeColors.backgroundEndDark : themeColors.backgroundEndLight
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 52, height: 52)
-                            .overlay(
-                                // アクセントカラーサンプル（小さな丸）
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            themeManager.currentTheme = theme
+                        }
+                        HapticManager.lightFeedback()
+                    } label: {
+                        VStack(spacing: 6) {
+                            ZStack {
                                 Circle()
-                                    .fill(themeColors.accent)
-                                    .frame(width: 18, height: 18)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(isSelected ? themeColors.accent : .clear, lineWidth: 2.5)
-                            )
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                colorScheme == .dark ? tc.backgroundStartDark : tc.backgroundStartLight,
+                                                colorScheme == .dark ? tc.backgroundEndDark : tc.backgroundEndLight,
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .frame(width: 44, height: 44)
 
-                        VStack(alignment: .leading, spacing: 2) {
+                                Circle()
+                                    .fill(tc.accent)
+                                    .frame(width: 16, height: 16)
+
+                                if isSelected {
+                                    Circle()
+                                        .stroke(tc.accent, lineWidth: 3)
+                                        .frame(width: 52, height: 52)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
+                            }
+
                             Text(theme.displayName)
-                                .font(.system(.body, design: .rounded, weight: isSelected ? .semibold : .regular))
-                                .foregroundStyle(.primary)
-
-                            Text(theme.themeDescription)
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundStyle(.secondary)
+                                .font(.system(.caption2, design: .rounded, weight: isSelected ? .bold : .regular))
+                                .foregroundStyle(isSelected ? colors.accent : .secondary)
                         }
-
-                        Spacer()
-
-                        if isSelected {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(colors.accent)
-                                .font(.title3)
-                                .transition(.scale.combined(with: .opacity))
-                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
                 }
             }
+            .padding(.vertical, 4)
         } header: {
-            Text("テーマ")
+            Text(String(localized: "テーマ"))
         }
     }
 
@@ -196,7 +185,6 @@ struct SettingsView: View {
     @State private var pendingScoreRange: ScoreRange? = nil
     @State private var showRangeChangeAlert = false
 
-    @ViewBuilder
     private func recordingSettingsSection(colors: ThemeColors) -> some View {
         Section {
             // 現在のスコア範囲を目立つカードで表示
@@ -362,20 +350,39 @@ struct SettingsView: View {
         let customCount = customTags.count
 
         return Section {
-            // Quick add inline
+            // Compact: management link with tag count
+            NavigationLink {
+                TagManagementView()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "tag.fill")
+                        .font(.body)
+                        .foregroundStyle(colors.accent)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "タグを管理"))
+                            .font(.system(.body, design: .rounded))
+                        Text(String(localized: "\(allTags.count)個のタグ（カスタム\(customCount)個）"))
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+                }
+            }
+
+            // Inline quick add (compact single row)
             HStack(spacing: 8) {
                 Image(systemName: "plus.circle.fill")
                     .foregroundStyle(colors.accent)
-                    .font(.title3)
 
-                TextField(String(localized: "新しいタグを入力..."), text: $quickTagName)
-                    .font(.system(.body, design: .rounded))
+                TextField(String(localized: "新しいタグを追加..."), text: $quickTagName)
+                    .font(.system(.subheadline, design: .rounded))
                     .submitLabel(.done)
                     .onSubmit { addQuickTag(colors: colors) }
 
-                // Category picker (compact)
                 Menu {
-                    ForEach([EmotionTagCategory.positive, .negative, .factor, .custom]) { cat in
+                    ForEach([EmotionTagCategory.positive, .negative, .factor, .location, .activity, .social, .custom]) { cat in
                         Button {
                             quickTagCategory = cat
                         } label: {
@@ -383,28 +390,29 @@ struct SettingsView: View {
                         }
                     }
                 } label: {
-                    Image(systemName: quickTagCategory.icon)
-                        .font(.caption)
-                        .foregroundStyle(colors.accent)
-                        .padding(6)
-                        .background(Circle().fill(colors.accent.opacity(0.1)))
+                    HStack(spacing: 3) {
+                        Image(systemName: quickTagCategory.icon)
+                            .font(.caption2)
+                        Text(quickTagCategory.displayName)
+                            .font(.system(.caption2, design: .rounded, weight: .medium))
+                    }
+                    .foregroundStyle(colors.accent)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(colors.accent.opacity(0.1)))
                 }
 
                 if !quickTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Button {
                         addQuickTag(colors: colors)
                     } label: {
-                        Text(String(localized: "追加"))
-                            .font(.system(.caption, design: .rounded, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Capsule().fill(colors.accent))
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(colors.accent)
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
 
             // Error message
             if let error = tagAddError {
@@ -415,39 +423,6 @@ struct SettingsView: View {
                         try? await Task.sleep(for: .seconds(3))
                         tagAddError = nil
                     }
-            }
-
-            // Custom tags list (show existing custom tags inline)
-            if !customTags.isEmpty {
-                FlowLayout(spacing: 6) {
-                    ForEach(customTags, id: \.id) { tag in
-                        HStack(spacing: 4) {
-                            Image(systemName: tag.icon)
-                                .font(.caption2)
-                            Text(tag.name)
-                                .font(.system(.caption, design: .rounded))
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(colors.accent.opacity(0.1)))
-                        .foregroundStyle(colors.accent)
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
-            }
-
-            // Full management link
-            NavigationLink {
-                TagManagementView()
-            } label: {
-                HStack {
-                    Label(String(localized: "すべてのタグを管理"), systemImage: "tag.fill")
-                        .font(.system(.body, design: .rounded))
-                    Spacer()
-                    Text("\(allTags.count)")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
             }
         } header: {
             HStack {
@@ -460,13 +435,11 @@ struct SettingsView: View {
                         .foregroundStyle(remaining > 0 ? Color.secondary : Color.orange)
                 }
             }
-        } footer: {
-            Text(String(localized: "記録時にタグを付けて、パターンを分析できます。タグ名を入力して「追加」でオリジナルタグを作成。"))
         }
     }
 
     /// Quick add a tag inline
-    private func addQuickTag(colors: ThemeColors) {
+    private func addQuickTag(colors _: ThemeColors) {
         let trimmed = quickTagName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
@@ -498,7 +471,6 @@ struct SettingsView: View {
 
     // MARK: - リマインダーセクション
 
-    @ViewBuilder
     private func reminderSection() -> some View {
         Section {
             Toggle(isOn: $reminderEnabled) {
@@ -576,15 +548,17 @@ struct SettingsView: View {
 
     // MARK: - ウィジェットセクション
 
-    @ViewBuilder
+    /// Widget guide sheet flag
+    @State private var showWidgetGuide = false
+
     private func widgetSection(colors: ThemeColors) -> some View {
         Section {
-            // ウィジェット記録を管理
+            // Manage widget entries
             NavigationLink {
                 WidgetEntriesView()
             } label: {
                 HStack {
-                    Label("ウィジェット記録を管理", systemImage: "square.grid.2x2")
+                    Label(String(localized: "ウィジェット記録を管理"), systemImage: "square.grid.2x2")
                         .font(.system(.body, design: .rounded))
                     Spacer()
                     if !unenrichedWidgetEntries.isEmpty {
@@ -596,84 +570,28 @@ struct SettingsView: View {
                     }
                 }
             }
-
-            // ホーム画面ウィジェット
-            VStack(alignment: .leading, spacing: 10) {
-                widgetRow(
-                    icon: "square.grid.2x2",
-                    iconColor: colors.accent,
-                    title: "小",
-                    description: "最新スコア + スコアボタンで直接記録"
-                )
-                widgetRow(
-                    icon: "rectangle",
-                    iconColor: colors.accent,
-                    title: "中",
-                    description: "トレンド・バーチャート + スコアボタンで直接記録"
-                )
-                widgetRow(
-                    icon: "rectangle.portrait",
-                    iconColor: colors.accent,
-                    title: "大",
-                    description: "統計カード・チャート + スコアボタンで直接記録"
-                )
-            }
-
-            Divider()
-
-            // ロック画面ウィジェット
-            VStack(alignment: .leading, spacing: 10) {
-                Text("ロック画面")
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.secondary)
-
-                widgetRow(
-                    icon: "circle",
-                    iconColor: colors.graphLine,
-                    title: "円形",
-                    description: "スコアゲージ"
-                )
-                widgetRow(
-                    icon: "rectangle.fill",
-                    iconColor: colors.graphLine,
-                    title: "長方形",
-                    description: "スコア・ストリーク・ミニグラフ"
-                )
-                widgetRow(
-                    icon: "textformat",
-                    iconColor: colors.graphLine,
-                    title: "インライン",
-                    description: "スコアとストリークをテキスト表示"
-                )
-            }
         } header: {
-            Text("ウィジェット")
-        } footer: {
-            Text("ホーム画面を長押し → 左上の＋ → 「Nami」で検索して追加できます。アプリを開かずに記録できます。")
-        }
-    }
-
-    /// ウィジェット説明の1行
-    private func widgetRow(icon: String, iconColor: Color, title: String, description: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(iconColor)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.system(.subheadline, design: .rounded, weight: .medium))
-                Text(description)
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(.secondary)
+            HStack {
+                Text(String(localized: "ウィジェット"))
+                Spacer()
+                Button {
+                    showWidgetGuide = true
+                } label: {
+                    Image(systemName: "questionmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+        } footer: {
+            Text(String(localized: "ホーム画面を長押し → 左上の＋ → 「Nami」で検索して追加できます。"))
+        }
+        .sheet(isPresented: $showWidgetGuide) {
+            WidgetGuideSheet(colors: colors)
         }
     }
 
     // MARK: - データセクション
 
-    @ViewBuilder
     private func dataSection() -> some View {
         Section {
             Button {
@@ -727,8 +645,7 @@ struct SettingsView: View {
 
     // MARK: - HealthKit連携セクション
 
-    @ViewBuilder
-    private func healthKitSection(colors: ThemeColors) -> some View {
+    private func healthKitSection(colors _: ThemeColors) -> some View {
         Section {
             Toggle(isOn: Binding(
                 get: { healthKitManager.isEnabled },
@@ -772,8 +689,7 @@ struct SettingsView: View {
 
     // MARK: - 天気セクション
 
-    @ViewBuilder
-    private func weatherSection(colors: ThemeColors) -> some View {
+    private func weatherSection(colors _: ThemeColors) -> some View {
         Section {
             Toggle(isOn: Binding(
                 get: { weatherManager.isEnabled },
@@ -817,7 +733,6 @@ struct SettingsView: View {
 
     // MARK: - iCloud同期セクション
 
-    @ViewBuilder
     private func iCloudSection(colors: ThemeColors) -> some View {
         Section {
             HStack(spacing: 12) {
@@ -871,57 +786,62 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - プレミアムセクション（広告除去）
+    // MARK: - Premium Section
 
-    @ViewBuilder
     private func premiumSection(colors: ThemeColors) -> some View {
         Section {
             if premiumManager.isPremium {
-                // 購入済み表示
+                // Active premium status
                 HStack(spacing: 10) {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.title2)
                         .foregroundStyle(colors.accent)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("プレミアム")
+                        Text(String(localized: "プレミアム会員"))
                             .font(.system(.body, design: .rounded, weight: .semibold))
-                        Text("広告は非表示になっています")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } else {
-                // 購入ボタン
-                premiumPurchaseButton(colors: colors)
-
-                // 復元ボタン
-                Button {
-                    Task { await premiumManager.restore() }
-                } label: {
-                    HStack {
-                        Label("購入を復元", systemImage: "arrow.clockwise")
-                            .font(.system(.body, design: .rounded))
-                        Spacer()
-                        if premiumManager.isRestoring {
-                            ProgressView()
+                        if let plan = premiumManager.activePlan {
+                            Text(plan.displayName)
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
-                .disabled(premiumManager.isRestoring || premiumManager.isPurchasing)
-
-                // 商品取得失敗時のリトライ
-                if premiumManager.productFetchFailed {
-                    Button {
-                        Task { await premiumManager.fetchProduct() }
-                    } label: {
-                        Label("商品情報を再取得", systemImage: "arrow.clockwise")
-                            .font(.system(.body, design: .rounded))
-                            .foregroundStyle(.orange)
+            } else {
+                // Link to PRO tab
+                HStack(spacing: 10) {
+                    Image(systemName: "crown.fill")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "プレミアムの詳細を見る"))
+                            .font(.system(.body, design: .rounded, weight: .semibold))
+                        Text(String(localized: "PROタブでプランを確認できます"))
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            // エラー表示（5秒後に自動消去）
+            // Restore button (always available as backup)
+            Button {
+                Task { await premiumManager.restore() }
+            } label: {
+                HStack {
+                    Label(String(localized: "購入を復元"), systemImage: "arrow.clockwise")
+                        .font(.system(.body, design: .rounded))
+                    Spacer()
+                    if premiumManager.isRestoring {
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(premiumManager.isRestoring)
+
+            // Error display (auto-dismiss after 5 seconds)
             if let error = premiumManager.errorMessage {
                 Text(error)
                     .font(.system(.caption, design: .rounded))
@@ -932,67 +852,13 @@ struct SettingsView: View {
                     }
             }
         } header: {
-            Text("プレミアム")
-        } footer: {
-            if !premiumManager.isPremium {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("購入すると、グラフ画面と統計画面の広告が永久に非表示になります。機能制限はありません。")
-                    Text("購入はApple IDに紐付けられ、[利用規約](https://kazusa703.github.io/nami-support/ja/terms.html)と[プライバシーポリシー](https://kazusa703.github.io/nami-support/ja/privacy.html)が適用されます。")
-                }
-            }
+            Text(String(localized: "プレミアム"))
         }
-        .alert("購入完了", isPresented: $showPurchaseSuccessAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("プレミアムへのアップグレードありがとうございます！広告は非表示になりました。")
-        }
-        .onChange(of: premiumManager.showPurchaseSuccess) { _, newValue in
-            if newValue {
-                showPurchaseSuccessAlert = true
-                premiumManager.showPurchaseSuccess = false
-            }
-        }
-    }
-
-    /// 購入ボタン
-    @ViewBuilder
-    private func premiumPurchaseButton(colors: ThemeColors) -> some View {
-        Button {
-            Task { await premiumManager.purchase() }
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.title3)
-                    .foregroundStyle(colors.accent)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("広告を除去")
-                        .font(.system(.body, design: .rounded, weight: .semibold))
-                    if let product = premiumManager.product {
-                        Text(product.displayPrice)
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                Spacer()
-
-                if premiumManager.isPurchasing {
-                    ProgressView()
-                } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .disabled(premiumManager.isPurchasing || premiumManager.product == nil)
     }
 
     // MARK: - アプリ情報セクション
 
-    @ViewBuilder
-    private func aboutSection(colors: ThemeColors) -> some View {
+    private func aboutSection(colors _: ThemeColors) -> some View {
         Section {
             HStack {
                 Text("バージョン")
@@ -1071,11 +937,11 @@ struct SettingsView: View {
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
+    func makeUIViewController(context _: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
 
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+    func updateUIViewController(_: UIActivityViewController, context _: Context) {}
 }
 
 #Preview {

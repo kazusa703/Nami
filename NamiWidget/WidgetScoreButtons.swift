@@ -2,16 +2,16 @@
 //  WidgetScoreButtons.swift
 //  NamiWidget
 //
-//  ウィジェット用のインタラクティブスコアボタン
+//  Interactive score buttons for widgets (1 row of 5 representative scores)
 //
 
 import SwiftUI
 import WidgetKit
 import AppIntents
 
-/// スコア範囲に応じて代表値を計算するヘルパー
+/// Helper to compute representative scores for a given range
 enum WidgetScoreHelper {
-    /// minScore〜maxScore に対して指定数の代表スコアを返す（均等分布）
+    /// Returns `count` evenly-distributed representative scores from minScore to maxScore
     static func quickPickScores(minScore: Int, maxScore: Int, count: Int = 5) -> [Int] {
         let total = maxScore - minScore + 1
         guard total > count else {
@@ -26,99 +26,29 @@ enum WidgetScoreHelper {
     }
 }
 
-// MARK: - 小サイズ用スコアボタン（2行）
+// MARK: - Small widget score buttons (1 row × 5)
 
-/// 小ウィジェット用: 2行×5列のスコアボタン
 struct SmallScoreButtons: View {
     let minScore: Int
     let maxScore: Int
     let theme: WidgetTheme
 
     var body: some View {
-        let totalButtons = maxScore - minScore + 1
-        let scores: [Int] = {
-            if totalButtons <= 10 {
-                return Array(minScore...maxScore)
-            } else {
-                return WidgetScoreHelper.quickPickScores(minScore: minScore, maxScore: maxScore)
-            }
-        }()
+        let scores = WidgetScoreHelper.quickPickScores(minScore: minScore, maxScore: maxScore, count: 5)
 
-        if totalButtons <= 10 {
-            // 2行×5列
-            let firstRow = Array(scores.prefix(5))
-            let secondRow = Array(scores.dropFirst(5))
-
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    ForEach(firstRow, id: \.self) { score in
-                        scoreButton(score: score)
-                    }
-                }
-                if !secondRow.isEmpty {
-                    HStack(spacing: 4) {
-                        ForEach(secondRow, id: \.self) { score in
-                            scoreButton(score: score)
-                        }
-                    }
-                }
-            }
-        } else {
-            // 1行×5ボタン（代表値）
-            HStack(spacing: 4) {
-                ForEach(scores, id: \.self) { score in
-                    scoreButton(score: score)
-                }
-            }
-        }
-    }
-
-    private func scoreButton(score: Int) -> some View {
-        Button(intent: RecordMoodIntent(score: score)) {
-            Text("\(score)")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 20)
-                .background(
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(theme.colorForScore(score, minScore: minScore, maxScore: maxScore))
-                )
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - 中サイズ用スコアボタン（1行）
-
-/// 中ウィジェット用: 1行のスコアボタン
-struct MediumScoreButtons: View {
-    let minScore: Int
-    let maxScore: Int
-    let theme: WidgetTheme
-
-    var body: some View {
-        let totalButtons = maxScore - minScore + 1
-        let scores: [Int] = {
-            if totalButtons <= 10 {
-                return Array(minScore...maxScore)
-            } else {
-                return WidgetScoreHelper.quickPickScores(minScore: minScore, maxScore: maxScore)
-            }
-        }()
-
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             ForEach(scores, id: \.self) { score in
                 Button(intent: RecordMoodIntent(score: score)) {
                     Text("\(score)")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 24)
+                        .frame(height: 36)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(theme.colorForScore(score, minScore: minScore, maxScore: maxScore))
                         )
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -126,63 +56,62 @@ struct MediumScoreButtons: View {
     }
 }
 
-// MARK: - 大サイズ用スコアボタン（2行）
+// MARK: - Medium widget score buttons (1 row × 5)
 
-/// 大ウィジェット用: 2行×5列のスコアボタン
+struct MediumScoreButtons: View {
+    let minScore: Int
+    let maxScore: Int
+    let theme: WidgetTheme
+
+    var body: some View {
+        let scores = WidgetScoreHelper.quickPickScores(minScore: minScore, maxScore: maxScore, count: 5)
+
+        HStack(spacing: 6) {
+            ForEach(scores, id: \.self) { score in
+                Button(intent: RecordMoodIntent(score: score)) {
+                    Text("\(score)")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(theme.colorForScore(score, minScore: minScore, maxScore: maxScore))
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+// MARK: - Large widget score buttons (1 row × 5)
+
 struct LargeScoreButtons: View {
     let minScore: Int
     let maxScore: Int
     let theme: WidgetTheme
 
     var body: some View {
-        let totalButtons = maxScore - minScore + 1
-        let scores: [Int] = {
-            if totalButtons <= 10 {
-                return Array(minScore...maxScore)
-            } else {
-                return WidgetScoreHelper.quickPickScores(minScore: minScore, maxScore: maxScore)
-            }
-        }()
+        let scores = WidgetScoreHelper.quickPickScores(minScore: minScore, maxScore: maxScore, count: 5)
 
-        if totalButtons <= 10 {
-            let firstRow = Array(scores.prefix(5))
-            let secondRow = Array(scores.dropFirst(5))
-
-            VStack(spacing: 5) {
-                HStack(spacing: 5) {
-                    ForEach(firstRow, id: \.self) { score in
-                        scoreButton(score: score)
-                    }
+        HStack(spacing: 6) {
+            ForEach(scores, id: \.self) { score in
+                Button(intent: RecordMoodIntent(score: score)) {
+                    Text("\(score)")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(theme.colorForScore(score, minScore: minScore, maxScore: maxScore))
+                        )
+                        .contentShape(Rectangle())
                 }
-                if !secondRow.isEmpty {
-                    HStack(spacing: 5) {
-                        ForEach(secondRow, id: \.self) { score in
-                            scoreButton(score: score)
-                        }
-                    }
-                }
-            }
-        } else {
-            HStack(spacing: 5) {
-                ForEach(scores, id: \.self) { score in
-                    scoreButton(score: score)
-                }
+                .buttonStyle(.plain)
             }
         }
-    }
-
-    private func scoreButton(score: Int) -> some View {
-        Button(intent: RecordMoodIntent(score: score)) {
-            Text("\(score)")
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(theme.colorForScore(score, minScore: minScore, maxScore: maxScore))
-                )
-        }
-        .buttonStyle(.plain)
     }
 }

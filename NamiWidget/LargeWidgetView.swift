@@ -34,7 +34,12 @@ struct LargeWidgetView: View {
                 // メインスコアと統計カード
                 statsRow(theme: theme)
 
-                // インタラクティブスコアボタン（2行）
+                // Past record memory card
+                if let past = entry.randomPastRecord {
+                    pastRecordCard(past: past, theme: theme)
+                }
+
+                // インタラクティブスコアボタン（1行）
                 LargeScoreButtons(minScore: entry.minScore, maxScore: entry.maxScore, theme: theme)
 
                 // 7日間の詳細バーチャート
@@ -264,6 +269,69 @@ struct LargeWidgetView: View {
                 .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    // MARK: - Past record card
+
+    private func pastRecordCard(past: PastRecord, theme: WidgetTheme) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(theme.accent.opacity(0.7))
+
+            // Days ago + date + score
+            let dateStr = pastDateLabel(for: past.date)
+            Text(String(localized: "\(past.daysAgo)日前"))
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(.secondary)
+            Text("(\(dateStr))")
+                .font(.system(size: 10, weight: .regular, design: .rounded))
+                .foregroundStyle(.secondary.opacity(0.7))
+            Text(String(localized: "スコア\(past.score)"))
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(theme.colorForScore(past.score, minScore: entry.minScore, maxScore: entry.maxScore))
+
+            // Memo preview
+            if let memo = past.memo, !memo.isEmpty {
+                Text(String(memo.prefix(10)) + (memo.count > 10 ? "..." : ""))
+                    .font(.system(size: 10, weight: .regular, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            // Tag chips
+            if !past.tags.isEmpty {
+                ForEach(past.tags, id: \.self) { tag in
+                    Text(tag)
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(theme.accent)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(theme.accent.opacity(0.1))
+                        )
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(
+                    colorScheme == .dark
+                        ? Color.white.opacity(0.05)
+                        : Color.black.opacity(0.03)
+                )
+        )
+    }
+
+    private func pastDateLabel(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d"
+        return formatter.string(from: date)
     }
 
     // MARK: - ヘルパー

@@ -434,7 +434,8 @@ enum InsightEngine {
         guard let topPair = pairs.max(by: { $0.value < $1.value }),
               topPair.value >= minimumCoOccurrence else { return [] }
 
-        let parts = topPair.key.split(separator: "|").map(String.init)
+        let parts = topPair.key.split(separator: "|", maxSplits: 1).map(String.init)
+        guard parts.count >= 2 else { return [] }
         let tag1 = parts[0], tag2 = parts[1]
         let minCount = min(tagCounts[tag1] ?? 0, tagCounts[tag2] ?? 0)
         guard minCount > 0 else { return [] }
@@ -802,8 +803,7 @@ enum InsightEngine {
         let calendar = Calendar.current
         let now = Date.now
         guard let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start,
-              let lastWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart),
-              let twoWeeksAgoStart = calendar.date(byAdding: .weekOfYear, value: -2, to: thisWeekStart) else { return [] }
+              let lastWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart) else { return [] }
 
         let thisWeek = entries.filter { $0.createdAt >= thisWeekStart }.map(\.normalizedScore)
         let lastWeek = entries.filter { $0.createdAt >= lastWeekStart && $0.createdAt < thisWeekStart }.map(\.normalizedScore)

@@ -66,7 +66,14 @@ enum MediaManager {
                 try FileManager.default.removeItem(at: destURL)
             }
             try FileManager.default.copyItem(at: sourceURL, to: destURL)
-            return "VoiceMemos/\(fileName)"
+            let relativePath = "VoiceMemos/\(fileName)"
+            // Background sync to iCloud
+            if isICloudAvailable {
+                Task.detached(priority: .background) {
+                    await saveVoiceMemoToiCloud(relativePath: relativePath)
+                }
+            }
+            return relativePath
         } catch {
             print("ボイスメモ保存エラー: \(error)")
             return nil
@@ -163,6 +170,7 @@ enum MediaManager {
     }
 
     /// Load a photo from iCloud if not available locally
+    /// Uses NSFileCoordinator for reliable iCloud download instead of polling
     static func loadPhotoWithiCloudFallback(at relativePath: String) async -> UIImage? {
         // Try local first
         if let image = loadPhoto(at: relativePath) {
@@ -181,21 +189,30 @@ enum MediaManager {
             return nil
         }
 
-        // Wait briefly for download (up to 5 seconds)
-        for _ in 0..<10 {
-            if FileManager.default.fileExists(atPath: iCloudURL.path),
-               let data = try? Data(contentsOf: iCloudURL),
-               let image = UIImage(data: data) {
-                // Copy to local for future access
-                let localBase = AppConstants.sharedContainerURL ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                let localURL = localBase.appendingPathComponent(relativePath)
-                try? data.write(to: localURL)
-                return image
+        // Use NSFileCoordinator for reliable coordinated read
+        // This blocks until the file is downloaded from iCloud
+        nonisolated(unsafe) let coordinator = NSFileCoordinator()
+        var coordinatorError: NSError?
+        var resultImage: UIImage?
+
+        // Run coordinated read on background to avoid blocking MainActor
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                coordinator.coordinate(readingItemAt: iCloudURL, options: [], error: &coordinatorError) { readURL in
+                    if let data = try? Data(contentsOf: readURL),
+                       let image = UIImage(data: data) {
+                        resultImage = image
+                        // Copy to local for future access
+                        let localBase = AppConstants.sharedContainerURL ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                        let localURL = localBase.appendingPathComponent(relativePath)
+                        try? data.write(to: localURL)
+                    }
+                }
+                continuation.resume()
             }
-            try? await Task.sleep(for: .milliseconds(500))
         }
 
-        return nil
+        return resultImage
     }
 
     /// Sync all photos from iCloud to local (run on app launch)
@@ -203,14 +220,19 @@ enum MediaManager {
         guard let iCloudDir = iCloudPhotosDirectory else { return }
         let fm = FileManager.default
 
-        // Enumerate iCloud photos directory
-        guard let enumerator = fm.enumerator(
+        // Collect URLs synchronously to avoid async iterator warning
+        var fileURLs: [URL] = []
+        if let enumerator = fm.enumerator(
             at: iCloudDir,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
-        ) else { return }
+        ) {
+            while let obj = enumerator.nextObject() {
+                if let url = obj as? URL { fileURLs.append(url) }
+            }
+        }
 
-        for case let fileURL as URL in enumerator {
+        for fileURL in fileURLs {
             let fileName = fileURL.lastPathComponent
             guard fileName.hasSuffix(".jpg") || fileName.hasSuffix(".jpeg") || fileName.hasSuffix(".png") else { continue }
 
@@ -221,14 +243,18 @@ enum MediaManager {
             // Skip if already exists locally
             if fm.fileExists(atPath: localURL.path) { continue }
 
-            // Start download if needed
+            // Start download and use coordinated read for reliability
             do {
                 try fm.startDownloadingUbiquitousItem(at: fileURL)
-                // Give it a moment to download
-                try? await Task.sleep(for: .milliseconds(200))
-                if fm.fileExists(atPath: fileURL.path) {
-                    try fm.copyItem(at: fileURL, to: localURL)
-                    print("Downloaded from iCloud: \(fileName)")
+                let coordinator = NSFileCoordinator()
+                var coordError: NSError?
+                coordinator.coordinate(readingItemAt: fileURL, options: [], error: &coordError) { readURL in
+                    do {
+                        try fm.copyItem(at: readURL, to: localURL)
+                        print("Downloaded from iCloud: \(fileName)")
+                    } catch {
+                        print("iCloud copy error for \(fileName): \(error)")
+                    }
                 }
             } catch {
                 print("iCloud download error for \(fileName): \(error)")
@@ -242,13 +268,19 @@ enum MediaManager {
         let fm = FileManager.default
         let localDir = photosDirectory
 
-        guard let enumerator = fm.enumerator(
+        // Collect URLs synchronously to avoid async iterator warning
+        var fileURLs: [URL] = []
+        if let enumerator = fm.enumerator(
             at: localDir,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles]
-        ) else { return }
+        ) {
+            while let obj = enumerator.nextObject() {
+                if let url = obj as? URL { fileURLs.append(url) }
+            }
+        }
 
-        for case let fileURL as URL in enumerator {
+        for fileURL in fileURLs {
             let fileName = fileURL.lastPathComponent
             let relativePath = "Photos/\(fileName)"
             await savePhotoToiCloud(relativePath: relativePath)

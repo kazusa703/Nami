@@ -5,23 +5,23 @@
   ],
   "products" : [
     {
-      "displayPrice" : "480",
+      "displayPrice" : "7800",
       "familyShareable" : false,
       "internalID" : "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
       "localizations" : [
         {
-          "description" : "すべての広告を永久に非表示にします",
-          "displayName" : "広告除去",
+          "description" : "すべての広告を永久に非表示にし、全機能を開放します",
+          "displayName" : "プレミアム（買い切り）",
           "locale" : "ja"
         },
         {
-          "description" : "Remove all ads permanently",
-          "displayName" : "Remove Ads",
+          "description" : "Remove all ads permanently and unlock all features",
+          "displayName" : "Premium (Lifetime)",
           "locale" : "en"
         }
       ],
       "productID" : "com.imai.Nami.removeAds",
-      "referenceName" : "Remove Ads",
+      "referenceName" : "Premium Lifetime",
       "type" : "NonConsumable"
     }
   ],
@@ -30,7 +30,84 @@
     "_developerTeamID" : ""
   },
   "subscriptionGroups" : [
+    {
+      "id" : "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+      "localizations" : [
+        {
+          "description" : "Nami プレミアム",
+          "displayName" : "Nami Premium",
+          "locale" : "ja"
+        },
+        {
+          "description" : "Nami Premium",
+          "displayName" : "Nami Premium",
+          "locale" : "en"
+        }
+      ],
+      "name" : "NamiPremium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
 
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "680",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "C3D4E5F6-A7B8-9012-CDEF-123456789012",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "広告非表示、無制限タグ、全分析機能",
+              "displayName" : "プレミアム（月額）",
+              "locale" : "ja"
+            },
+            {
+              "description" : "No ads, unlimited tags, all analytics",
+              "displayName" : "Premium (Monthly)",
+              "locale" : "en"
+            }
+          ],
+          "productID" : "com.imai.Nami.premium.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Monthly",
+          "subscriptionGroupID" : "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4800",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "D4E5F6A7-B8C9-0123-DEFA-234567890123",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "広告非表示、無制限タグ、全分析機能（年額でお得）",
+              "displayName" : "プレミアム（年額）",
+              "locale" : "ja"
+            },
+            {
+              "description" : "No ads, unlimited tags, all analytics (save with annual)",
+              "displayName" : "Premium (Yearly)",
+              "locale" : "en"
+            }
+          ],
+          "productID" : "com.imai.Nami.premium.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Premium Yearly",
+          "subscriptionGroupID" : "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
   ],
   "version" : {
     "major" : 4,

@@ -21,7 +21,7 @@ struct YearInPixelsView: View {
     /// タップされたセルの日付
     @State private var selectedDate: Date?
     /// キャッシュされた日ごとのスコアデータ（entries/displayYear変更時のみ再計算）
-    @State private var cachedDailyScores: [Date: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?)] = [:]
+    @State private var cachedDailyScores: [Date: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?, entryScores: [Int])] = [:]
     /// キャッシュ生成に使ったentriesのcount（変更検知用）
     @State private var lastEntriesCount: Int = -1
 
@@ -49,7 +49,7 @@ struct YearInPixelsView: View {
             return
         }
 
-        var result: [Date: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?)] = [:]
+        var result: [Date: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?, entryScores: [Int])] = [:]
 
         let yearEntries = sorted.filter {
             cal.component(.year, from: $0.createdAt) == year
@@ -63,9 +63,11 @@ struct YearInPixelsView: View {
 
         for (day, group) in dayGroups {
             // UI崩れ・ズレ防止: 他のグラフと統一し、純粋なスコアの平均値を計算
-            let avgScore = group.reduce(0.0) { $0 + Double($1.score) } / Double(group.count)
-            let memos = group.compactMap(\.memo).filter { !$0.isEmpty }
-            result[day] = (score: avgScore, hasEntry: true, entryCount: group.count, memo: memos.first)
+            let sortedGroup = group.sorted { $0.createdAt < $1.createdAt }
+            let avgScore = sortedGroup.reduce(0.0) { $0 + Double($1.score) } / Double(sortedGroup.count)
+            let memos = sortedGroup.compactMap(\.memo).filter { !$0.isEmpty }
+            let scores = sortedGroup.map(\.score)
+            result[day] = (score: avgScore, hasEntry: true, entryCount: sortedGroup.count, memo: memos.first, entryScores: scores)
         }
 
         cachedDailyScores = result
@@ -290,8 +292,7 @@ struct YearInPixelsView: View {
                 }
                 HapticManager.lightFeedback()
             } label: {
-                Rectangle()
-                    .fill(cellColor(data: data, isFuture: isFuture))
+                cellContent(data: data, isFuture: isFuture, cellSize: cellSize)
                     .frame(width: cellSize, height: cellSize)
                     .overlay(
                         Group {
@@ -314,8 +315,27 @@ struct YearInPixelsView: View {
         }
     }
 
+    /// Cell content: single color for 0-1 entries, horizontal sub-pixels for 2+ entries
+    @ViewBuilder
+    private func cellContent(data: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?, entryScores: [Int])?, isFuture: Bool, cellSize: CGFloat) -> some View {
+        if let data, data.hasEntry, data.entryCount >= 2 {
+            // Sub-pixel split: up to 3 sub-cells sorted by time
+            let scores = Array(data.entryScores.prefix(3))
+            HStack(spacing: 0) {
+                ForEach(scores.indices, id: \.self) { index in
+                    let safeScore = min(currentMaxScore, max(currentMinScore, scores[index]))
+                    Rectangle()
+                        .fill(themeColors.color(for: safeScore, minScore: currentMinScore, maxScore: currentMaxScore))
+                }
+            }
+        } else {
+            Rectangle()
+                .fill(cellColor(data: data, isFuture: isFuture))
+        }
+    }
+
     /// セルの色（クランプ付きで安全に取得）
-    private func cellColor(data: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?)?, isFuture: Bool) -> Color {
+    private func cellColor(data: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?, entryScores: [Int])?, isFuture: Bool) -> Color {
         if isFuture {
             return Color.clear
         }

@@ -56,19 +56,12 @@ struct SmallWidgetView: View {
 
                 Spacer()
 
-                // メインスコア（少し縮小）
+                // メインスコア
                 if let score = entry.latestScore {
                     Text("\(score)")
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .foregroundStyle(theme.accent)
                         .minimumScaleFactor(0.6)
-
-                    // 今日の記録数
-                    if entry.todayCount > 0 {
-                        Text("今日 \(entry.todayCount)件")
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
                 } else {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 28))

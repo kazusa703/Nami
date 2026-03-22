@@ -17,7 +17,7 @@ struct TagSelectionView: View {
 
     /// カテゴリ別にグループ化したタグ
     private var groupedTags: [(category: EmotionTagCategory, tags: [EmotionTag])] {
-        let displayOrder: [EmotionTagCategory] = [.positive, .negative, .factor, .custom]
+        let displayOrder: [EmotionTagCategory] = [.positive, .negative, .factor, .location, .activity, .social, .custom]
         return displayOrder.compactMap { category in
             let tags = allTags.filter { $0.category == category }
             return tags.isEmpty ? nil : (category, tags)

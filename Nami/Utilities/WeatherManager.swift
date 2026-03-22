@@ -71,7 +71,7 @@ final class WeatherManager: NSObject {
             let weather = try await weatherService.weather(for: location)
             let current = weather.currentWeather
             let condition = mapCondition(current.condition)
-            let temperature = current.temperature.value // Celsius by default
+            let temperature = current.temperature.converted(to: .celsius).value
             return (condition, temperature)
         } catch {
             print("WeatherKit fetch error: \(error)")
@@ -81,6 +81,10 @@ final class WeatherManager: NSObject {
 
     /// Request a one-shot location update
     private func requestCurrentLocation() async -> CLLocation? {
+        // Cancel any pending continuation to prevent leaks
+        locationContinuation?.resume(returning: nil)
+        locationContinuation = nil
+
         return await withCheckedContinuation { continuation in
             self.locationContinuation = continuation
             locationManager.requestLocation()
@@ -110,7 +114,7 @@ final class WeatherManager: NSObject {
 
 // MARK: - CLLocationManagerDelegate
 
-extension WeatherManager: @preconcurrency CLLocationManagerDelegate {
+extension WeatherManager: CLLocationManagerDelegate {
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         Task { @MainActor in

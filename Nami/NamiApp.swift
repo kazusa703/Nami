@@ -100,6 +100,7 @@ struct NamiApp: App {
                 .task {
                     // デフォルトタグの初期化
                     DefaultTags.seedIfNeeded(context: sharedModelContainer.mainContext)
+                    DefaultTags.seedV2IfNeeded(context: sharedModelContainer.mainContext)
 
                     // WatchConnectivityの初期化
                     WatchConnectivityManager.shared.modelContainer = sharedModelContainer

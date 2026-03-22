@@ -13,6 +13,9 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
     case positive = "positive"   // ポジティブ感情
     case negative = "negative"   // ネガティブ感情
     case factor = "factor"       // 要因・活動
+    case location = "location"   // 場所
+    case activity = "activity"   // 活動
+    case social = "social"       // 人
     case custom = "custom"       // ユーザー作成
 
     var id: String { rawValue }
@@ -23,6 +26,9 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
         case .positive: return String(localized: "ポジティブ")
         case .negative: return String(localized: "ネガティブ")
         case .factor: return String(localized: "要因")
+        case .location: return String(localized: "場所")
+        case .activity: return String(localized: "活動")
+        case .social: return String(localized: "人")
         case .custom: return String(localized: "カスタム")
         }
     }
@@ -33,6 +39,9 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
         case .positive: return "sun.max.fill"
         case .negative: return "cloud.rain.fill"
         case .factor: return "leaf.fill"
+        case .location: return "mappin.and.ellipse"
+        case .activity: return "figure.walk"
+        case .social: return "person.2.fill"
         case .custom: return "star.fill"
         }
     }
@@ -43,7 +52,10 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
         case .positive: return 0
         case .negative: return 1
         case .factor: return 2
-        case .custom: return 3
+        case .location: return 3
+        case .activity: return 4
+        case .social: return 5
+        case .custom: return 6
         }
     }
 }

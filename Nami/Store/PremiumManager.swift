@@ -2,52 +2,86 @@
 //  PremiumManager.swift
 //  Nami
 //
-//  プレミアム（広告除去）状態の管理
-//  StoreKit 2 を使用した課金処理
+//  Premium state management with 3 plan support
+//  StoreKit 2: monthly subscription, yearly subscription, lifetime purchase
 //
 
 import SwiftUI
 import StoreKit
 
-/// プレミアム状態を管理するクラス
-/// StoreKit 2 で広告除去（Non-Consumable）の購入・復元を提供する
+// MARK: - PremiumPlan
+
+/// Represents the active premium plan type
+enum PremiumPlan: String {
+    case monthly
+    case yearly
+    case lifetime
+
+    var displayName: String {
+        switch self {
+        case .monthly:
+            return String(localized: "月額プラン")
+        case .yearly:
+            return String(localized: "年額プラン")
+        case .lifetime:
+            return String(localized: "買い切りプラン")
+        }
+    }
+}
+
+/// Manages premium status with StoreKit 2
+/// Supports monthly/yearly subscriptions and lifetime non-consumable purchase
 @Observable
 class PremiumManager {
 
-    // MARK: - プロパティ
+    // MARK: - Product IDs
 
-    /// プレミアム（広告除去）が購入済みかどうか
+    static let monthlyProductID = "com.imai.Nami.premium.monthly"
+    static let yearlyProductID = "com.imai.Nami.premium.yearly"
+    static let lifetimeProductID = "com.imai.Nami.removeAds"
+    static let allProductIDs: Set<String> = [monthlyProductID, yearlyProductID, lifetimeProductID]
+
+    // MARK: - Properties
+
+    /// Whether user has any active premium plan
     var isPremium: Bool = false
-    /// 商品情報（取得済み）
-    var product: Product?
-    /// 購入処理中フラグ
+    /// Currently active plan (nil if not premium)
+    var activePlan: PremiumPlan?
+
+    /// Fetched products
+    var monthlyProduct: Product?
+    var yearlyProduct: Product?
+    var lifetimeProduct: Product?
+
+    /// Purchasing state
     var isPurchasing: Bool = false
-    /// 復元処理中フラグ
+    /// Restoring state
     var isRestoring: Bool = false
-    /// エラーメッセージ
+    /// Error message for UI
     var errorMessage: String?
-    /// 商品取得に失敗したかどうか
+    /// Whether product fetch failed
     var productFetchFailed: Bool = false
-    /// 購入成功フラグ（UI表示用）
+    /// Purchase success flag for UI
     var showPurchaseSuccess: Bool = false
 
-    /// 無料ユーザーのカスタムタグ上限
+    /// Free user custom tag limit
     let freeCustomTagLimit = 10
-    /// 商品ID
-    static let removeAdsProductID = "com.imai.Nami.removeAds"
 
-    /// トランザクション監視タスク
+    /// Legacy single product access (for backward compatibility with existing views)
+    var product: Product? {
+        lifetimeProduct
+    }
+
+    /// Transaction listener task
     private var updateListenerTask: Task<Void, Error>?
 
-    // MARK: - 初期化
+    // MARK: - Init
 
     init() {
-        // トランザクションの監視を開始
         updateListenerTask = listenForTransactions()
-        // 起動時に購入状態を復元
         Task {
             await updatePurchasedStatus()
-            await fetchProduct()
+            await fetchProducts()
         }
     }
 
@@ -55,17 +89,29 @@ class PremiumManager {
         updateListenerTask?.cancel()
     }
 
-    // MARK: - 商品取得
+    // MARK: - Fetch Products
 
-    /// App Store Connect から商品情報を取得する（最大3回リトライ）
+    /// Fetch all 3 product infos from App Store Connect (retry up to 3 times)
     @MainActor
-    func fetchProduct() async {
+    func fetchProducts() async {
         productFetchFailed = false
         for attempt in 1...3 {
             do {
-                let products = try await Product.products(for: [Self.removeAdsProductID])
-                product = products.first
-                productFetchFailed = product == nil
+                let products = try await Product.products(for: Self.allProductIDs)
+                for p in products {
+                    switch p.id {
+                    case Self.monthlyProductID:
+                        monthlyProduct = p
+                    case Self.yearlyProductID:
+                        yearlyProduct = p
+                    case Self.lifetimeProductID:
+                        lifetimeProduct = p
+                    default:
+                        break
+                    }
+                }
+                let anyFetched = monthlyProduct != nil || yearlyProduct != nil || lifetimeProduct != nil
+                productFetchFailed = !anyFetched
                 return
             } catch {
                 if attempt == 3 {
@@ -77,15 +123,17 @@ class PremiumManager {
         }
     }
 
-    // MARK: - 購入
-
-    /// 広告除去を購入する
+    /// Legacy method name for backward compatibility
     @MainActor
-    func purchase() async {
-        guard let product else {
-            errorMessage = String(localized: "商品情報を取得できませんでした")
-            return
-        }
+    func fetchProduct() async {
+        await fetchProducts()
+    }
+
+    // MARK: - Purchase
+
+    /// Purchase a specific product
+    @MainActor
+    func purchase(product: Product) async {
         guard !isPurchasing else { return }
 
         isPurchasing = true
@@ -98,7 +146,7 @@ class PremiumManager {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
-                isPremium = true
+                await updatePurchasedStatus()
                 showPurchaseSuccess = true
                 HapticManager.recordFeedback()
 
@@ -118,16 +166,25 @@ class PremiumManager {
         isPurchasing = false
     }
 
-    // MARK: - 復元
+    /// Legacy purchase method — purchases lifetime product for backward compatibility
+    @MainActor
+    func purchase() async {
+        guard let lifetimeProduct else {
+            errorMessage = String(localized: "商品情報を取得できませんでした")
+            return
+        }
+        await purchase(product: lifetimeProduct)
+    }
 
-    /// 購入済みのトランザクションを復元する
+    // MARK: - Restore
+
+    /// Restore purchased transactions
     @MainActor
     func restore() async {
         isRestoring = true
         errorMessage = nil
 
         do {
-            // App Storeとの同期をリクエスト
             try await AppStore.sync()
             await updatePurchasedStatus()
 
@@ -141,53 +198,81 @@ class PremiumManager {
         isRestoring = false
     }
 
-    // MARK: - カスタムタグ制限
+    // MARK: - Custom Tag Limits
 
-    /// カスタムタグを追加できるかどうか
+    /// Whether user can create another custom tag
     func canCreateCustomTag(currentCount: Int) -> Bool {
         if isPremium { return true }
         return currentCount < freeCustomTagLimit
     }
 
-    /// 残り作成可能数
+    /// Remaining custom tags the user can create
     func remainingCustomTags(currentCount: Int) -> Int {
         if isPremium { return .max }
         return max(0, freeCustomTagLimit - currentCount)
     }
 
-    // MARK: - 内部ロジック
+    // MARK: - Internal
 
-    /// 購入済みステータスを確認・更新する
+    /// Check all current entitlements and update premium status
     @MainActor
     private func updatePurchasedStatus() async {
-        // 現在の全エンタイトルメントを確認
+        var foundPlan: PremiumPlan?
+
         for await result in Transaction.currentEntitlements {
-            if case .verified(let transaction) = result,
-               transaction.productID == Self.removeAdsProductID {
-                isPremium = true
-                return
+            guard case .verified(let transaction) = result else { continue }
+
+            switch transaction.productID {
+            case Self.lifetimeProductID:
+                // Non-consumable: always valid if present in entitlements
+                if transaction.revocationDate == nil {
+                    foundPlan = .lifetime
+                }
+
+            case Self.monthlyProductID:
+                if transaction.revocationDate == nil,
+                   let expiration = transaction.expirationDate,
+                   expiration > Date.now {
+                    // Prefer lifetime over subscriptions
+                    if foundPlan != .lifetime {
+                        foundPlan = .monthly
+                    }
+                }
+
+            case Self.yearlyProductID:
+                if transaction.revocationDate == nil,
+                   let expiration = transaction.expirationDate,
+                   expiration > Date.now {
+                    // Prefer lifetime, then yearly over monthly
+                    if foundPlan != .lifetime {
+                        foundPlan = .yearly
+                    }
+                }
+
+            default:
+                break
             }
         }
-        isPremium = false
+
+        activePlan = foundPlan
+        isPremium = foundPlan != nil
     }
 
-    /// トランザクションの更新を監視する
+    /// Listen for transaction updates (renewals, revocations, etc.)
     private func listenForTransactions() -> Task<Void, Error> {
         Task.detached {
             for await result in Transaction.updates {
                 if case .verified(let transaction) = result {
                     await transaction.finish()
-                    await MainActor.run {
-                        if transaction.productID == PremiumManager.removeAdsProductID {
-                            self.isPremium = true
-                        }
+                    if PremiumManager.allProductIDs.contains(transaction.productID) {
+                        await self.updatePurchasedStatus()
                     }
                 }
             }
         }
     }
 
-    /// トランザクションの検証
+    /// Verify transaction signature
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified(_, let error):
@@ -200,7 +285,7 @@ class PremiumManager {
 
 // MARK: - Environment Key
 
-/// PremiumManagerの環境キー
+/// EnvironmentKey for PremiumManager
 struct PremiumManagerKey: EnvironmentKey {
     static let defaultValue = PremiumManager()
 }

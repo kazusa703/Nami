@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import NaturalLanguage
 import SwiftData
 
 /// 時間帯の分類
@@ -141,6 +142,16 @@ struct TagSynergy {
     let synergyDelta: Double
     let comboCount: Int
     let isRedZone: Bool
+}
+
+/// 回復パターンイベント
+struct RecoveryEvent {
+    let lowPeriodStart: Date
+    let recoveryDate: Date
+    let daysToRecover: Int
+    let recoveryTags: [String]
+    let lowScore: Double
+    let recoveryScore: Double
 }
 
 /// 統計データを計算するViewModel
@@ -1289,6 +1300,285 @@ class StatsViewModel {
             hasLastYearData: hasData,
             growthMessage: message
         )
+    }
+
+    // MARK: - メモキーワード分析
+
+    /// メモ内のキーワードを抽出し、スコアとの相関を分析する
+    func memoKeywordAnalysis(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [(keyword: String, avgScore: Double, count: Int)] {
+        let stopWords: Set<String> = [
+            "は", "が", "の", "を", "に", "で", "と", "も", "か", "な", "だ", "し", "て", "た",
+            "する", "ある", "いる", "れる", "ない", "です", "ます", "こと", "もの", "ため", "よう"
+        ]
+
+        // Collect keywords per entry
+        var keywordScores: [String: [Double]] = [:]
+        let tokenizer = NLTokenizer(unit: .word)
+
+        for entry in entries {
+            guard let memo = entry.memo, !memo.isEmpty else { continue }
+            tokenizer.string = memo
+            var entryKeywords = Set<String>()
+            tokenizer.enumerateTokens(in: memo.startIndex..<memo.endIndex) { range, _ in
+                let word = String(memo[range]).lowercased()
+                if word.count >= 2 && !stopWords.contains(word) {
+                    entryKeywords.insert(word)
+                }
+                return true
+            }
+            let scaled = entry.scaledScore(to: currentMax, targetMin: currentMin)
+            for keyword in entryKeywords {
+                keywordScores[keyword, default: []].append(scaled)
+            }
+        }
+
+        // Filter to 3+ occurrences, compute average
+        var results: [(keyword: String, avgScore: Double, count: Int)] = []
+        for (keyword, scores) in keywordScores where scores.count >= 3 {
+            let avg = scores.reduce(0.0, +) / Double(scores.count)
+            results.append((keyword: keyword, avgScore: avg, count: scores.count))
+        }
+        return results.sorted { $0.count > $1.count }
+    }
+
+    // MARK: - 記録元分析
+
+    /// 記録元（app/widget/watch）ごとの平均スコアと件数を返す
+    func sourceAnalysis(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [(source: String, avgScore: Double, count: Int)] {
+        var grouped: [String: [MoodEntry]] = [:]
+        for entry in entries {
+            grouped[entry.source, default: []].append(entry)
+        }
+        return grouped.map { source, group in
+            let avg = normalizedAverage(of: group, scaleTo: currentMax, targetMin: currentMin) ?? 0
+            return (source: source, avgScore: avg, count: group.count)
+        }.sorted { $0.count > $1.count }
+    }
+
+    // MARK: - 記録タイミング分析
+
+    /// 時間帯別の記録件数と正規化平均スコアを返す
+    func recordingTimingAnalysis(entries: [MoodEntry]) -> [(hour: Int, count: Int, avgNormalized: Double)] {
+        let calendar = Calendar.current
+        var grouped: [Int: [MoodEntry]] = [:]
+        for entry in entries {
+            let hour = calendar.component(.hour, from: entry.createdAt)
+            grouped[hour, default: []].append(entry)
+        }
+        return grouped
+            .map { hour, group in
+                let avgNorm = group.reduce(0.0) { $0 + $1.normalizedScore } / Double(group.count)
+                return (hour: hour, count: group.count, avgNormalized: avgNorm)
+            }
+            .sorted { $0.hour < $1.hour }
+    }
+
+    // MARK: - 安定度スコア
+
+    /// 直近N日間の安定度（0-100、100=完全に安定）を返す
+    func stabilityScore(entries: [MoodEntry], days: Int = 7) -> Double? {
+        let calendar = Calendar.current
+        guard let cutoff = calendar.date(byAdding: .day, value: -days, to: .now) else { return nil }
+        let recent = entries.filter { $0.createdAt >= cutoff }
+        guard recent.count >= 3 else { return nil }
+
+        let scores = recent.map { $0.normalizedScore }
+        let mean = scores.reduce(0.0, +) / Double(scores.count)
+        guard mean > 0 else { return 100.0 } // All zeros = stable at bottom
+
+        let variance = scores.reduce(0.0) { $0 + ($1 - mean) * ($1 - mean) } / Double(scores.count)
+        let stdDev = variance.squareRoot()
+        let cv = stdDev / mean
+
+        return max(0, 100 - cv * 100)
+    }
+
+    // MARK: - 閾値ブレーク分析
+
+    /// 個人平均を上回る/下回る連続日数のブレークを検出する
+    func thresholdBreaks(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [(type: String, days: Int, startDate: Date)] {
+        guard !entries.isEmpty else { return [] }
+
+        let calendar = Calendar.current
+        let overallAvg = entries.reduce(0.0) { $0 + $1.normalizedScore } / Double(entries.count)
+
+        // Build daily averages sorted by date
+        var dailyScores: [(date: Date, avgNormalized: Double)] = []
+        var grouped: [Date: [Double]] = [:]
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            grouped[day, default: []].append(entry.normalizedScore)
+        }
+        for (day, scores) in grouped {
+            let avg = scores.reduce(0.0, +) / Double(scores.count)
+            dailyScores.append((date: day, avgNormalized: avg))
+        }
+        dailyScores.sort { $0.date < $1.date }
+
+        // Detect consecutive streaks
+        var results: [(type: String, days: Int, startDate: Date)] = []
+        var currentType: String? = nil
+        var streakStart: Date? = nil
+        var streakCount = 0
+
+        for daily in dailyScores {
+            let type = daily.avgNormalized >= overallAvg ? "above" : "below"
+            if type == currentType {
+                streakCount += 1
+            } else {
+                // Save previous streak if 3+ days
+                if let ct = currentType, streakCount >= 3, let start = streakStart {
+                    results.append((type: ct, days: streakCount, startDate: start))
+                }
+                currentType = type
+                streakStart = daily.date
+                streakCount = 1
+            }
+        }
+        // Final streak
+        if let ct = currentType, streakCount >= 3, let start = streakStart {
+            results.append((type: ct, days: streakCount, startDate: start))
+        }
+
+        return results.sorted { $0.startDate > $1.startDate }
+    }
+
+    // MARK: - 天気×気分相関
+
+    /// 天気ごとの平均スコアと件数を返す
+    func weatherMoodCorrelation(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [(condition: String, avgScore: Double, count: Int)] {
+        var grouped: [String: [MoodEntry]] = [:]
+        for entry in entries {
+            guard let condition = entry.weatherCondition else { continue }
+            grouped[condition, default: []].append(entry)
+        }
+        return grouped.map { condition, group in
+            let avg = normalizedAverage(of: group, scaleTo: currentMax, targetMin: currentMin) ?? 0
+            return (condition: condition, avgScore: avg, count: group.count)
+        }.sorted { $0.count > $1.count }
+    }
+
+    // MARK: - エネルギー×気分の乖離
+
+    /// スコアとエネルギーレベルの一致/乖離を分析する
+    func energyMoodDivergence(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> (aligned: Int, divergent: Int, divergentEntries: [(date: Date, score: Int, energy: Int)]) {
+        var aligned = 0
+        var divergent = 0
+        var divergentList: [(date: Date, score: Int, energy: Int)] = []
+
+        for entry in entries {
+            guard let energy = entry.energyLevel else { continue }
+            let normalized = entry.normalizedScore
+            let highScore = normalized >= 0.5
+            let highEnergy = energy == 3
+            let lowEnergy = energy == 1
+
+            if energy == 2 {
+                // Neutral energy is always considered aligned
+                aligned += 1
+            } else if (highScore && highEnergy) || (!highScore && lowEnergy) {
+                aligned += 1
+            } else {
+                divergent += 1
+                let scaled = Int(entry.scaledScore(to: currentMax, targetMin: currentMin).rounded())
+                divergentList.append((date: entry.createdAt, score: scaled, energy: energy))
+            }
+        }
+
+        // Return up to 5 most recent divergent entries
+        let recentDivergent = divergentList.sorted { $0.date > $1.date }.prefix(5)
+        return (aligned: aligned, divergent: divergent, divergentEntries: Array(recentDivergent))
+    }
+
+    // MARK: - 場所×気分分析
+
+    /// 場所タグごとの平均スコアと件数を返す
+    func locationMoodAnalysis(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [(location: String, avgScore: Double, count: Int)] {
+        let locationTags: Set<String> = [
+            "自宅", "職場/学校", "外出先", "移動中",
+            "Home", "Work/School", "Outside", "Commuting"
+        ]
+
+        var grouped: [String: [MoodEntry]] = [:]
+        for entry in entries {
+            for tag in entry.tags {
+                if locationTags.contains(tag) {
+                    grouped[tag, default: []].append(entry)
+                }
+            }
+        }
+
+        return grouped.map { location, group in
+            let avg = normalizedAverage(of: group, scaleTo: currentMax, targetMin: currentMin) ?? 0
+            return (location: location, avgScore: avg, count: group.count)
+        }.sorted { $0.count > $1.count }
+    }
+
+    // MARK: - 回復パターン分析
+
+    /// 低調期からの回復パターンを検出する
+    func recoveryPatterns(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [RecoveryEvent] {
+        guard entries.count >= 3 else { return [] }
+
+        let calendar = Calendar.current
+        let overallAvg = entries.reduce(0.0) { $0 + $1.normalizedScore } / Double(entries.count)
+        let lowThreshold = overallAvg - 0.15
+
+        // Build daily data sorted by date
+        var dailyData: [(date: Date, avgNormalized: Double, tags: [String])] = []
+        var grouped: [Date: [MoodEntry]] = [:]
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            grouped[day, default: []].append(entry)
+        }
+        for (day, dayEntries) in grouped {
+            let avg = dayEntries.reduce(0.0) { $0 + $1.normalizedScore } / Double(dayEntries.count)
+            let allTags = dayEntries.flatMap { $0.tags }
+            dailyData.append((date: day, avgNormalized: avg, tags: allTags))
+        }
+        dailyData.sort { $0.date < $1.date }
+
+        guard dailyData.count >= 3 else { return [] }
+
+        // Detect low periods and recovery
+        var results: [RecoveryEvent] = []
+        var lowStart: Int? = nil
+        var lowDays = 0
+
+        for i in 0..<dailyData.count {
+            let isLow = dailyData[i].avgNormalized < lowThreshold
+
+            if isLow {
+                if lowStart == nil {
+                    lowStart = i
+                    lowDays = 1
+                } else {
+                    lowDays += 1
+                }
+            } else {
+                // Check if we had a valid low period (2+ days)
+                if let start = lowStart, lowDays >= 2 {
+                    let isRecovery = dailyData[i].avgNormalized >= overallAvg
+                    if isRecovery {
+                        let lowScores = (start..<i).map { dailyData[$0].avgNormalized }
+                        let avgLow = lowScores.reduce(0.0, +) / Double(lowScores.count)
+                        let event = RecoveryEvent(
+                            lowPeriodStart: dailyData[start].date,
+                            recoveryDate: dailyData[i].date,
+                            daysToRecover: lowDays,
+                            recoveryTags: dailyData[i].tags,
+                            lowScore: avgLow * Double(currentMax - currentMin) + Double(currentMin),
+                            recoveryScore: dailyData[i].avgNormalized * Double(currentMax - currentMin) + Double(currentMin)
+                        )
+                        results.append(event)
+                    }
+                }
+                lowStart = nil
+                lowDays = 0
+            }
+        }
+
+        return results.sorted { $0.recoveryDate > $1.recoveryDate }
     }
 
     // MARK: - ヘルパー

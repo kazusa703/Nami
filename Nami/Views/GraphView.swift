@@ -5,19 +5,6 @@
 //  Created by Claude on 2024/05/22.
 //  Based on user requests and design standards.
 //
-//  修正履歴:
-//  - Fix 1:  overviewChart タップ時に range 外の日付を除外
-//  - Fix 2:  FullscreenChartView の minZoom/maxZoom を明示的に Double 型に統一
-//  - Fix 3:  findAndShowClosestEntry の許容距離を dateMode に応じて動的に変更
-//  - Fix 4:  dayLevelChart の graphMode 判定を switch に変更
-//  - Fix 5:  buildPlotDays のコメントを整理（segmentId ロジックの意図を明示）
-//  - Fix 6:  periodRange の週計算を ISO8601（月曜始まり保証）に変更
-//  - Fix 7:  formattedTargetDate の週表示で年またぎ時に年付きフォーマットに切り替え
-//  - Fix 8:  overviewChart の segmentCount 計算を O(n²) → O(1) に改善
-//  - Fix 9:  daily / plotDays の計算を body 先頭でキャッシュ
-//  - Fix 10: dateMode / targetDate 変更時に selectedDay をリセット
-//  - Fix 11: dayEntryRow と entryDetailCard の selectedEntry/showDetail 設定を統一
-//  - Fix 12: MonthYearPicker / YearPicker の currentYear 二重計算を解消
 
 import SwiftUI
 import SwiftData
@@ -27,13 +14,11 @@ import Charts
 
 enum GraphMode: String, CaseIterable {
     case line = "折れ線"
-    case bar = "棒グラフ"
     case heatmap = "ピクセル"
 
     var iconName: String {
         switch self {
         case .line: return "chart.xyaxis.line"
-        case .bar: return "chart.bar.fill"
         case .heatmap: return "square.grid.3x3.fill"
         }
     }
@@ -49,9 +34,7 @@ enum DateSelectionMode: String, CaseIterable, Identifiable {
 
 // MARK: - Helper Functions (Date & Data Processing)
 
-/// 選択された単位と日付から、フルレンジ（開始日時〜終了日時）を計算する
 func periodRange(mode: DateSelectionMode, targetDate: Date) -> (start: Date, end: Date) {
-    // Fix 6: ISO8601 カレンダーを使用して月曜始まりを保証する
     var isoCal = Calendar(identifier: .iso8601)
     isoCal.locale = Locale(identifier: "ja_JP")
 
@@ -63,7 +46,6 @@ func periodRange(mode: DateSelectionMode, targetDate: Date) -> (start: Date, end
         let end = cal.date(byAdding: .day, value: 1, to: startOfDay)!.addingTimeInterval(-1)
         return (startOfDay, end)
     case .week:
-        // Fix 6: ISO8601 カレンダーを使用して月曜始まりを保証
         let startOfWeek = isoCal.date(from: isoCal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: startOfDay)) ?? startOfDay
         let endOfWeek = cal.date(byAdding: .day, value: 7, to: startOfWeek)!.addingTimeInterval(-1)
         return (startOfWeek, endOfWeek)
@@ -78,7 +60,6 @@ func periodRange(mode: DateSelectionMode, targetDate: Date) -> (start: Date, end
     }
 }
 
-/// 期間内のエントリをフィルタ
 func filteredEntries(entries: [MoodEntry], mode: DateSelectionMode, targetDate: Date) -> [MoodEntry] {
     let range = periodRange(mode: mode, targetDate: targetDate)
     return entries
@@ -86,7 +67,6 @@ func filteredEntries(entries: [MoodEntry], mode: DateSelectionMode, targetDate: 
         .sorted { $0.createdAt < $1.createdAt }
 }
 
-/// 日別集約データ
 struct DailyData: Identifiable {
     let date: Date
     let entries: [MoodEntry]
@@ -101,23 +81,18 @@ struct DailyData: Identifiable {
     var count: Int { entries.count }
 }
 
-/// プロット用の日データ（描画に使いやすい形に変換）
 struct PlotDay: Identifiable {
     let date: Date
     let average: Double
     let minScore: Int
     let maxScore: Int
     let count: Int
-    /// 連続したデータ区間を識別するID。空白日をまたぐと値が増える。
     let segmentId: Int
     var id: Date { date }
 }
 
-/// DailyDataからPlotDay配列を生成（途切れ区間ID付き）
 func buildPlotDays(from daily: [DailyData]) -> [PlotDay] {
     var result: [PlotDay] = []
-    // Fix 5: segmentId は「データがない日の後に初めてデータが来たとき」にインクリメントする。
-    //        初期値0のまま最初のデータ点で1になるため、segmentId==0 のデータは存在しない（意図通り）。
     var segmentId = 0
     var lastHadData = false
     for day in daily {
@@ -143,7 +118,6 @@ func buildPlotDays(from daily: [DailyData]) -> [PlotDay] {
     return result
 }
 
-/// 指定された期間の全ての日付を含むDailyDataの配列を生成する
 func buildDailyData(entries: [MoodEntry], mode: DateSelectionMode, targetDate: Date) -> [DailyData] {
     let cal = Calendar.current
     let range = periodRange(mode: mode, targetDate: targetDate)
@@ -169,24 +143,16 @@ func buildDailyData(entries: [MoodEntry], mode: DateSelectionMode, targetDate: D
 
 // MARK: - Helper Functions (Chart Appearance)
 
-/// Y軸の表示範囲（ドメイン）を計算する。
-/// - 下限: min から少し余白を引く（棒グラフの底部が X 軸ラベルに被らないよう最低 0.5 は確保）
-/// - 上限: max に少し余白を足す
 func yAxisDomain(min: Int, max: Int) -> ClosedRange<Double> {
     let range = Double(max - min)
     let padding = Swift.max(range * 0.12, 0.8)
     let rawLower = Double(min) - padding
-    // min >= 0 のとき下限をスコア範囲の5%分だけマイナス側にする
-    // → 棒グラフの底辺がX軸ラベルから浮く。範囲が大きくなっても比例して隙間が確保される。
     let gap = Swift.max(Double(max - min) * 0.05, 0.5)
     let lower: Double = min >= 0 ? -gap : rawLower
     let upper = Double(max) + padding
     return lower...upper
 }
 
-/// Y軸の目盛り値を動的に生成する。
-/// - step の倍数のみを返す（min/max を無条件追加しないことで密集ラベルを防ぐ）
-/// - 負あり範囲では必ず 0 を含める
 func smartYAxisValues(min: Int, max: Int) -> [Int] {
     let range = max - min
     guard range > 0 else { return [min, max] }
@@ -201,13 +167,11 @@ func smartYAxisValues(min: Int, max: Int) -> [Int] {
     }
 
     var values: [Int] = []
-    // min 以上の最初の step 倍数から開始
     var v = Int(ceil(Double(min) / Double(step))) * step
     while v <= max {
         values.append(v)
         v += step
     }
-    // 負あり範囲は 0 を必ず含める
     if min < 0 && max > 0 && !values.contains(0) {
         values.append(0)
         values.sort()
@@ -230,7 +194,6 @@ struct MonthYearPicker: View {
     }
 
     var body: some View {
-        // Fix 12: currentYear を一度だけ計算してから使用
         let currentYear = cal.component(.year, from: Date())
         HStack {
             Picker("年", selection: $selectedYear) {
@@ -267,7 +230,6 @@ struct YearPicker: View {
     }
 
     var body: some View {
-        // Fix 12: currentYear を一度だけ計算
         let currentYear = cal.component(.year, from: Date())
         Picker("年", selection: $selectedYear) {
             ForEach((currentYear - 10)...(currentYear + 5), id: \.self) { year in
@@ -283,10 +245,6 @@ struct YearPicker: View {
     }
 }
 
-// MARK: - Week Calendar Picker
-
-/// 週単位でハイライトするカレンダーピッカー
-/// 選択した日を含む月曜〜日曜の1週間を丸角バーで強調表示する
 struct WeekCalendarPicker: View {
     @Binding var date: Date
 
@@ -302,32 +260,25 @@ struct WeekCalendarPicker: View {
         self._displayMonth = State(initialValue: date.wrappedValue)
     }
 
-    // 表示月の1日
     private var monthStart: Date {
         cal.date(from: cal.dateComponents([.year, .month], from: displayMonth))!
     }
 
-    // 表示月のカレンダーグリッド（6週分、42セル）
     private var weeks: [[Date?]] {
-        // 月曜始まりなので weekday 1 = Monday
         let firstWeekday = cal.component(.weekday, from: monthStart)
-        // ISO: Mon=2 ... Sun=1 → 先頭に埋める空白数
-        let leadingBlanks = (firstWeekday + 5) % 7  // Mon=0, Tue=1, ... Sun=6
-
+        let leadingBlanks = (firstWeekday + 5) % 7
         var days: [Date?] = Array(repeating: nil, count: leadingBlanks)
         let range = cal.range(of: .day, in: .month, for: monthStart)!
         for d in 1...range.count {
             days.append(cal.date(byAdding: .day, value: d - 1, to: monthStart))
         }
-        // 7の倍数になるよう末尾を埋める
         while days.count % 7 != 0 { days.append(nil) }
         return stride(from: 0, to: days.count, by: 7).map { Array(days[$0..<$0+7]) }
     }
 
-    // 選択中の週の月曜・日曜
     private var selectedWeekStart: Date {
         let wd = cal.component(.weekday, from: date)
-        let offset = (wd + 5) % 7   // Mon=0
+        let offset = (wd + 5) % 7
         return cal.date(byAdding: .day, value: -offset, to: cal.startOfDay(for: date))!
     }
     private var selectedWeekEnd: Date {
@@ -339,54 +290,31 @@ struct WeekCalendarPicker: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            // ── 月ナビゲーション ──
             HStack {
-                Button {
-                    displayMonth = cal.date(byAdding: .month, value: -1, to: displayMonth)!
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                }
+                Button { displayMonth = cal.date(byAdding: .month, value: -1, to: displayMonth)! } label: { Image(systemName: "chevron.left").font(.headline).foregroundStyle(.primary) }
                 Spacer()
-                Text(monthTitle)
-                    .font(.headline)
+                Text(monthTitle).font(.headline)
                 Spacer()
-                Button {
-                    displayMonth = cal.date(byAdding: .month, value: 1, to: displayMonth)!
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                }
+                Button { displayMonth = cal.date(byAdding: .month, value: 1, to: displayMonth)! } label: { Image(systemName: "chevron.right").font(.headline).foregroundStyle(.primary) }
             }
             .padding(.horizontal, 8)
 
-            // ── 曜日ヘッダー ──
             HStack(spacing: 0) {
                 ForEach(weekdayLabels, id: \.self) { label in
-                    Text(label)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
+                    Text(label).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
             }
 
-            // ── 日付グリッド ──
             VStack(spacing: 4) {
                 ForEach(weeks.indices, id: \.self) { wi in
                     let week = weeks[wi]
-                    // この行に選択週が含まれるか
                     let isSelectedRow = week.compactMap { $0 }.contains { d in
                         d >= selectedWeekStart && d <= selectedWeekEnd
                     }
 
                     ZStack {
-                        // 選択週のハイライトバー
                         if isSelectedRow {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.primary.opacity(0.1))
-                                .padding(.horizontal, 4)
+                            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.1)).padding(.horizontal, 4)
                         }
 
                         HStack(spacing: 0) {
@@ -395,27 +323,18 @@ struct WeekCalendarPicker: View {
                                     let isSelected = cal.isDate(day, equalTo: date, toGranularity: .day)
                                     Button {
                                         date = day
-                                        // displayMonth をタップした日の月に合わせる
                                         displayMonth = day
                                     } label: {
                                         ZStack {
-                                            if isSelected {
-                                                Circle()
-                                                    .fill(Color.primary)
-                                                    .frame(width: 36, height: 36)
-                                            }
+                                            if isSelected { Circle().fill(Color.primary).frame(width: 36, height: 36) }
                                             Text("\(cal.component(.day, from: day))")
                                                 .font(.callout)
                                                 .fontWeight(isSelected ? .bold : .regular)
                                                 .foregroundStyle(isSelected ? Color(uiColor: .systemBackground) : .primary)
                                         }
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 44)
+                                    }.frame(maxWidth: .infinity).frame(height: 44)
                                 } else {
-                                    Color.clear
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 44)
+                                    Color.clear.frame(maxWidth: .infinity).frame(height: 44)
                                 }
                             }
                         }
@@ -483,14 +402,17 @@ struct DateSelectorSheet: View {
                     Button {
                         dismiss()
                     } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(.body, weight: .medium))
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                            Text("戻る")
+                        }
+                        .font(.system(.body, weight: .medium))
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     HStack(spacing: 12) {
                         Button {
-                            tempMode = .week
+                            // Reset date to now, keep mode
                             tempDate = .now
                         } label: {
                             Text(String(localized: "リセット"))
@@ -540,10 +462,8 @@ struct GraphView: View {
         let yValues = smartYAxisValues(min: currentMinScore, max: currentMaxScore)
         let yDomain = yAxisDomain(min: currentMinScore, max: currentMaxScore)
 
-        // Fix 9: daily / plotDays / segmentCounts を body 先頭で一度だけ計算してキャッシュ
         let daily = buildDailyData(entries: entries, mode: dateMode, targetDate: targetDate)
         let plotDays = buildPlotDays(from: daily)
-        // Fix 8: segmentCount を O(1) で引けるように Dictionary に変換
         let segmentCounts = Dictionary(grouping: plotDays, by: \.segmentId).mapValues(\.count)
 
         NavigationStack {
@@ -590,7 +510,7 @@ struct GraphView: View {
                                 .padding(.vertical)
                         }
                     } else {
-                        // MARK: 通常グラフモード（折れ線・棒）
+                        // MARK: 通常グラフモード（折れ線）
                         controlBar(colors: colors)
 
                         Group {
@@ -628,7 +548,6 @@ struct GraphView: View {
                     findAndShowClosestEntry(to: date)
                 }
             }
-            // Fix 10: dateMode / targetDate 変更時に selectedDay と詳細表示をリセット
             .onChange(of: dateMode) { _, _ in
                 withAnimation {
                     selectedDay = nil
@@ -677,7 +596,6 @@ struct GraphView: View {
 
     // MARK: - Logic Functions
 
-    /// タップされた日時に最も近いエントリを探して詳細を表示する
     private func findAndShowClosestEntry(to date: Date) {
         let visibleEntries = filteredEntries(entries: entries, mode: dateMode, targetDate: targetDate)
         guard !visibleEntries.isEmpty else { return }
@@ -686,13 +604,12 @@ struct GraphView: View {
             abs($0.createdAt.timeIntervalSince(date)) < abs($1.createdAt.timeIntervalSince(date))
         })
 
-        // Fix 3: dateMode に応じて許容距離を動的に変更
         let tolerance: TimeInterval
         switch dateMode {
-        case .day:   tolerance = 3600 * 2     // 2時間以内
-        case .week:  tolerance = 86400         // 1日以内
-        case .month: tolerance = 86400 * 3     // 3日以内
-        case .year:  tolerance = 86400 * 15    // 15日以内
+        case .day:   tolerance = 3600 * 2
+        case .week:  tolerance = 86400
+        case .month: tolerance = 86400 * 3
+        case .year:  tolerance = 86400 * 15
         }
 
         if let closest, abs(closest.createdAt.timeIntervalSince(date)) < tolerance {
@@ -705,10 +622,9 @@ struct GraphView: View {
         rawSelectedDate = nil
     }
 
-    /// エントリを削除する
     private func deleteEntry(_ entry: MoodEntry) {
-        if let photoPath = entry.photoPath { try? FileManager.default.removeItem(atPath: photoPath) }
-        if let voicePath = entry.voiceMemoPath { try? FileManager.default.removeItem(atPath: voicePath) }
+        if let photoPath = entry.photoPath { MediaManager.deleteMedia(at: photoPath) }
+        if let voicePath = entry.voiceMemoPath { MediaManager.deleteMedia(at: voicePath) }
 
         if selectedEntry?.id == entry.id {
             withAnimation {
@@ -726,8 +642,9 @@ struct GraphView: View {
 
     @ViewBuilder
     private func controlBar(colors: ThemeColors) -> some View {
-        HStack(spacing: 10) {
-            if selectedDay != nil {
+        if selectedDay != nil {
+            // Day detail mode: back button + date
+            HStack(spacing: 10) {
                 Button {
                     withAnimation {
                         selectedDay = nil
@@ -739,7 +656,7 @@ struct GraphView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
                             .font(.system(.caption, design: .rounded, weight: .bold))
-                        Text("戻る")
+                        Text(String(localized: "戻る"))
                             .font(.system(.caption, design: .rounded, weight: .semibold))
                     }
                     .padding(.horizontal, 12)
@@ -754,69 +671,150 @@ struct GraphView: View {
                         .foregroundStyle(colors.accent)
                 }
                 Spacer()
-            } else {
-                HStack(spacing: 4) {
-                    ForEach(GraphMode.allCases, id: \.self) { mode in
-                        let isSelected = graphMode == mode
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                graphMode = mode
-                                showDetail = false
-                                selectedEntry = nil
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+        } else {
+            // Normal mode: 2-row control bar
+            VStack(spacing: 6) {
+                // Row 1: graph mode + fullscreen
+                HStack(spacing: 8) {
+                    // Graph mode toggle
+                    HStack(spacing: 4) {
+                        ForEach(GraphMode.allCases, id: \.self) { mode in
+                            let isSelected = graphMode == mode
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    graphMode = mode
+                                    showDetail = false
+                                    selectedEntry = nil
+                                }
+                                HapticManager.lightFeedback()
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: mode.iconName)
+                                        .font(.system(.caption, design: .rounded))
+                                    if isSelected {
+                                        Text(LocalizedStringKey(mode.rawValue))
+                                            .font(.system(.caption2, design: .rounded, weight: .semibold))
+                                    }
+                                }
+                                .padding(.horizontal, isSelected ? 12 : 8)
+                                .frame(minHeight: 32)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(isSelected ? colors.accent : Color(.systemGray5).opacity(0.6)))
+                                .foregroundStyle(isSelected ? .white : .primary)
                             }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    Spacer()
+
+                    if graphMode != .heatmap {
+                        Button {
+                            onShowFullscreen?(graphMode, dateMode, targetDate)
                             HapticManager.lightFeedback()
                         } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: mode.iconName).font(.system(.caption, design: .rounded))
-                                if isSelected {
-                                    Text(LocalizedStringKey(mode.rawValue))
-                                        .font(.system(.caption2, design: .rounded, weight: .semibold))
-                                }
-                            }
-                            .padding(.horizontal, isSelected ? 12 : 0)
-                            .frame(minWidth: 36, minHeight: 36)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(isSelected ? colors.accent : Color(.systemGray5).opacity(0.6)))
-                            .foregroundStyle(isSelected ? .white : .primary)
-                        }.buttonStyle(.plain)
-                    }
-                }
-
-                if graphMode != .heatmap {
-                    Button {
-                        showDateSelector = true
-                        HapticManager.lightFeedback()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(formattedTargetDate())
-                                .font(.system(.caption, design: .rounded, weight: .semibold))
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.system(size: 9, weight: .bold))
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(.caption, design: .rounded))
+                                .frame(width: 32, height: 32)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(Color(.systemGray5).opacity(0.6)))
+                                .foregroundStyle(.primary)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Capsule().fill(colors.accent.opacity(0.12)))
-                        .foregroundStyle(colors.accent)
+                        .buttonStyle(.plain)
                     }
-
-                    Button {
-                        onShowFullscreen?(graphMode, dateMode, targetDate)
-                        HapticManager.lightFeedback()
-                    } label: {
-                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                            .font(.system(.caption, design: .rounded))
-                            .frame(width: 36, height: 36)
-                            .background(RoundedRectangle(cornerRadius: 10).fill(Color(.systemGray5).opacity(0.6)))
-                            .foregroundStyle(.primary)
-                    }.buttonStyle(.plain)
                 }
-                Spacer()
+
+                // Row 2: ◀ [日|週|月|年] ▶  date label (only for line mode)
+                if graphMode != .heatmap {
+                    HStack(spacing: 8) {
+                        // Previous period
+                        Button {
+                            navigatePeriod(by: -1)
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(.caption, weight: .bold))
+                                .frame(width: 28, height: 28)
+                                .foregroundStyle(colors.accent)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Date mode segment
+                        HStack(spacing: 2) {
+                            ForEach(DateSelectionMode.allCases) { mode in
+                                let isSelected = dateMode == mode
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        dateMode = mode
+                                        targetDate = .now
+                                    }
+                                    HapticManager.lightFeedback()
+                                } label: {
+                                    Text(mode.rawValue)
+                                        .font(.system(.caption, design: .rounded, weight: isSelected ? .bold : .medium))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .fill(isSelected ? colors.accent : .clear)
+                                        )
+                                        .foregroundStyle(isSelected ? .white : .secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(2)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(.systemGray5).opacity(0.6)))
+
+                        // Next period
+                        Button {
+                            navigatePeriod(by: 1)
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(.caption, weight: .bold))
+                                .frame(width: 28, height: 28)
+                                .foregroundStyle(colors.accent)
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        // Date label (tap to open sheet for specific date)
+                        Button {
+                            showDateSelector = true
+                        } label: {
+                            Text(formattedTargetDate())
+                                .font(.system(.caption2, design: .rounded, weight: .medium))
+                                .foregroundStyle(colors.accent)
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
+            .padding(.horizontal)
+            .padding(.top, 6)
         }
-        .padding(.horizontal)
-        .padding(.top, 8)
     }
 
-    /// 現在の期間モードに合わせて日付をフォーマットする
+    /// Navigate to previous/next period
+    private func navigatePeriod(by direction: Int) {
+        let cal = Calendar.current
+        withAnimation(.easeInOut(duration: 0.2)) {
+            switch dateMode {
+            case .day:
+                targetDate = cal.date(byAdding: .day, value: direction, to: targetDate) ?? targetDate
+            case .week:
+                targetDate = cal.date(byAdding: .weekOfYear, value: direction, to: targetDate) ?? targetDate
+            case .month:
+                targetDate = cal.date(byAdding: .month, value: direction, to: targetDate) ?? targetDate
+            case .year:
+                targetDate = cal.date(byAdding: .year, value: direction, to: targetDate) ?? targetDate
+            }
+        }
+        HapticManager.lightFeedback()
+    }
+
     private func formattedTargetDate() -> String {
         let cal = Calendar.current
         let f = DateFormatter()
@@ -827,7 +825,6 @@ struct GraphView: View {
             return f.string(from: targetDate)
         case .week:
             let range = periodRange(mode: .week, targetDate: targetDate)
-            // Fix 7: 年をまたぐ場合は年付きフォーマットに切り替える
             let startYear = cal.component(.year, from: range.start)
             let endYear   = cal.component(.year, from: range.end)
             if startYear != endYear {
@@ -847,14 +844,13 @@ struct GraphView: View {
 
     // MARK: - View Components (Charts)
 
-    /// 1日レベル（時間単位）のチャート
     @ViewBuilder
     private func dayLevelChart(yValues: [Int], yDomain: ClosedRange<Double>, colors: ThemeColors) -> some View {
         let range = periodRange(mode: .day, targetDate: targetDate)
         let visibleEntries = filteredEntries(entries: entries, mode: .day, targetDate: targetDate)
 
         Chart {
-            if currentMinScore < 0 {
+            if currentMinScore < 0 && currentMaxScore > 0 {
                 RuleMark(y: .value("ゼロ", 0))
                     .foregroundStyle(.secondary.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 3]))
@@ -862,36 +858,36 @@ struct GraphView: View {
 
             ForEach(visibleEntries) { entry in
                 let score = Double(entry.score)
-                // Fix 4: heatmap はこの関数が呼ばれないので bar/line のみハンドル
-                if graphMode == .bar {
-                    let barColor = colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore)
-                    BarMark(
-                        x: .value("時刻", entry.createdAt),
-                        y: .value("スコア", score),
-                        width: .ratio(0.6)
-                    )
-                    .foregroundStyle(LinearGradient(colors: [barColor.opacity(0.6), barColor], startPoint: .bottom, endPoint: .top))
-                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                } else {
-                    if visibleEntries.count > 1 {
-                        LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                            .foregroundStyle(colors.graphLine)
-                            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                            .interpolationMethod(.monotone)
-                        AreaMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                            .foregroundStyle(LinearGradient(colors: [colors.graphLine.opacity(0.3), colors.graphLine.opacity(0.0)], startPoint: .top, endPoint: .bottom))
-                            .interpolationMethod(.monotone)
-                    }
-                    PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                        .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
-                        .symbolSize(60)
+                if visibleEntries.count > 1 {
+                    LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                        .foregroundStyle(colors.graphLine)
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .interpolationMethod(.monotone)
+                    AreaMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                        .foregroundStyle(LinearGradient(colors: [colors.graphLine.opacity(0.3), colors.graphLine.opacity(0.0)], startPoint: .top, endPoint: .bottom))
+                        .interpolationMethod(.monotone)
                 }
+                PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                    .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                    .symbolSize(60)
             }
 
             if showDetail, let sel = selectedEntry {
                 RuleMark(x: .value("選択", sel.createdAt))
                     .foregroundStyle(colors.accent.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            }
+        }
+        .chartPlotStyle { plotArea in
+            plotArea.frame(minHeight: 250)
+        }
+        .overlay {
+            if visibleEntries.isEmpty {
+                Text("この期間の記録はありません")
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
         }
         .chartXSelection(value: $rawSelectedDate)
@@ -916,8 +912,6 @@ struct GraphView: View {
         .padding(.horizontal)
     }
 
-    /// 概要レベル（日単位集計）のチャート
-    /// Fix 8/9: plotDays と segmentCounts を呼び出し元から受け取ることでキャッシュを活用
     @ViewBuilder
     private func overviewChart(
         yValues: [Int],
@@ -929,78 +923,64 @@ struct GraphView: View {
         let range = periodRange(mode: dateMode, targetDate: targetDate)
 
         Chart {
-            if currentMinScore < 0 {
+            if currentMinScore < 0 && currentMaxScore > 0 {
                 RuleMark(y: .value("ゼロ", 0))
                     .foregroundStyle(.secondary.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 3]))
             }
 
             ForEach(plotDays) { p in
-                // dateMode に応じて適切な時間単位を選択
-                // year → .month（棒が月幅になり視認性UP）
-                // week/month → .day（1日単位）
-                let barUnit: Calendar.Component = dateMode == .year ? .month : .day
+                let segmentCount = segmentCounts[p.segmentId] ?? 0
+                let noon = p.date.addingTimeInterval(43200)
+                if segmentCount > 1 {
+                    LineMark(x: .value("日", noon), y: .value("平均", p.average))
+                        .foregroundStyle(colors.graphLine)
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .interpolationMethod(.monotone)
+                    AreaMark(x: .value("日", noon), y: .value("平均", p.average))
+                        .foregroundStyle(LinearGradient(colors: [colors.graphLine.opacity(0.3), colors.graphLine.opacity(0.0)], startPoint: .top, endPoint: .bottom))
+                        .interpolationMethod(.monotone)
+                }
+                PointMark(x: .value("日", noon), y: .value("平均", p.average))
+                    .foregroundStyle(colors.color(for: Int(p.average.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
+                    .symbolSize(60)
 
-                if graphMode == .bar {
-                    let barColor = colors.color(for: Int(p.average.rounded()), minScore: currentMinScore, maxScore: currentMaxScore)
-                    BarMark(x: .value("日", p.date, unit: barUnit), y: .value("平均", p.average), width: .ratio(0.7))
-                        .foregroundStyle(LinearGradient(colors: [barColor.opacity(0.6), barColor], startPoint: .bottom, endPoint: .top))
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-
-                    if p.count > 1, p.minScore != p.maxScore {
-                        RectangleMark(
-                            x: .value("日", p.date, unit: barUnit),
-                            yStart: .value("最低", Double(p.minScore)),
-                            yEnd: .value("最高", Double(p.maxScore)),
-                            width: 3
-                        )
-                        .foregroundStyle(colors.graphLine.opacity(0.5))
-                        .cornerRadius(1.5)
-                    }
-
-                } else {
-                    // Fix 8: segmentCounts から O(1) で取得
-                    let segmentCount = segmentCounts[p.segmentId] ?? 0
-                    // 各日の正午（noon）を使うことで点・線が日付ラベルの中心に揃う
-                    let noon = p.date.addingTimeInterval(43200)
-                    if segmentCount > 1 {
-                        LineMark(x: .value("日", noon), y: .value("平均", p.average))
-                            .foregroundStyle(colors.graphLine)
-                            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                            .interpolationMethod(.monotone)
-                        AreaMark(x: .value("日", noon), y: .value("平均", p.average))
-                            .foregroundStyle(LinearGradient(colors: [colors.graphLine.opacity(0.3), colors.graphLine.opacity(0.0)], startPoint: .top, endPoint: .bottom))
-                            .interpolationMethod(.monotone)
-                    }
-                    PointMark(x: .value("日", noon), y: .value("平均", p.average))
-                        .foregroundStyle(colors.color(for: Int(p.average.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
-                        .symbolSize(60)
-
-                    // 1日複数記録時の min-max 範囲バー
-                    // unit: .day を使うと year 表示で极細になるため固定ピクセル幅で描く
-                    if p.count > 1 && p.minScore != p.maxScore {
-                        RectangleMark(x: .value("日", noon), yStart: .value("最低", Double(p.minScore)), yEnd: .value("最高", Double(p.maxScore)), width: 4)
-                            .foregroundStyle(colors.graphLine.opacity(0.2))
-                            .cornerRadius(2)
-                    }
+                if p.count > 1 && p.minScore != p.maxScore {
+                    RectangleMark(x: .value("日", noon), yStart: .value("最低", Double(p.minScore)), yEnd: .value("最高", Double(p.maxScore)), width: 4)
+                        .foregroundStyle(colors.graphLine.opacity(0.2))
+                        .cornerRadius(2)
                 }
             }
-
+        }
+        .chartPlotStyle { plotArea in
+            plotArea.frame(minHeight: 250)
+        }
+        .overlay {
+            if plotDays.isEmpty {
+                Text("この期間の記録はありません")
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
         }
         .chartXScale(domain: range.start...range.end)
         .chartYScale(domain: yDomain)
         .chartXAxis {
-            let strideComponent: Calendar.Component = (dateMode == .month || dateMode == .week) ? .day : .month
-            let count = dateMode == .month ? 5 : 1
-
-            AxisMarks(values: .stride(by: strideComponent, count: count)) { value in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
-                if dateMode == .month || dateMode == .week {
-                    AxisValueLabel(format: .dateTime.month(.defaultDigits).day(.defaultDigits))
-                        .font(.system(.caption2, design: .rounded))
-                } else {
-                    AxisValueLabel(format: .dateTime.month(.abbreviated))
-                        .font(.system(.caption2, design: .rounded))
+            if dateMode == .week {
+                AxisMarks(values: .stride(by: .day, count: 1)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
+                    AxisValueLabel(format: .dateTime.weekday(.abbreviated)).font(.system(.caption2, design: .rounded))
+                }
+            } else if dateMode == .month {
+                AxisMarks(values: .stride(by: .day, count: 5)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
+                    AxisValueLabel(format: .dateTime.day(.defaultDigits)).font(.system(.caption2, design: .rounded))
+                }
+            } else if dateMode == .year {
+                AxisMarks(values: .stride(by: .month, count: 1)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
+                    AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.system(.caption2, design: .rounded))
                 }
             }
         }
@@ -1013,7 +993,6 @@ struct GraphView: View {
         .clipped()
         .padding(.top, 12)
         .padding(.bottom, 20)
-        // Fix 1: タップ位置が表示範囲外の場合は無視する
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle().fill(.clear).contentShape(Rectangle())
@@ -1021,8 +1000,6 @@ struct GraphView: View {
                         guard let plotFrame = proxy.plotFrame else { return }
                         let xPos = location.x - geometry[plotFrame].origin.x
                         guard let date: Date = proxy.value(atX: xPos) else { return }
-
-                        // Fix 1: タップした日付が表示期間内にあるか検証
                         guard date >= range.start && date <= range.end else { return }
 
                         let cal = Calendar.current
@@ -1041,7 +1018,6 @@ struct GraphView: View {
         .padding(.horizontal)
     }
 
-    /// 日詳細モードで表示するチャート
     @ViewBuilder
     private func dayDetailChart(day: Date, yValues: [Int], yDomain: ClosedRange<Double>, colors: ThemeColors) -> some View {
         let cal = Calendar.current
@@ -1057,33 +1033,25 @@ struct GraphView: View {
                 .padding(.horizontal)
 
             Chart {
-                if currentMinScore < 0 {
+                if currentMinScore < 0 && currentMaxScore > 0 {
                     RuleMark(y: .value("ゼロ", 0))
                         .foregroundStyle(.secondary.opacity(0.5))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 3]))
                 }
                 ForEach(dayEntries) { entry in
                     let score = Double(entry.score)
-                    switch graphMode {
-                    case .bar:
-                        let barColor = colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore)
-                        BarMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score), width: .ratio(0.6))
-                            .foregroundStyle(LinearGradient(colors: [barColor.opacity(0.6), barColor], startPoint: .bottom, endPoint: .top))
-                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                    default:
-                        if dayEntries.count > 1 {
-                            LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                                .foregroundStyle(colors.graphLine)
-                                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                                .interpolationMethod(.monotone)
-                            AreaMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                                .foregroundStyle(LinearGradient(colors: [colors.graphLine.opacity(0.3), colors.graphLine.opacity(0.0)], startPoint: .top, endPoint: .bottom))
-                                .interpolationMethod(.monotone)
-                        }
-                        PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                            .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
-                            .symbolSize(60)
+                    if dayEntries.count > 1 {
+                        LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                            .foregroundStyle(colors.graphLine)
+                            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .interpolationMethod(.monotone)
+                        AreaMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                            .foregroundStyle(LinearGradient(colors: [colors.graphLine.opacity(0.3), colors.graphLine.opacity(0.0)], startPoint: .top, endPoint: .bottom))
+                            .interpolationMethod(.monotone)
                     }
+                    PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                        .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                        .symbolSize(60)
                 }
 
                 if showDetail, let sel = selectedEntry {
@@ -1116,7 +1084,6 @@ struct GraphView: View {
 
     // MARK: - View Components (Rows & States)
 
-    /// エントリのリスト行
     @ViewBuilder
     private func dayEntryRow(entry: MoodEntry, colors: ThemeColors) -> some View {
         HStack(spacing: 12) {
@@ -1150,7 +1117,6 @@ struct GraphView: View {
                 }
             }
             Spacer()
-            // Fix 11: 詳細カードとの選択状態を統一（selectedEntry + showDetail の両方を設定）
             Button {
                 withAnimation {
                     selectedEntry = entry
@@ -1169,7 +1135,6 @@ struct GraphView: View {
         .background(RoundedRectangle(cornerRadius: 16).fill(Color(.secondarySystemGroupedBackground)))
     }
 
-    /// データがない時の表示
     @ViewBuilder
     private func emptyStateView(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
@@ -1196,7 +1161,6 @@ struct GraphView: View {
         .padding()
     }
 
-    /// 選択されたエントリの詳細カード
     @ViewBuilder
     private func entryDetailCard(entry: MoodEntry, colors: ThemeColors) -> some View {
         VStack(spacing: 16) {
@@ -1275,10 +1239,6 @@ struct GraphView: View {
 
 // MARK: - Fullscreen Chart View
 
-/// chartScrollableAxes / chartXVisibleDomain / chartScrollPosition は
-/// MagnifyGesture と干渉して動作不良になるため廃止。
-/// domainStart / domainEnd を State で直接管理し、
-/// chartOverlay に貼った DragGesture / MagnifyGesture で操作する。
 struct FullscreenChartView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.themeManager) private var themeManager
@@ -1295,13 +1255,10 @@ struct FullscreenChartView: View {
     @State private var selectedEntry: MoodEntry?
     @State private var showDetail = false
 
-    /// 表示ウィンドウの開始・終了 Date
     @State private var domainStart: Date
     @State private var domainEnd: Date
 
-    /// ドラッグ開始時のドメインスナップショット
     @State private var dragAnchor: (Date, Date)?
-    /// ピンチ開始時のドメインスナップショット
     @State private var pinchAnchor: (Date, Date)?
 
     private let minZoom: TimeInterval = 3600.0
@@ -1319,8 +1276,6 @@ struct FullscreenChartView: View {
         self._domainEnd   = State(initialValue: range.end)
     }
 
-    // MARK: - Computed helpers
-
     private var visibleDuration: TimeInterval {
         domainEnd.timeIntervalSince(domainStart)
     }
@@ -1328,8 +1283,6 @@ struct FullscreenChartView: View {
     private var domainCenter: Date {
         domainStart.addingTimeInterval(visibleDuration / 2)
     }
-
-    // MARK: - Body
 
     var body: some View {
         let colors = themeManager.colors
@@ -1340,7 +1293,6 @@ struct FullscreenChartView: View {
             colors.backgroundGradient(for: colorScheme).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // ヘッダー
                 ZStack {
                     HStack {
                         Button { onDismiss() } label: {
@@ -1350,7 +1302,6 @@ struct FullscreenChartView: View {
                         }
                         .padding()
                         Spacer()
-                        // ズームボタン（ピンチズームの補助）
                         HStack(spacing: 4) {
                             Button {
                                 let newDur = max(minZoom, visibleDuration / 2)
@@ -1385,13 +1336,11 @@ struct FullscreenChartView: View {
                 }
                 .background(.ultraThinMaterial)
 
-                // チャート本体
                 fullscreenChart(yValues: yValues, yDomain: yDomain, colors: colors)
                     .padding(.top, 20)
                     .layoutPriority(1)
             }
 
-            // 詳細カード
             if showDetail, let entry = selectedEntry {
                 VStack {
                     Spacer()
@@ -1404,12 +1353,9 @@ struct FullscreenChartView: View {
         .animation(.spring(response: 0.3), value: showDetail)
     }
 
-    // MARK: - Header
-
     private func headerDateString() -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "ja_JP")
-        // 時間・日レベル（< 3日）→ 年月日まで表示して迷子防止
         if visibleDuration < 86400.0 * 3 {
             f.dateFormat = "yyyy年M月d日(E)"
         } else if visibleDuration < 86400.0 * 60 {
@@ -1420,15 +1366,12 @@ struct FullscreenChartView: View {
         return f.string(from: domainCenter)
     }
 
-    // MARK: - Fullscreen Chart
-
     @ViewBuilder
     private func fullscreenChart(yValues: [Int], yDomain: ClosedRange<Double>, colors: ThemeColors) -> some View {
-        // visibleDuration をローカル変数に取り出す（クロージャ内で self を介さずに参照するため）
         let dur = visibleDuration
 
         Chart {
-            if currentMinScore < 0 {
+            if currentMinScore < 0 && currentMaxScore > 0 {
                 RuleMark(y: .value("ゼロ", 0))
                     .foregroundStyle(.secondary.opacity(0.5))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 3]))
@@ -1436,25 +1379,18 @@ struct FullscreenChartView: View {
 
             ForEach(entries) { entry in
                 let score = Double(entry.score)
-                if graphMode == .bar {
-                    let barColor = colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore)
-                    BarMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                        .foregroundStyle(LinearGradient(colors: [barColor.opacity(0.6), barColor], startPoint: .bottom, endPoint: .top))
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                } else {
-                    if entries.count > 1 {
-                        LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                            .foregroundStyle(colors.graphLine)
-                            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
-                            .interpolationMethod(.monotone)
-                        AreaMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                            .foregroundStyle(LinearGradient(colors: [colors.graphLine.opacity(0.3), .clear], startPoint: .top, endPoint: .bottom))
-                            .interpolationMethod(.monotone)
-                    }
-                    PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                        .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
-                        .symbolSize(50)
+                if entries.count > 1 {
+                    LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                        .foregroundStyle(colors.graphLine)
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .interpolationMethod(.monotone)
+                    AreaMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                        .foregroundStyle(LinearGradient(colors: [colors.graphLine.opacity(0.3), .clear], startPoint: .top, endPoint: .bottom))
+                        .interpolationMethod(.monotone)
                 }
+                PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
+                    .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                    .symbolSize(50)
             }
 
             if showDetail, let sel = selectedEntry {
@@ -1463,7 +1399,18 @@ struct FullscreenChartView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
             }
         }
-        // ── スクロール API を使わず、明示的なドメインで制御 ──
+        .chartPlotStyle { plotArea in
+            plotArea.frame(minHeight: 250)
+        }
+        .overlay {
+            if entries.isEmpty {
+                Text("記録がありません")
+                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+        }
         .chartXScale(domain: domainStart...domainEnd)
         .chartYScale(domain: yDomain)
         .chartYAxis {
@@ -1473,60 +1420,53 @@ struct FullscreenChartView: View {
             }
         }
         .chartXAxis {
-            // ラベル密集を防ぐため、表示幅に応じてラベル密度を段階的に制御する
-            // 目安: 画面幅 ~375pt, 1ラベルあたり最低 40pt 確保 → 最大 ~9ラベル
+            // 10-level dynamic stride for stable label density at any zoom
             if dur <= 3600.0 * 6 {
-                // ≤ 6時間: 1時間ごと → "9時"
                 AxisMarks(values: .stride(by: .hour, count: 1)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
                     AxisValueLabel(format: .dateTime.hour()).font(.system(.caption2, design: .rounded))
                 }
             } else if dur <= 86400.0 * 1 {
-                // ≤ 1日: 3時間ごと → "9時"  (最大8ラベル)
                 AxisMarks(values: .stride(by: .hour, count: 3)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
                     AxisValueLabel(format: .dateTime.hour()).font(.system(.caption2, design: .rounded))
                 }
-            } else if dur <= 86400.0 * 4 {
-                // 1〜4日: 12時間ごと、0時のみ "M/d" ラベル。正午はグリッドのみ
-                AxisMarks(values: .stride(by: .hour, count: 12)) { value in
+            } else if dur <= 86400.0 * 3 {
+                AxisMarks(values: .stride(by: .hour, count: 6)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
-                    if let d = value.as(Date.self), cal.component(.hour, from: d) == 0 {
-                        AxisValueLabel(format: .dateTime.month(.defaultDigits).day(.defaultDigits))
-                            .font(.system(.caption2, design: .rounded, weight: .semibold))
-                    } else {
-                        // 正午はラベル非表示（グリッドのみ）
-                        AxisValueLabel("").font(.system(.caption2, design: .rounded))
-                    }
+                    AxisValueLabel(format: .dateTime.hour()).font(.system(.caption2, design: .rounded))
                 }
-            } else if dur <= 86400.0 * 14 {
-                // 4〜14日: 1日ごと → "2/18"  (最大14ラベル、画面に収まる範囲)
+            } else if dur <= 86400.0 * 7 {
                 AxisMarks(values: .stride(by: .day, count: 1)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
-                    AxisValueLabel(format: .dateTime.month(.defaultDigits).day(.defaultDigits))
-                        .font(.system(.caption2, design: .rounded))
+                    AxisValueLabel(format: .dateTime.month(.defaultDigits).day(.defaultDigits)).font(.system(.caption2, design: .rounded))
                 }
-            } else if dur <= 86400.0 * 60 {
-                // 2週間〜2ヶ月: 週ごと → "2/18"  (最大~8ラベル)
-                AxisMarks(values: .stride(by: .weekOfYear, count: 1)) { _ in
+            } else if dur <= 86400.0 * 14 {
+                AxisMarks(values: .stride(by: .day, count: 2)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
-                    AxisValueLabel(format: .dateTime.month(.defaultDigits).day(.defaultDigits))
-                        .font(.system(.caption2, design: .rounded))
+                    AxisValueLabel(format: .dateTime.month(.defaultDigits).day(.defaultDigits)).font(.system(.caption2, design: .rounded))
                 }
-            } else if dur <= 86400.0 * 365.0 * 2 {
-                // 2ヶ月〜2年: 月ごと → "2月"  (最大24ラベル→短いので許容)
+            } else if dur <= 86400.0 * 35 {
+                AxisMarks(values: .stride(by: .day, count: 5)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
+                    AxisValueLabel(format: .dateTime.month(.defaultDigits).day(.defaultDigits)).font(.system(.caption2, design: .rounded))
+                }
+            } else if dur <= 86400.0 * 180 {
                 AxisMarks(values: .stride(by: .month, count: 1)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
                     AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.system(.caption2, design: .rounded))
                 }
-            } else if dur <= 86400.0 * 365.0 * 5 {
-                // 2〜5年: 半年ごと → "2026年1月"
+            } else if dur <= 86400.0 * 365 {
+                AxisMarks(values: .stride(by: .month, count: 2)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
+                    AxisValueLabel(format: .dateTime.month(.abbreviated)).font(.system(.caption2, design: .rounded))
+                }
+            } else if dur <= 86400.0 * 365 * 3 {
                 AxisMarks(values: .stride(by: .month, count: 6)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
                     AxisValueLabel(format: .dateTime.year().month(.abbreviated)).font(.system(.caption2, design: .rounded))
                 }
             } else {
-                // > 5年: 年ごと → "2026年"
                 AxisMarks(values: .stride(by: .year, count: 1)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4])).foregroundStyle(.secondary.opacity(0.3))
                     AxisValueLabel(format: .dateTime.year()).font(.system(.caption2, design: .rounded))
@@ -1536,14 +1476,12 @@ struct FullscreenChartView: View {
         .clipped()
         .padding(.top, 12)
         .padding(.bottom, 20)
-        // ── インタラクション: chartOverlay で全て管理 ──
         .chartOverlay { proxy in
             GeometryReader { geo in
                 let plotOriginX: CGFloat = proxy.plotFrame.map { geo[$0].origin.x } ?? 0
                 let plotWidth: CGFloat   = proxy.plotFrame.map { geo[$0].width }   ?? geo.size.width
 
                 Color.clear.contentShape(Rectangle())
-                    // タップ → エントリ選択
                     .onTapGesture { location in
                         let x = location.x - plotOriginX
                         guard x >= 0, x <= plotWidth else { return }
@@ -1559,7 +1497,6 @@ struct FullscreenChartView: View {
                             withAnimation { showDetail = false; selectedEntry = nil }
                         }
                     }
-                    // 1本指ドラッグ → パン
                     .gesture(
                         DragGesture(minimumDistance: 8)
                             .onChanged { value in
@@ -1573,7 +1510,6 @@ struct FullscreenChartView: View {
                             }
                             .onEnded { _ in dragAnchor = nil }
                     )
-                    // 2本指ピンチ → ズーム
                     .simultaneousGesture(
                         MagnifyGesture()
                             .onChanged { value in
@@ -1592,8 +1528,6 @@ struct FullscreenChartView: View {
         .frame(maxHeight: .infinity)
         .padding(.horizontal)
     }
-
-    // MARK: - Detail Card
 
     @ViewBuilder
     private func fullscreenDetailCard(entry: MoodEntry, colors: ThemeColors) -> some View {
@@ -1646,4 +1580,3 @@ struct FullscreenChartView: View {
     )
     .environment(\.themeManager, ThemeManager())
 }
-

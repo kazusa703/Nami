@@ -14,13 +14,15 @@ enum AppTab: Int, CaseIterable {
     case record = 0
     case graph = 1
     case stats = 2
-    case settings = 3
+    case pro = 3
+    case settings = 4
 
     var label: String {
         switch self {
         case .record: return String(localized: "記録")
         case .graph: return String(localized: "グラフ")
         case .stats: return String(localized: "統計")
+        case .pro: return String(localized: "PRO")
         case .settings: return String(localized: "設定")
         }
     }
@@ -30,6 +32,7 @@ enum AppTab: Int, CaseIterable {
         case .record: return "pencil.circle"
         case .graph: return "chart.xyaxis.line"
         case .stats: return "chart.bar"
+        case .pro: return "crown.fill"
         case .settings: return "gearshape"
         }
     }
@@ -39,6 +42,7 @@ enum AppTab: Int, CaseIterable {
 /// 初回起動時はオンボーディング、完了後は上部タブ+コンテンツ+広告を表示する
 struct ContentView: View {
     @Environment(\.themeManager) private var themeManager
+    @Environment(\.premiumManager) private var premiumManager
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @AppStorage(AppConstants.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
@@ -85,6 +89,11 @@ struct ContentView: View {
                                 StatsView()
                                     .opacity(selectedTab == .stats ? 1 : 0)
                                     .allowsHitTesting(selectedTab == .stats)
+                            }
+                            if loadedTabs.contains(.pro) {
+                                ProView()
+                                    .opacity(selectedTab == .pro ? 1 : 0)
+                                    .allowsHitTesting(selectedTab == .pro)
                             }
                             if loadedTabs.contains(.settings) {
                                 SettingsView()
@@ -153,6 +162,9 @@ struct ContentView: View {
         HStack(spacing: 0) {
             ForEach(AppTab.allCases, id: \.self) { tab in
                 let isSelected = selectedTab == tab
+                let tabColor: Color = proTabColor(tab: tab, isSelected: isSelected, colors: colors)
+                let tabIcon = proTabIcon(tab: tab)
+
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedTab = tab
@@ -160,27 +172,25 @@ struct ContentView: View {
                     HapticManager.lightFeedback()
                 } label: {
                     if isCompact {
-                        // 横画面: アイコン + テキスト横並び、コンパクト
+                        // Landscape: icon + text side by side, compact
                         HStack(spacing: 4) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                            proTabIconView(tab: tab, icon: tabIcon, size: 13, isSelected: isSelected)
                             Text(tab.label)
                                 .font(.system(size: 10, weight: isSelected ? .bold : .medium, design: .rounded))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
-                        .foregroundStyle(isSelected ? colors.accent : .secondary)
+                        .foregroundStyle(tabColor)
                     } else {
-                        // 縦画面: アイコン上 + テキスト下
+                        // Portrait: icon above text
                         VStack(spacing: 3) {
-                            Image(systemName: tab.icon)
-                                .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
+                            proTabIconView(tab: tab, icon: tabIcon, size: 16, isSelected: isSelected)
                             Text(tab.label)
                                 .font(.system(size: 10, weight: isSelected ? .bold : .medium, design: .rounded))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .foregroundStyle(isSelected ? colors.accent : .secondary)
+                        .foregroundStyle(tabColor)
                     }
                 }
                 .buttonStyle(.plain)
@@ -188,6 +198,46 @@ struct ContentView: View {
         }
         .padding(.horizontal, 8)
         .background(.ultraThinMaterial)
+    }
+
+    // MARK: - PRO Tab Styling Helpers
+
+    /// Determine the foreground color for a tab
+    private func proTabColor(tab: AppTab, isSelected: Bool, colors: ThemeColors) -> Color {
+        if tab == .pro {
+            if premiumManager.isPremium {
+                return isSelected ? colors.accent : .secondary
+            } else {
+                return isSelected ? .orange : .orange.opacity(0.7)
+            }
+        }
+        return isSelected ? colors.accent : .secondary
+    }
+
+    /// Determine the icon name for a tab (premium checkmark for PRO when purchased)
+    private func proTabIcon(tab: AppTab) -> String {
+        if tab == .pro && premiumManager.isPremium {
+            return "checkmark.seal.fill"
+        }
+        return tab.icon
+    }
+
+    /// Build the icon view, adding a badge dot for unpurchased PRO tab
+    @ViewBuilder
+    private func proTabIconView(tab: AppTab, icon: String, size: CGFloat, isSelected: Bool) -> some View {
+        if tab == .pro && !premiumManager.isPremium {
+            Image(systemName: icon)
+                .font(.system(size: size, weight: isSelected ? .semibold : .regular))
+                .overlay(alignment: .topTrailing) {
+                    Circle()
+                        .fill(.orange)
+                        .frame(width: 6, height: 6)
+                        .offset(x: 3, y: -2)
+                }
+        } else {
+            Image(systemName: icon)
+                .font(.system(size: size, weight: isSelected ? .semibold : .regular))
+        }
     }
 }
 

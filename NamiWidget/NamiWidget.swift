@@ -36,6 +36,17 @@ struct MoodWidgetEntry: TimelineEntry {
     let maxScore: Int
     /// スコアレンジ下限
     let minScore: Int
+    /// Random past record (at least 7 days old) for memory display
+    let randomPastRecord: PastRecord?
+}
+
+/// Random past record for "on this day" / memory feature
+struct PastRecord {
+    let score: Int
+    let date: Date
+    let memo: String?
+    let tags: [String]
+    let daysAgo: Int
 }
 
 /// 日別気分データ
@@ -62,7 +73,14 @@ struct NamiTimelineProvider: TimelineProvider {
             todayCount: 2,
             theme: .ocean,
             maxScore: 10,
-            minScore: 1
+            minScore: 1,
+            randomPastRecord: PastRecord(
+                score: 8,
+                date: Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now,
+                memo: "いい天気だった",
+                tags: ["嬉しい", "穏やか"],
+                daysAgo: 30
+            )
         )
     }
 
@@ -158,6 +176,21 @@ struct NamiTimelineProvider: TimelineProvider {
         // 今日の記録件数
         let todayCount = recentEntries.filter { calendar.isDateInToday($0.createdAt) }.count
 
+        // Pick a random past record (at least 7 days old)
+        let pastCandidates = allEntries.filter {
+            calendar.dateComponents([.day], from: $0.createdAt, to: .now).day ?? 0 >= 7
+        }
+        let randomPast: PastRecord? = pastCandidates.randomElement().map { entry in
+            let daysAgo = calendar.dateComponents([.day], from: entry.createdAt, to: .now).day ?? 0
+            return PastRecord(
+                score: entry.score,
+                date: entry.createdAt,
+                memo: entry.memo,
+                tags: Array(entry.tags.prefix(2)),
+                daysAgo: daysAgo
+            )
+        }
+
         return MoodWidgetEntry(
             date: .now,
             dailyData: dailyData,
@@ -170,7 +203,8 @@ struct NamiTimelineProvider: TimelineProvider {
             todayCount: todayCount,
             theme: theme,
             maxScore: maxScore,
-            minScore: minScore
+            minScore: minScore,
+            randomPastRecord: randomPast
         )
     }
 
@@ -234,7 +268,8 @@ struct NamiTimelineProvider: TimelineProvider {
             todayCount: 0,
             theme: theme,
             maxScore: maxScore,
-            minScore: minScore
+            minScore: minScore,
+            randomPastRecord: nil
         )
     }
 

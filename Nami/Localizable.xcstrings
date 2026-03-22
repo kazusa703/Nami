@@ -3174,26 +3174,6 @@
     "意外にも平日のスコアが週末より +%@。仕事や日常の活動がエネルギーになっているのかも？" : {
 
     },
-    "感情タグ" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Emotion Tags"
-          }
-        }
-      }
-    },
-    "感情タグを管理" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Manage Emotion Tags"
-          }
-        }
-      }
-    },
     "感謝" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3682,16 +3662,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Record your mood to see statistics here."
-          }
-        }
-      }
-    },
-    "気分記録と感情タグはiCloudに自動バックアップされます。写真とボイスメモはこのデバイスにのみ保存されます。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mood records and emotion tags are automatically backed up to iCloud. Photos and voice memos are stored on this device only."
           }
         }
       }

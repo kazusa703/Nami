@@ -40,6 +40,102 @@ enum StatsSection: Int, CaseIterable, Identifiable {
     case activity
 
     var id: Int { rawValue }
+
+    /// Section display name for table of contents
+    var displayName: String {
+        switch self {
+        case .insight: return String(localized: "インサイト")
+        case .weeklyReview: return String(localized: "週間レビュー")
+        case .moodRhythm: return String(localized: "ムードリズム")
+        case .summaryCards: return String(localized: "サマリー")
+        case .distribution: return String(localized: "スコア分布")
+        case .average: return String(localized: "平均スコア")
+        case .pastComparison: return String(localized: "過去比較")
+        case .weekday: return String(localized: "曜日別")
+        case .timeOfDay: return String(localized: "時間帯別")
+        case .streak: return String(localized: "ストリーク")
+        case .calendar: return String(localized: "カレンダー")
+        case .tagAnalysis: return String(localized: "タグ分析")
+        case .memoKeyword: return String(localized: "キーワード分析")
+        case .sourceBreakdown: return String(localized: "記録元別")
+        case .recordTiming: return String(localized: "記録タイミング")
+        case .stability: return String(localized: "安定度")
+        case .weatherMood: return String(localized: "天気×気分")
+        case .energyMood: return String(localized: "エネルギー×気分")
+        case .locationMood: return String(localized: "場所×気分")
+        case .recovery: return String(localized: "回復パターン")
+        case .healthKit: return String(localized: "ヘルスケア相関")
+        case .premium: return String(localized: "プレミアム分析")
+        case .prediction: return String(localized: "スコア予測")
+        case .tagFlow: return String(localized: "タグ遷移マップ")
+        case .discovery: return String(localized: "発見")
+        case .activity: return String(localized: "アクティビティ")
+        }
+    }
+
+    /// Section icon
+    var icon: String {
+        switch self {
+        case .insight: return "lightbulb.fill"
+        case .weeklyReview: return "text.badge.checkmark"
+        case .moodRhythm: return "waveform.path"
+        case .summaryCards: return "square.grid.2x2"
+        case .distribution: return "chart.bar.fill"
+        case .average: return "number"
+        case .pastComparison: return "clock.arrow.circlepath"
+        case .weekday: return "calendar"
+        case .timeOfDay: return "sun.and.horizon.fill"
+        case .streak: return "flame.fill"
+        case .calendar: return "calendar.badge.clock"
+        case .tagAnalysis: return "tag.fill"
+        case .memoKeyword: return "text.magnifyingglass"
+        case .sourceBreakdown: return "apps.iphone"
+        case .recordTiming: return "clock.fill"
+        case .stability: return "waveform.path.ecg"
+        case .weatherMood: return "cloud.sun.fill"
+        case .energyMood: return "battery.75percent"
+        case .locationMood: return "mappin.and.ellipse"
+        case .recovery: return "arrow.up.heart.fill"
+        case .healthKit: return "heart.fill"
+        case .premium: return "sparkles"
+        case .prediction: return "crystal.ball"
+        case .tagFlow: return "arrow.triangle.branch"
+        case .discovery: return "magnifyingglass"
+        case .activity: return "list.bullet"
+        }
+    }
+
+    /// Section description for guide
+    var guide: String {
+        switch self {
+        case .insight: return String(localized: "あなたのデータから見つけた気づきをカード形式で表示。毎日少しずつ入れ替わります")
+        case .weeklyReview: return String(localized: "今週の記録をまとめて振り返り。ハイライトとローポイント、よく使ったタグを表示")
+        case .moodRhythm: return String(localized: "月〜日の曜日別平均スコアを波線チャートで表示。週のリズムが見えます")
+        case .summaryCards: return String(localized: "週間・月間・年間の平均スコアとストリークを4枚のカードで一覧表示")
+        case .distribution: return String(localized: "各スコアが何回記録されたかの分布。自分がよく記録するスコア帯がわかります")
+        case .average: return String(localized: "週間・月間・年間の平均スコアと先週比のトレンドを数値で表示")
+        case .pastComparison: return String(localized: "昨年の同時期と今のスコアを比較。長期的な変化を実感できます")
+        case .weekday: return String(localized: "曜日ごとの平均スコアを棒グラフで表示。特定の曜日の傾向を発見")
+        case .timeOfDay: return String(localized: "朝・昼・夕・夜の4つの時間帯ごとの平均スコア。記録する時間帯の傾向がわかります")
+        case .streak: return String(localized: "連続記録日数と過去最長記録。毎日の習慣化のモチベーションに")
+        case .calendar: return String(localized: "月間カレンダーに日ごとのスコアを色で表示。タップで詳細を確認できます")
+        case .tagAnalysis: return String(localized: "タグの使用頻度、タグ別の平均スコア、タグの共起パターンなどを分析")
+        case .memoKeyword: return String(localized: "メモに頻出するキーワードとスコアの関係を分析。無意識の言葉の傾向に気づけます")
+        case .sourceBreakdown: return String(localized: "アプリ・ウィジェット・Apple Watchのどこから記録したかで平均スコアを比較")
+        case .recordTiming: return String(localized: "何時に記録することが多いかを時間帯別に表示。生活リズムの指標になります")
+        case .stability: return String(localized: "直近7日間のスコアの安定度を0〜100で数値化。変動が大きいほど低くなります")
+        case .weatherMood: return String(localized: "天気ごとの平均スコアを比較。晴れと雨で気分がどう変わるか一目でわかります")
+        case .energyMood: return String(localized: "気分スコアとエネルギーレベルの一致/乖離を分析。無理していないかチェック")
+        case .locationMood: return String(localized: "場所タグ（自宅・職場など）ごとの平均スコアを比較。環境と気分の関係を可視化")
+        case .recovery: return String(localized: "スコアが低い期間から回復するまでの日数と、回復時によく使われるタグを表示")
+        case .healthKit: return String(localized: "歩数・睡眠時間・心拍数と気分スコアの相関を分析。ヘルスケアアプリ連携が必要です")
+        case .premium: return String(localized: "高度な分析：タグチェーン、エコー効果、回復トリガー、タグシナジーなど")
+        case .prediction: return String(localized: "過去のパターンから明日の気分スコアを予測。曜日・トレンド・タグの3要素で計算")
+        case .tagFlow: return String(localized: "タグの遷移パターンをフロー図で可視化。どのタグの後にどのタグが続くかを表示")
+        case .discovery: return String(localized: "記録回数やタグ使用頻度とスコアの関係など、意外なパターンを発見")
+        case .activity: return String(localized: "最近の記録を時系列で一覧表示。タップしてメモを編集できます")
+        }
+    }
 }
 
 /// 統計画面
@@ -81,6 +177,10 @@ struct StatsView: View {
     /// HealthKit相関データ
     @State private var healthCorrelations: (steps: Double?, sleep: Double?, heartRate: Double?) = (nil, nil, nil)
     @State private var isLoadingHealthData = false
+    /// 解説・目次シート表示フラグ
+    @State private var showGuideSheet = false
+    /// セクションジャンプ用のScrollViewProxy
+    @State private var scrollProxy: ScrollViewProxy?
 
     var body: some View {
         let colors = themeManager.colors
@@ -98,28 +198,41 @@ struct StatsView: View {
                         }
                     } else {
                         // LazyVStack + ForEach で各セクションを独立評価し、スタックオーバーフローを防止
-                        ScrollView {
-                            LazyVStack(spacing: 20) {
-                                ForEach(activeSections) { section in
-                                    sectionContent(section, colors: colors)
+                        ScrollViewReader { proxy in
+                            ScrollView {
+                                LazyVStack(spacing: 20) {
+                                    ForEach(activeSections) { section in
+                                        sectionContent(section, colors: colors)
+                                            .id(section)
+                                    }
                                 }
+                                .padding()
                             }
-                            .padding()
+                            .onAppear { scrollProxy = proxy }
                         }
                     }
                 }
             }
-            .navigationTitle("統計")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showShareSummary = true
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(.body, design: .rounded))
+                    HStack(spacing: 16) {
+                        Button {
+                            showGuideSheet = true
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(.body, design: .rounded))
+                        }
+
+                        Button {
+                            showShareSummary = true
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(.body, design: .rounded))
+                        }
+                        .disabled(entries.isEmpty)
                     }
-                    .disabled(entries.isEmpty)
                 }
             }
             .navigationDestination(isPresented: $showAllEntries) {
@@ -145,6 +258,9 @@ struct StatsView: View {
             .sheet(isPresented: $showPremiumSheet) {
                 PremiumPurchaseSheet(premiumManager: premiumManager)
             }
+            .sheet(isPresented: $showGuideSheet) {
+                statsGuideSheet
+            }
             .sheet(item: $editingEntry) { entry in
                 MemoInputView(
                     score: entry.score,
@@ -162,6 +278,54 @@ struct StatsView: View {
             .onAppear { rebuildInsightCaches() }
             .onChange(of: entries.count) { _, _ in rebuildInsightCaches() }
         }
+    }
+
+    // MARK: - 解説・目次シート
+
+    private var statsGuideSheet: some View {
+        NavigationStack {
+            List {
+                ForEach(activeSections) { section in
+                    Button {
+                        showGuideSheet = false
+                        // Delay to let sheet dismiss before scrolling
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                scrollProxy?.scrollTo(section, anchor: .top)
+                            }
+                        }
+                    } label: {
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: section.icon)
+                                .font(.system(.body))
+                                .foregroundStyle(themeManager.colors.accent)
+                                .frame(width: 24)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(section.displayName)
+                                    .font(.system(.body, design: .rounded, weight: .semibold))
+                                    .foregroundStyle(.primary)
+                                Text(section.guide)
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+            .navigationTitle(String(localized: "統計ガイド"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(String(localized: "閉じる")) {
+                        showGuideSheet = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 
     /// インサイトキャッシュを再構築する
@@ -3425,9 +3589,9 @@ struct StatsView: View {
         )
     }
 
-    // MARK: - プレミアム購入シート
+    // MARK: - Premium Info Sheet
 
-    /// プレミアム購入シート（StatsViewから呼び出し用）
+    /// Simplified premium info sheet — directs user to PRO tab for full purchase flow
     struct PremiumPurchaseSheet: View {
         let premiumManager: PremiumManager
         @Environment(\.dismiss) private var dismiss
@@ -3440,64 +3604,39 @@ struct StatsView: View {
                         .font(.system(size: 48))
                         .foregroundStyle(.orange)
 
-                    Text("プレミアムで全機能を解放")
+                    Text(String(localized: "プレミアムで全機能を解放"))
                         .font(.system(.title2, design: .rounded, weight: .bold))
 
                     VStack(alignment: .leading, spacing: 10) {
-                        premiumFeatureRow(icon: "brain.head.profile", text: "逆インサイト・回復トリガー分析")
-                        premiumFeatureRow(icon: "calendar.badge.clock", text: "月間サマリーレポート")
-                        premiumFeatureRow(icon: "arrow.triangle.branch", text: "タグ連鎖・残響効果分析")
-                        premiumFeatureRow(icon: "arrow.triangle.merge", text: "タグシナジー・レッドゾーン検出")
-                        premiumFeatureRow(icon: "xmark.circle", text: "広告の非表示")
+                        premiumFeatureRow(icon: "brain.head.profile", text: String(localized: "逆インサイト・回復トリガー分析"))
+                        premiumFeatureRow(icon: "calendar.badge.clock", text: String(localized: "月間サマリーレポート"))
+                        premiumFeatureRow(icon: "arrow.triangle.branch", text: String(localized: "タグ連鎖・残響効果分析"))
+                        premiumFeatureRow(icon: "arrow.triangle.merge", text: String(localized: "タグシナジー・レッドゾーン検出"))
+                        premiumFeatureRow(icon: "eye.slash", text: String(localized: "広告の完全非表示"))
                     }
                     .padding()
 
-                    if let product = premiumManager.product {
-                        Button {
-                            Task { await premiumManager.purchase() }
-                        } label: {
-                            HStack {
-                                if premiumManager.isPurchasing {
-                                    ProgressView()
-                                        .tint(.white)
-                                } else {
-                                    Text("\(product.displayPrice)で購入")
-                                        .font(.system(.headline, design: .rounded))
-                                }
-                            }
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(LinearGradient(colors: [.orange, .pink], startPoint: .leading, endPoint: .trailing))
-                            )
+                    Text(String(localized: "PROタブで詳しく見る"))
+                        .font(.system(.headline, design: .rounded, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(LinearGradient(colors: [.orange, .pink], startPoint: .leading, endPoint: .trailing))
+                        )
+                        .onTapGesture {
+                            dismiss()
                         }
-                        .disabled(premiumManager.isPurchasing)
-                    }
-
-                    Button("復元") {
-                        Task { await premiumManager.restore() }
-                    }
-                    .font(.system(.caption, design: .rounded))
-
-                    if let error = premiumManager.errorMessage {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
 
                     Spacer()
                 }
                 .padding()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("閉じる") { dismiss() }
+                        Button(String(localized: "閉じる")) { dismiss() }
                     }
                 }
-            }
-            .onChange(of: premiumManager.isPremium) { _, isPremium in
-                if isPremium { dismiss() }
             }
         }
 
