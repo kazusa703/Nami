@@ -5,10 +5,10 @@
 //  統計画面 - 平均スコア、連続日数、スコア分布等を表示する
 //
 
-import SwiftUI
-import SwiftData
 import Charts
 import StoreKit
+import SwiftData
+import SwiftUI
 
 /// 統計画面のセクション識別子（ForEachで個別にレンダリングするため）
 enum StatsSection: Int, CaseIterable, Identifiable {
@@ -39,7 +39,9 @@ enum StatsSection: Int, CaseIterable, Identifiable {
     case discovery
     case activity
 
-    var id: Int { rawValue }
+    var id: Int {
+        rawValue
+    }
 
     /// Section display name for table of contents
     var displayName: String {
@@ -167,7 +169,7 @@ struct StatsView: View {
     /// プレミアム状態
     @Environment(\.premiumManager) private var premiumManager
     /// 月間サマリーの表示月
-    @State private var summaryMonth: Date = Date.now
+    @State private var summaryMonth: Date = .now
     /// プレミアム購入シート表示
     @State private var showPremiumSheet = false
     /// キャッシュ：インサイトカード（entries変更時のみ再計算）
@@ -181,6 +183,8 @@ struct StatsView: View {
     @State private var showGuideSheet = false
     /// セクションジャンプ用のScrollViewProxy
     @State private var scrollProxy: ScrollViewProxy?
+    /// Collapsible category group expansion state (all collapsed by default)
+    @State private var expandedCategories: Set<String> = []
 
     var body: some View {
         let colors = themeManager.colors
@@ -197,14 +201,48 @@ struct StatsView: View {
                                 .padding()
                         }
                     } else {
-                        // LazyVStack + ForEach で各セクションを独立評価し、スタックオーバーフローを防止
+                        // Grouped layout: highlight sections always visible, rest in collapsible categories
                         ScrollViewReader { proxy in
                             ScrollView {
                                 LazyVStack(spacing: 20) {
-                                    ForEach(activeSections) { section in
+                                    // Always visible highlight sections
+                                    ForEach(highlightSections) { section in
                                         sectionContent(section, colors: colors)
                                             .id(section)
                                     }
+
+                                    // Collapsible category groups
+                                    categoryGroupView(
+                                        title: String(localized: "トレンド分析"),
+                                        icon: "chart.line.uptrend.xyaxis",
+                                        sections: trendSections,
+                                        colors: colors
+                                    )
+                                    categoryGroupView(
+                                        title: String(localized: "タグ・キーワード"),
+                                        icon: "tag.fill",
+                                        sections: tagSections,
+                                        colors: colors
+                                    )
+                                    categoryGroupView(
+                                        title: String(localized: "コンテキスト分析"),
+                                        icon: "cloud.sun.fill",
+                                        sections: contextSections,
+                                        colors: colors
+                                    )
+                                    categoryGroupView(
+                                        title: String(localized: "深い分析"),
+                                        icon: "brain.head.profile",
+                                        sections: deepSections,
+                                        colors: colors
+                                    )
+                                    categoryGroupView(
+                                        title: String(localized: "PRO 高度分析"),
+                                        icon: "sparkles",
+                                        sections: proSections,
+                                        colors: colors,
+                                        isPro: true
+                                    )
                                 }
                                 .padding()
                             }
@@ -285,33 +323,34 @@ struct StatsView: View {
     private var statsGuideSheet: some View {
         NavigationStack {
             List {
-                ForEach(activeSections) { section in
-                    Button {
-                        showGuideSheet = false
-                        // Delay to let sheet dismiss before scrolling
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                scrollProxy?.scrollTo(section, anchor: .top)
-                            }
-                        }
-                    } label: {
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: section.icon)
-                                .font(.system(.body))
-                                .foregroundStyle(themeManager.colors.accent)
-                                .frame(width: 24)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(section.displayName)
-                                    .font(.system(.body, design: .rounded, weight: .semibold))
-                                    .foregroundStyle(.primary)
-                                Text(section.guide)
-                                    .font(.system(.caption, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .padding(.vertical, 4)
+                Section(String(localized: "ハイライト")) {
+                    ForEach(highlightSections) { section in
+                        guideRow(for: section)
+                    }
+                }
+                Section(String(localized: "トレンド分析")) {
+                    ForEach(trendSections) { section in
+                        guideRow(for: section)
+                    }
+                }
+                Section(String(localized: "タグ・キーワード")) {
+                    ForEach(tagSections) { section in
+                        guideRow(for: section)
+                    }
+                }
+                Section(String(localized: "コンテキスト分析")) {
+                    ForEach(contextSections) { section in
+                        guideRow(for: section)
+                    }
+                }
+                Section(String(localized: "深い分析")) {
+                    ForEach(deepSections) { section in
+                        guideRow(for: section)
+                    }
+                }
+                Section(String(localized: "PRO 高度分析")) {
+                    ForEach(proSections) { section in
+                        guideRow(for: section)
                     }
                 }
             }
@@ -326,6 +365,58 @@ struct StatsView: View {
             }
         }
         .presentationDetents([.medium, .large])
+    }
+
+    /// Guide sheet row for a single section
+    private func guideRow(for section: StatsSection) -> some View {
+        Button {
+            showGuideSheet = false
+            // Ensure the category group is expanded so scrollTo works
+            let groupTitle = categoryGroupTitle(for: section)
+            if let title = groupTitle, !expandedCategories.contains(title) {
+                expandedCategories.insert(title)
+            }
+            // Delay to let sheet dismiss before scrolling
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    scrollProxy?.scrollTo(section, anchor: .top)
+                }
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: section.icon)
+                    .font(.system(.body))
+                    .foregroundStyle(themeManager.colors.accent)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(section.displayName)
+                        .font(.system(.body, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(section.guide)
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    /// Returns the category group title a section belongs to (nil for highlight sections)
+    private func categoryGroupTitle(for section: StatsSection) -> String? {
+        let trendCases: Set<StatsSection> = [.moodRhythm, .distribution, .average, .pastComparison, .weekday, .timeOfDay, .streak]
+        let tagCases: Set<StatsSection> = [.tagAnalysis, .memoKeyword]
+        let contextCases: Set<StatsSection> = [.weatherMood, .energyMood, .locationMood, .sourceBreakdown, .recordTiming, .healthKit]
+        let deepCases: Set<StatsSection> = [.stability, .recovery, .discovery, .activity]
+        let proCases: Set<StatsSection> = [.prediction, .tagFlow, .premium]
+
+        if trendCases.contains(section) { return String(localized: "トレンド分析") }
+        if tagCases.contains(section) { return String(localized: "タグ・キーワード") }
+        if contextCases.contains(section) { return String(localized: "コンテキスト分析") }
+        if deepCases.contains(section) { return String(localized: "深い分析") }
+        if proCases.contains(section) { return String(localized: "PRO 高度分析") }
+        return nil
     }
 
     /// インサイトキャッシュを再構築する
@@ -346,27 +437,38 @@ struct StatsView: View {
         cachedPremiumInsights = InsightEngine.generatePremium(from: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
     }
 
-    // MARK: - セクション管理（ForEachで個別にレンダリング）
+    // MARK: - セクション管理（グループ化レイアウト）
 
-    /// 表示するセクションのリスト（条件付きセクションを動的に制御）
+    /// All active sections combined (used by guide sheet)
     private var activeSections: [StatsSection] {
-        var sections: [StatsSection] = [
-            .insight, .weeklyReview, .moodRhythm, .summaryCards, .distribution,
-            .average, .pastComparison, .weekday, .timeOfDay, .streak, .calendar
-        ]
+        highlightSections + trendSections + tagSections + contextSections + deepSections + proSections
+    }
+
+    /// Always-visible highlight sections
+    private var highlightSections: [StatsSection] {
+        [.insight, .weeklyReview, .summaryCards, .calendar]
+    }
+
+    /// Group A: Trend analysis sections
+    private var trendSections: [StatsSection] {
+        [.moodRhythm, .distribution, .average, .pastComparison, .weekday, .timeOfDay, .streak]
+    }
+
+    /// Group B: Tag & keyword sections (conditionally included)
+    private var tagSections: [StatsSection] {
+        var sections: [StatsSection] = []
         if entries.contains(where: { !$0.tags.isEmpty }) {
             sections.append(.tagAnalysis)
         }
         if entries.contains(where: { $0.memo != nil }) {
             sections.append(.memoKeyword)
         }
-        if Set(entries.map(\.source)).count >= 2 {
-            sections.append(.sourceBreakdown)
-        }
-        if entries.count >= 30 {
-            sections.append(.recordTiming)
-        }
-        sections.append(.stability)
+        return sections
+    }
+
+    /// Group C: Context analysis sections (conditionally included)
+    private var contextSections: [StatsSection] {
+        var sections: [StatsSection] = []
         if entries.contains(where: { $0.weatherCondition != nil }) {
             sections.append(.weatherMood)
         }
@@ -377,14 +479,89 @@ struct StatsView: View {
         if entries.contains(where: { !Set($0.tags).isDisjoint(with: locationTags) }) {
             sections.append(.locationMood)
         }
+        if Set(entries.map(\.source)).count >= 2 {
+            sections.append(.sourceBreakdown)
+        }
+        if entries.count >= 30 {
+            sections.append(.recordTiming)
+        }
+        if healthKitManager.isEnabled, healthKitManager.isAuthorized {
+            sections.append(.healthKit)
+        }
+        return sections
+    }
+
+    /// Group D: Deep analysis sections (conditionally included)
+    private var deepSections: [StatsSection] {
+        var sections: [StatsSection] = [.stability]
         if entries.count >= 10 {
             sections.append(.recovery)
         }
-        if healthKitManager.isEnabled && healthKitManager.isAuthorized {
-            sections.append(.healthKit)
-        }
-        sections.append(contentsOf: [.premium, .prediction, .tagFlow, .discovery, .activity])
+        sections.append(contentsOf: [.discovery, .activity])
         return sections
+    }
+
+    /// Group E: PRO advanced analysis sections
+    private var proSections: [StatsSection] {
+        [.prediction, .tagFlow, .premium]
+    }
+
+    /// Toggle a category group's expansion state
+    private func toggleCategoryGroup(_ title: String) {
+        if expandedCategories.contains(title) {
+            expandedCategories.remove(title)
+        } else {
+            expandedCategories.insert(title)
+        }
+    }
+
+    /// Collapsible category group wrapper
+    @ViewBuilder
+    private func categoryGroupView(
+        title: String,
+        icon: String,
+        sections: [StatsSection],
+        colors: ThemeColors,
+        isPro: Bool = false
+    ) -> some View {
+        if !sections.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                // Collapsible header with chevron
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        toggleCategoryGroup(title)
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: icon)
+                            .foregroundStyle(colors.accent)
+                        Text(title)
+                            .font(.system(.headline, design: .rounded))
+                        if isPro && !premiumManager.isPremium {
+                            Text("PRO")
+                                .font(.system(.caption2, design: .rounded, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(.orange))
+                        }
+                        Spacer()
+                        Image(systemName: expandedCategories.contains(title) ? "chevron.up" : "chevron.down")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                if expandedCategories.contains(title) {
+                    ForEach(sections) { section in
+                        sectionContent(section, colors: colors)
+                            .id(section)
+                    }
+                }
+            }
+            .padding(.top, 8)
+        }
     }
 
     /// セクションごとのコンテンツを返す（各caseが独立した型として評価される）
@@ -423,7 +600,6 @@ struct StatsView: View {
     // MARK: - 空状態ビュー
 
     /// データ0件時に「記録すると何がわかるか」を案内するビュー
-    @ViewBuilder
     private func emptyStatsView(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
             Spacer().frame(height: 20)
@@ -534,8 +710,7 @@ struct StatsView: View {
     }
 
     /// インサイトカード1枚のビュー
-    @ViewBuilder
-    private func insightCardView(card: InsightCard, colors: ThemeColors) -> some View {
+    private func insightCardView(card: InsightCard, colors _: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: card.icon)
@@ -625,7 +800,6 @@ struct StatsView: View {
     }
 
     /// 平均スコア行（前週比付き）
-    @ViewBuilder
     private func weeklyReviewAverageRow(review: WeeklyReview, colors: ThemeColors) -> some View {
         HStack {
             Text("平均スコア")
@@ -651,7 +825,6 @@ struct StatsView: View {
     }
 
     /// 前週比バッジ
-    @ViewBuilder
     private func weeklyReviewDiffBadge(diff: Double) -> some View {
         HStack(spacing: 2) {
             Image(systemName: diff >= 0 ? "arrow.up.right" : "arrow.down.right")
@@ -685,7 +858,6 @@ struct StatsView: View {
     }
 
     /// ハイライト/ローポイントカード1枚
-    @ViewBuilder
     private func reviewPointCard(label: String, icon: String, iconColor: Color, point: WeeklyReviewPoint, colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
@@ -725,7 +897,6 @@ struct StatsView: View {
     }
 
     /// Top タグ表示
-    @ViewBuilder
     private func weeklyReviewTopTags(tags: [(tag: String, count: Int)], colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("よく使ったタグ")
@@ -776,7 +947,6 @@ struct StatsView: View {
     }
 
     /// 週間リズム波線チャート（月〜日の平均を滑らかな波で表示）
-    @ViewBuilder
     private func weeklyRhythmChart(rhythmData: [(label: String, index: Int, average: Double)], colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Chart {
@@ -817,7 +987,7 @@ struct StatsView: View {
                     }
                 }
             }
-            .chartYScale(domain: Double(currentMinScore)...Double(currentMaxScore))
+            .chartYScale(domain: Double(currentMinScore) ... Double(currentMaxScore))
             .chartYAxis {
                 AxisMarks(values: [Double(currentMinScore), Double(currentMaxScore)]) { _ in
                     AxisValueLabel()
@@ -841,7 +1011,8 @@ struct StatsView: View {
             let validData = rhythmData.filter { $0.average != 0 }
             if let best = validData.max(by: { $0.average < $1.average }),
                let worst = validData.min(by: { $0.average < $1.average }),
-               best.label != worst.label {
+               best.label != worst.label
+            {
                 HStack(spacing: 12) {
                     Label("\(best.label)が最高", systemImage: "arrow.up.circle.fill")
                         .foregroundStyle(.green)
@@ -904,7 +1075,6 @@ struct StatsView: View {
     }
 
     /// ボラティリティ傾向バッジ
-    @ViewBuilder
     private func volatilityTrendBadge(info: (label: String, icon: String, color: Color)) -> some View {
         HStack(spacing: 3) {
             Image(systemName: info.icon)
@@ -957,7 +1127,7 @@ struct StatsView: View {
                 .symbolSize(25)
             }
         }
-        .chartYScale(domain: 0...yMax)
+        .chartYScale(domain: 0 ... yMax)
         .chartYAxis {
             AxisMarks(position: .leading) { _ in
                 AxisValueLabel()
@@ -1029,7 +1199,6 @@ struct StatsView: View {
 
     // MARK: - スコア分布セクション
 
-    @ViewBuilder
     private func distributionSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -1060,7 +1229,7 @@ struct StatsView: View {
                 groupedDistributionChart(distribution: distribution, maxCount: maxCount, colors: colors)
             } else {
                 Chart {
-                    ForEach(Array(currentMinScore...currentMaxScore), id: \.self) { score in
+                    ForEach(Array(currentMinScore ... currentMaxScore), id: \.self) { score in
                         let count = distribution[score] ?? 0
                         BarMark(
                             x: .value("回数", count),
@@ -1077,10 +1246,10 @@ struct StatsView: View {
                         }
                     }
                 }
-                .chartXScale(domain: 0...(maxCount + 1))
+                .chartXScale(domain: 0 ... (maxCount + 1))
                 .chartXAxis(.hidden)
                 .chartYAxis {
-                    AxisMarks { value in
+                    AxisMarks { _ in
                         AxisValueLabel()
                             .font(.system(.caption, design: .rounded, weight: .medium))
                     }
@@ -1097,11 +1266,11 @@ struct StatsView: View {
 
     /// 大きなレンジの場合のグルーピング分布チャート
     @ViewBuilder
-    private func groupedDistributionChart(distribution: [Int: Int], maxCount: Int, colors: ThemeColors) -> some View {
+    private func groupedDistributionChart(distribution: [Int: Int], maxCount _: Int, colors: ThemeColors) -> some View {
         let groupSize = 10
         let groups = stride(from: currentMinScore, through: currentMaxScore, by: groupSize).map { start -> (label: String, count: Int) in
             let end = min(start + groupSize - 1, currentMaxScore)
-            let count = (start...end).reduce(0) { $0 + (distribution[$1] ?? 0) }
+            let count = (start ... end).reduce(0) { $0 + (distribution[$1] ?? 0) }
             return ("\(start)-\(end)", count)
         }
         let groupMax = groups.map(\.count).max() ?? 1
@@ -1123,10 +1292,10 @@ struct StatsView: View {
                 }
             }
         }
-        .chartXScale(domain: 0...(groupMax + 1))
+        .chartXScale(domain: 0 ... (groupMax + 1))
         .chartXAxis(.hidden)
         .chartYAxis {
-            AxisMarks { value in
+            AxisMarks { _ in
                 AxisValueLabel()
                     .font(.system(.caption, design: .rounded, weight: .medium))
             }
@@ -1141,7 +1310,6 @@ struct StatsView: View {
 
     // MARK: - 平均スコアセクション
 
-    @ViewBuilder
     private func averageSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("平均スコア")
@@ -1303,7 +1471,6 @@ struct StatsView: View {
 
     // MARK: - 折りたたみセクションヘッダー
 
-    @ViewBuilder
     private func collapsibleHeader(_ title: String, sectionKey: String, icon: String? = nil) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -1334,190 +1501,185 @@ struct StatsView: View {
 
     // MARK: - 曜日別平均セクション
 
-    @ViewBuilder
     private func weekdayAverageSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             collapsibleHeader("曜日別平均", sectionKey: "weekday")
 
             if expandedSections.contains("weekday") {
-            let averages = statsVM.weekdayAverages(entries: entries, currentMax: currentMaxScore)
-            // 月〜日の順（2=月, 3=火, ..., 7=土, 1=日）
-            let weekdayOrder = [2, 3, 4, 5, 6, 7, 1]
-            let weekdayLabels = [String(localized: "月曜"), String(localized: "火曜"), String(localized: "水曜"), String(localized: "木曜"), String(localized: "金曜"), String(localized: "土曜"), String(localized: "日曜")]
+                let averages = statsVM.weekdayAverages(entries: entries, currentMax: currentMaxScore)
+                // 月〜日の順（2=月, 3=火, ..., 7=土, 1=日）
+                let weekdayOrder = [2, 3, 4, 5, 6, 7, 1]
+                let weekdayLabels = [String(localized: "月曜"), String(localized: "火曜"), String(localized: "水曜"), String(localized: "木曜"), String(localized: "金曜"), String(localized: "土曜"), String(localized: "日曜")]
 
-            Chart {
-                ForEach(Array(weekdayOrder.enumerated()), id: \.offset) { index, weekday in
-                    let avg = averages[weekday] ?? 0
-                    BarMark(
-                        x: .value("曜日", weekdayLabels[index]),
-                        y: .value("平均", avg)
-                    )
-                    .foregroundStyle(
-                        avg > 0
-                            ? colors.color(for: Int(avg.rounded()), minScore: currentMinScore, maxScore: currentMaxScore).gradient
-                            : Color.gray.opacity(0.3).gradient
-                    )
-                    .cornerRadius(6)
+                Chart {
+                    ForEach(Array(weekdayOrder.enumerated()), id: \.offset) { index, weekday in
+                        let avg = averages[weekday] ?? 0
+                        BarMark(
+                            x: .value("曜日", weekdayLabels[index]),
+                            y: .value("平均", avg)
+                        )
+                        .foregroundStyle(
+                            avg > 0
+                                ? colors.color(for: Int(avg.rounded()), minScore: currentMinScore, maxScore: currentMaxScore).gradient
+                                : Color.gray.opacity(0.3).gradient
+                        )
+                        .cornerRadius(6)
+                    }
                 }
-            }
-            .chartYScale(domain: Double(currentMinScore)...Double(currentMaxScore))
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisValueLabel()
-                        .font(.system(.caption2, design: .rounded))
+                .chartYScale(domain: Double(currentMinScore) ... Double(currentMaxScore))
+                .chartYAxis {
+                    AxisMarks(position: .leading) { _ in
+                        AxisValueLabel()
+                            .font(.system(.caption2, design: .rounded))
+                    }
                 }
-            }
-            .chartXAxis {
-                AxisMarks { value in
-                    AxisValueLabel()
-                        .font(.system(.caption, design: .rounded, weight: .medium))
+                .chartXAxis {
+                    AxisMarks { _ in
+                        AxisValueLabel()
+                            .font(.system(.caption, design: .rounded, weight: .medium))
+                    }
                 }
-            }
-            .frame(height: 180)
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-            )
+                .frame(height: 180)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.ultraThinMaterial)
+                )
             } // end if expandedSections weekday
         }
     }
 
     // MARK: - 時間帯別平均セクション
 
-    @ViewBuilder
     private func timeOfDaySection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             collapsibleHeader("時間帯別平均", sectionKey: "timeOfDay")
 
             if expandedSections.contains("timeOfDay") {
+                let averages = statsVM.timeOfDayAverages(entries: entries, currentMax: currentMaxScore)
+                let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
 
-            let averages = statsVM.timeOfDayAverages(entries: entries, currentMax: currentMaxScore)
-            let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
+                LazyVGrid(columns: gridColumns, spacing: 10) {
+                    ForEach(TimeOfDay.allCases) { tod in
+                        let avg = averages[tod]
 
-            LazyVGrid(columns: gridColumns, spacing: 10) {
-                ForEach(TimeOfDay.allCases) { tod in
-                    let avg = averages[tod]
+                        VStack(spacing: 8) {
+                            Image(systemName: tod.icon)
+                                .font(.title2)
+                                .foregroundStyle(colors.accent)
 
-                    VStack(spacing: 8) {
-                        Image(systemName: tod.icon)
-                            .font(.title2)
-                            .foregroundStyle(colors.accent)
+                            Text(tod.label)
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
 
-                        Text(tod.label)
-                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                            if let avg {
+                                Text(String(format: "%.1f", avg))
+                                    .font(.system(.title3, design: .rounded, weight: .bold))
+                                    .foregroundStyle(colors.color(for: Int(avg.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
+                            } else {
+                                Text("-")
+                                    .font(.system(.title3, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                            }
 
-                        if let avg {
-                            Text(String(format: "%.1f", avg))
-                                .font(.system(.title3, design: .rounded, weight: .bold))
-                                .foregroundStyle(colors.color(for: Int(avg.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
-                        } else {
-                            Text("-")
-                                .font(.system(.title3, design: .rounded, weight: .bold))
-                                .foregroundStyle(.secondary)
+                            Text(tod.timeRange)
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(.tertiary)
                         }
-
-                        Text(tod.timeRange)
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                        )
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.ultraThinMaterial)
-                    )
                 }
-            }
             } // end if expandedSections timeOfDay
         }
     }
 
     // MARK: - ストリーク比較セクション
 
-    @ViewBuilder
     private func streakSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             collapsibleHeader("ストリーク", sectionKey: "streak")
 
             if expandedSections.contains("streak") {
-            let current = statsVM.currentStreak(entries: entries)
-            let longest = statsVM.longestStreak(entries: entries)
+                let current = statsVM.currentStreak(entries: entries)
+                let longest = statsVM.longestStreak(entries: entries)
 
-            HStack(spacing: 12) {
-                // 現在のストリーク
-                VStack(spacing: 8) {
-                    Image(systemName: "flame.fill")
-                        .font(.title)
-                        .foregroundStyle(.orange)
+                HStack(spacing: 12) {
+                    // 現在のストリーク
+                    VStack(spacing: 8) {
+                        Image(systemName: "flame.fill")
+                            .font(.title)
+                            .foregroundStyle(.orange)
 
-                    Text("\(current)")
-                        .font(.system(.title, design: .rounded, weight: .bold))
+                        Text("\(current)")
+                            .font(.system(.title, design: .rounded, weight: .bold))
 
-                    Text("現在")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
+                        Text("現在")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
 
-                    Text("日連続")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.tertiary)
+                        Text("日連続")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                    )
+
+                    // 最長ストリーク
+                    VStack(spacing: 8) {
+                        Image(systemName: "trophy.fill")
+                            .font(.title)
+                            .foregroundStyle(colors.accent)
+
+                        Text("\(longest)")
+                            .font(.system(.title, design: .rounded, weight: .bold))
+
+                        Text("最長記録")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        Text("日連続")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                    )
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
-                )
 
-                // 最長ストリーク
-                VStack(spacing: 8) {
-                    Image(systemName: "trophy.fill")
-                        .font(.title)
-                        .foregroundStyle(colors.accent)
-
-                    Text("\(longest)")
-                        .font(.system(.title, design: .rounded, weight: .bold))
-
-                    Text("最長記録")
-                        .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.secondary)
-
-                    Text("日連続")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.tertiary)
+                // 現在のストリークが最長と等しいかそれ以上の場合のバッジ
+                if current > 0 && current >= longest {
+                    HStack(spacing: 6) {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                        Text("自己ベスト更新中！")
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                    }
+                    .foregroundStyle(colors.accent)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(colors.accent.opacity(0.12))
+                    )
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.ultraThinMaterial)
-                )
-            }
-
-            // 現在のストリークが最長と等しいかそれ以上の場合のバッジ
-            if current > 0 && current >= longest {
-                HStack(spacing: 6) {
-                    Image(systemName: "star.fill")
-                        .font(.caption)
-                    Text("自己ベスト更新中！")
-                        .font(.system(.caption, design: .rounded, weight: .semibold))
-                }
-                .foregroundStyle(colors.accent)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule()
-                        .fill(colors.accent.opacity(0.12))
-                )
-                .frame(maxWidth: .infinity)
-            }
             } // end if expandedSections streak
         }
     }
 
     // MARK: - カレンダーヒートマップセクション
 
-    @ViewBuilder
     private func calendarHeatmapSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("月間カレンダー")
@@ -1535,7 +1697,6 @@ struct StatsView: View {
 
     // MARK: - HealthKit相関セクション
 
-    @ViewBuilder
     private func healthKitCorrelationSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             collapsibleHeader(String(localized: "ヘルスケア相関"), sectionKey: "healthKit")
@@ -1588,7 +1749,6 @@ struct StatsView: View {
     }
 
     /// Single correlation row display
-    @ViewBuilder
     private func correlationRow(icon: String, label: String, correlation: Double?, colors: ThemeColors) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
@@ -1687,7 +1847,6 @@ struct StatsView: View {
 
     // MARK: - タグ分析セクション
 
-    @ViewBuilder
     private func tagAnalysisSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
@@ -1800,7 +1959,7 @@ struct StatsView: View {
                         }
                     }
                 }
-                .chartXScale(domain: Double(currentMinScore)...Double(currentMaxScore))
+                .chartXScale(domain: Double(currentMinScore) ... Double(currentMaxScore))
                 .chartXAxis(.hidden)
                 .chartYAxis {
                     AxisMarks { _ in
@@ -1820,7 +1979,7 @@ struct StatsView: View {
 
     /// 翌日効果リスト
     @ViewBuilder
-    private func nextDayEffectList(colors: ThemeColors) -> some View {
+    private func nextDayEffectList(colors _: ThemeColors) -> some View {
         let effects = statsVM.nextDayEffect(entries: entries, currentMax: currentMaxScore)
 
         if !effects.isEmpty {
@@ -1986,7 +2145,7 @@ struct StatsView: View {
                     let sourceLabels: [String: (label: String, icon: String)] = [
                         "app": (String(localized: "アプリ"), "iphone"),
                         "widget": (String(localized: "ウィジェット"), "square.grid.2x2"),
-                        "watch": (String(localized: "Apple Watch"), "applewatch")
+                        "watch": (String(localized: "Apple Watch"), "applewatch"),
                     ]
 
                     HStack(spacing: 10) {
@@ -2117,8 +2276,7 @@ struct StatsView: View {
     }
 
     /// Stability score card
-    @ViewBuilder
-    private func stabilityCard(label: String, score: Double, colors: ThemeColors) -> some View {
+    private func stabilityCard(label: String, score: Double, colors _: ThemeColors) -> some View {
         VStack(spacing: 8) {
             Text(String(format: "%.0f", score))
                 .font(.system(.title, design: .rounded, weight: .bold))
@@ -2157,7 +2315,7 @@ struct StatsView: View {
                         "rainy": "cloud.rain.fill",
                         "snowy": "cloud.snow.fill",
                         "stormy": "cloud.bolt.fill",
-                        "foggy": "cloud.fog.fill"
+                        "foggy": "cloud.fog.fill",
                     ]
                     let weatherLabels: [String: String] = [
                         "sunny": String(localized: "晴れ"),
@@ -2165,7 +2323,7 @@ struct StatsView: View {
                         "rainy": String(localized: "雨"),
                         "snowy": String(localized: "雪"),
                         "stormy": String(localized: "嵐"),
-                        "foggy": String(localized: "霧")
+                        "foggy": String(localized: "霧"),
                     ]
 
                     HStack(spacing: 10) {
@@ -2326,7 +2484,7 @@ struct StatsView: View {
                         "自宅": "house.fill", "Home": "house.fill",
                         "職場/学校": "building.2.fill", "Work/School": "building.2.fill",
                         "外出先": "figure.walk", "Outside": "figure.walk",
-                        "移動中": "car.fill", "Commuting": "car.fill"
+                        "移動中": "car.fill", "Commuting": "car.fill",
                     ]
 
                     VStack(spacing: 0) {
@@ -2773,12 +2931,11 @@ struct StatsView: View {
     }
 
     /// 発見カードのラッパー
-    @ViewBuilder
     private func discoveryCard<Content: View>(
         icon: String,
         iconColor: Color,
         title: String,
-        colors: ThemeColors,
+        colors _: ThemeColors,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -2800,7 +2957,6 @@ struct StatsView: View {
     }
 
     /// 発見カード内のスタットカラム
-    @ViewBuilder
     private func discoveryStatColumn(label: String, value: String, sub: String, valueColor: Color) -> some View {
         VStack(spacing: 4) {
             Text(value)
@@ -2816,7 +2972,6 @@ struct StatsView: View {
     }
 
     /// 発見カード内の差分カラム
-    @ViewBuilder
     private func discoveryDeltaColumn(delta: Double) -> some View {
         VStack(spacing: 2) {
             Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
@@ -2827,7 +2982,6 @@ struct StatsView: View {
         .foregroundStyle(delta >= 0 ? .green : .orange)
         .frame(width: 50)
     }
-
 
     // MARK: - プレミアム分析セクション
 
@@ -2862,7 +3016,6 @@ struct StatsView: View {
     }
 
     /// プレミアムセクションヘッダー
-    @ViewBuilder
     private func premiumSectionHeader(colors: ThemeColors) -> some View {
         HStack(spacing: 6) {
             Image(systemName: premiumManager.isPremium ? "sparkles" : "lock.fill")
@@ -2882,7 +3035,6 @@ struct StatsView: View {
     }
 
     /// ロック表示（無料ユーザー向け）
-    @ViewBuilder
     private func premiumLockedPreview(colors: ThemeColors) -> some View {
         VStack(spacing: 16) {
             // プレビューカード3枚（ぼかし付き）
@@ -2934,7 +3086,6 @@ struct StatsView: View {
     }
 
     /// ロックプレビューカード1枚
-    @ViewBuilder
     private func lockedPreviewCard(icon: String, title: String, preview: String, colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -3047,8 +3198,7 @@ struct StatsView: View {
     }
 
     /// タグ+出現率バッジ
-    @ViewBuilder
-    private func tagRateBadge(tag: String, rate: Int, color: Color, colors: ThemeColors) -> some View {
+    private func tagRateBadge(tag: String, rate: Int, color: Color, colors _: ThemeColors) -> some View {
         HStack(spacing: 4) {
             Text(tag)
                 .font(.system(.caption, design: .rounded))
@@ -3063,7 +3213,6 @@ struct StatsView: View {
 
     // MARK: - B. 月間サマリーカード
 
-    @ViewBuilder
     private func monthlySummaryCard(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             // ヘッダー + 月セレクター
@@ -3200,8 +3349,7 @@ struct StatsView: View {
     }
 
     /// ポジ/ネガ比率バー
-    @ViewBuilder
-    private func monthlySummaryRatioBar(posRate: Double, negRate: Double, colors: ThemeColors) -> some View {
+    private func monthlySummaryRatioBar(posRate: Double, negRate: Double, colors _: ThemeColors) -> some View {
         GeometryReader { geo in
             HStack(spacing: 1) {
                 Rectangle()
@@ -3217,7 +3365,6 @@ struct StatsView: View {
     }
 
     /// ミニ日カード（ベスト/ワースト用）
-    @ViewBuilder
     private func miniDayCard(label: String, score: Int, date: Date, memo: String?, iconColor: Color, colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
@@ -3360,7 +3507,7 @@ struct StatsView: View {
 
     /// 残響効果ミニ折れ線チャート
     @ViewBuilder
-    private func echoMiniChart(effects: [Double], colors: ThemeColors) -> some View {
+    private func echoMiniChart(effects: [Double], colors _: ThemeColors) -> some View {
         let labels = ["+0日", "+1日", "+2日", "+3日"]
         Chart {
             ForEach(Array(effects.enumerated()), id: \.offset) { index, value in
@@ -3402,7 +3549,7 @@ struct StatsView: View {
     // MARK: - E. ズレ検出アラートカード
 
     @ViewBuilder
-    private func divergenceAlertCard(colors: ThemeColors) -> some View {
+    private func divergenceAlertCard(colors _: ThemeColors) -> some View {
         let divergences = statsVM.actionScoreDivergence(entries: entries, currentMax: currentMaxScore)
         let negDivergences = Array(divergences.filter { $0.divergence < -1.0 }.prefix(3))
         if !negDivergences.isEmpty {
@@ -3450,7 +3597,7 @@ struct StatsView: View {
     // MARK: - F. 回復トリガーカード
 
     @ViewBuilder
-    private func recoveryTriggerCard(colors: ThemeColors) -> some View {
+    private func recoveryTriggerCard(colors _: ThemeColors) -> some View {
         let triggers = statsVM.recoveryTriggers(entries: entries, currentMax: currentMaxScore)
         if !triggers.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
@@ -3548,7 +3695,6 @@ struct StatsView: View {
     }
 
     /// シナジー行1つ
-    @ViewBuilder
     private func synergyRow(synergy: TagSynergy, accentColor: Color, colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
@@ -3640,7 +3786,6 @@ struct StatsView: View {
             }
         }
 
-        @ViewBuilder
         private func premiumFeatureRow(icon: String, text: String) -> some View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
@@ -3655,7 +3800,6 @@ struct StatsView: View {
 
     // MARK: - アクティビティセクション
 
-    @ViewBuilder
     private func activitySection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("アクティビティ")
@@ -3707,7 +3851,6 @@ struct StatsView: View {
 
     // MARK: - エントリ行
 
-    @ViewBuilder
     private func entryRow(entry: MoodEntry, colors: ThemeColors) -> some View {
         HStack {
             Text("\(entry.score)")
@@ -3778,7 +3921,6 @@ struct StatsView: View {
 
     // MARK: - 全件リスト画面
 
-    @ViewBuilder
     private func allEntriesView(colors: ThemeColors) -> some View {
         ZStack {
             colors.backgroundGradient(for: colorScheme)
@@ -3810,7 +3952,6 @@ struct StatsView: View {
     // MARK: - ヘルパービュー
 
     /// 統計カード
-    @ViewBuilder
     private func statCard(title: String, value: String, subtitle: String, icon: String, colors: ThemeColors) -> some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
@@ -3837,8 +3978,7 @@ struct StatsView: View {
     }
 
     /// 平均スコア行（今期/前期比較）
-    @ViewBuilder
-    private func averageRow(label: String, current: Double?, previous: Double?, previousLabel: String, colors: ThemeColors) -> some View {
+    private func averageRow(label: String, current: Double?, previous: Double?, previousLabel _: String, colors: ThemeColors) -> some View {
         HStack {
             Text(label)
                 .font(.system(.subheadline, design: .rounded))

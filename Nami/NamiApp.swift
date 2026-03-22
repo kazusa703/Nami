@@ -178,6 +178,46 @@ struct NamiApp: App {
         WidgetCenter.shared.reloadAllTimelines()
     }
 
+    // MARK: - Weekly Summary Notification
+
+    /// Schedule weekly summary notification with actual stats data
+    private static func scheduleWeeklySummaryIfNeeded(context: ModelContext) {
+        let calendar = Calendar.current
+        guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: .now),
+              let weekEnd = calendar.dateInterval(of: .weekOfYear, for: .now)?.start else { return }
+
+        let descriptor = FetchDescriptor<MoodEntry>(
+            predicate: #Predicate<MoodEntry> { entry in
+                entry.createdAt >= weekStart && entry.createdAt < weekEnd
+            }
+        )
+
+        guard let lastWeekEntries = try? context.fetch(descriptor),
+              !lastWeekEntries.isEmpty else { return }
+
+        // Calculate average
+        let avg = lastWeekEntries.map { Double($0.score) }.reduce(0, +) / Double(lastWeekEntries.count)
+
+        // Find best day
+        let grouped = Dictionary(grouping: lastWeekEntries) { calendar.startOfDay(for: $0.createdAt) }
+        let bestDay = grouped.max { a, b in
+            let aAvg = a.value.map { Double($0.score) }.reduce(0, +) / Double(a.value.count)
+            let bAvg = b.value.map { Double($0.score) }.reduce(0, +) / Double(b.value.count)
+            return aAvg < bAvg
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "E曜日"
+        let bestDayName = bestDay.map { formatter.string(from: $0.key) } ?? ""
+
+        NotificationManager.scheduleWeeklySummary(
+            averageScore: avg,
+            bestDay: bestDayName,
+            currentMax: 10
+        )
+    }
+
     // MARK: - データ移行
 
     /// 旧デフォルトストアからApp Group共有コンテナへSwiftDataファイルを移行する

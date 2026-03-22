@@ -17,9 +17,8 @@ enum NotificationManager {
     @discardableResult
     static func requestPermission() async -> Bool {
         do {
-            let granted = try await UNUserNotificationCenter.current()
+            return try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
-            return granted
         } catch {
             print("通知権限リクエストエラー: \(error)")
             return false
@@ -69,5 +68,45 @@ enum NotificationManager {
     static func isAuthorized() async -> Bool {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         return settings.authorizationStatus == .authorized
+    }
+
+    // MARK: - Weekly Summary Notification
+
+    private static let weeklySummaryIdentifier = "nami.weekly.summary"
+
+    /// Schedule a weekly summary notification (every Monday at 9am)
+    static func scheduleWeeklySummary(averageScore: Double, bestDay: String, currentMax _: Int) {
+        cancelWeeklySummary()
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "先週のまとめ")
+        let scoreText = String(format: "%.1f", averageScore)
+        content.body = String(localized: "先週の平均スコアは\(scoreText)でした。\(bestDay)が一番良い日でした。")
+        content.sound = .default
+
+        // Every Monday at 9am
+        var dateComponents = DateComponents()
+        dateComponents.weekday = 2 // Monday
+        dateComponents.hour = 9
+        dateComponents.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+
+        let request = UNNotificationRequest(
+            identifier: weeklySummaryIdentifier,
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                print("Weekly summary notification error: \(error)")
+            }
+        }
+    }
+
+    /// Cancel weekly summary notification
+    static func cancelWeeklySummary() {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [weeklySummaryIdentifier])
     }
 }

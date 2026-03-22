@@ -5,8 +5,8 @@
 //  メイン記録画面 - スコア範囲と入力方式に対応した気分記録
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// メイン記録画面
 /// アプリ起動直後に表示され、1タップで気分を記録できる
@@ -22,6 +22,9 @@ struct MainView: View {
     /// Cached streak values (rebuilt on entries.count change)
     @State private var cachedCurrentStreak: Int = 0
     @State private var cachedLongestStreak: Int = 0
+    /// Progressive disclosure: coaching tips after Nth recording
+    @AppStorage("totalRecordCount") private var totalRecordCount: Int = 0
+    @State private var showCoachTip: String? = nil
     @Query(sort: \MoodEntry.createdAt, order: .reverse) private var entries: [MoodEntry]
 
     /// ウィジェットから記録されたエントリ
@@ -174,7 +177,22 @@ struct MainView: View {
             .navigationBarHidden(true)
         }
         .onAppear { rebuildStreakCache() }
-        .onChange(of: entries.count) { _, _ in rebuildStreakCache() }
+        .onChange(of: entries.count) { oldCount, newCount in
+            rebuildStreakCache()
+            // Progressive disclosure: show coaching tips after specific recording counts
+            if newCount > oldCount {
+                totalRecordCount = newCount
+                showCoachingTipIfNeeded()
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let tip = showCoachTip {
+                coachTipBanner(tip, colors: themeManager.colors)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, 60)
+            }
+        }
+        .animation(.spring(response: 0.4), value: showCoachTip)
         .sheet(isPresented: $viewModel.showRecordingSheet) {
             RecordingSheet(
                 score: viewModel.recordedScore,
@@ -193,8 +211,7 @@ struct MainView: View {
 
     // MARK: - ウィジェットエントリバナー
 
-    @ViewBuilder
-    private func widgetEntryBanner(count: Int, colors: ThemeColors) -> some View {
+    private func widgetEntryBanner(count: Int, colors _: ThemeColors) -> some View {
         NavigationLink {
             WidgetEntriesView()
         } label: {
@@ -231,7 +248,6 @@ struct MainView: View {
     }
 
     /// 初回起動時のヒント表示
-    @ViewBuilder
     private func firstLaunchHint(colors: ThemeColors) -> some View {
         VStack(spacing: 10) {
             Image(systemName: "hand.tap.fill")
@@ -252,7 +268,6 @@ struct MainView: View {
     }
 
     /// 最新の記録を表示するビュー
-    @ViewBuilder
     private func latestRecordView(entry: MoodEntry, colors: ThemeColors) -> some View {
         VStack(spacing: 6) {
             Text("最新の記録")
@@ -333,6 +348,7 @@ struct MainView: View {
         )
         .padding(.horizontal)
     }
+
     // MARK: - Energy Helpers
 
     private func energyIcon(for level: Int) -> String {
@@ -351,6 +367,59 @@ struct MainView: View {
         case 3: return .green
         default: return .secondary
         }
+    }
+
+    // MARK: - Progressive Disclosure
+
+    private func showCoachingTipIfNeeded() {
+        let count = totalRecordCount
+        switch count {
+        case 1:
+            showCoachTipDelayed(String(localized: "タグを付けると、パターン分析がもっと深まります"))
+        case 3:
+            if !entries.contains(where: { $0.energyLevel != nil }) {
+                showCoachTipDelayed(String(localized: "エネルギーレベルも記録してみましょう。気分との関係が見えてきます"))
+            }
+        case 7:
+            showCoachTipDelayed(String(localized: "1週間の記録が溜まりました！統計タブでインサイトを確認しましょう"))
+        default:
+            break
+        }
+    }
+
+    private func showCoachTipDelayed(_ text: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            showCoachTip = text
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+            showCoachTip = nil
+        }
+    }
+
+    private func coachTipBanner(_ text: String, colors _: ThemeColors) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "lightbulb.fill")
+                .foregroundStyle(.yellow)
+            Text(text)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.primary)
+            Spacer()
+            Button {
+                showCoachTip = nil
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
+        )
+        .padding(.horizontal)
     }
 
     // MARK: - Cache

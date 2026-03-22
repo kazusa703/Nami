@@ -185,31 +185,51 @@ struct SettingsView: View {
     @State private var pendingScoreRange: ScoreRange? = nil
     @State private var showRangeChangeAlert = false
 
+    @State private var showAdvancedScoreRange = false
+
     private func recordingSettingsSection(colors: ThemeColors) -> some View {
         Section {
-            // 現在のスコア範囲を目立つカードで表示
-            VStack(spacing: 12) {
-                HStack(spacing: 12) {
-                    // 現在の範囲を大きく表示
-                    VStack(spacing: 2) {
+            // Compact: current range + change menu
+            HStack {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "スコア範囲"))
+                            .font(.system(.body, design: .rounded))
                         Text(currentScoreRange.displayName)
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
                             .foregroundStyle(colors.accent)
-                        Text("現在のスコア範囲")
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(colors.accent.opacity(0.08))
-                    )
+                } icon: {
+                    Image(systemName: "ruler")
+                        .foregroundStyle(colors.accent)
+                }
 
-                    // 範囲選択メニュー
-                    Menu {
+                Spacer()
+
+                // Simple menu: recommended (1-10) prominently, others in submenu
+                Menu {
+                    // Recommended default
+                    Button {
+                        if scoreRangeRaw != ScoreRange.pos10.rawValue {
+                            pendingScoreRange = .pos10
+                            showRangeChangeAlert = true
+                        }
+                    } label: {
+                        HStack {
+                            Text("1〜10")
+                            Text(String(localized: "おすすめ"))
+                            if scoreRangeRaw == ScoreRange.pos10.rawValue {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    // Other ranges in submenu
+                    Menu(String(localized: "その他の範囲")) {
                         Section(String(localized: "正のみ")) {
-                            ForEach(ScoreRange.positiveRanges) { range in
+                            ForEach(ScoreRange.positiveRanges.filter { $0 != .pos10 }) { range in
                                 Button {
                                     if range.rawValue != scoreRangeRaw {
                                         pendingScoreRange = range
@@ -218,13 +238,11 @@ struct SettingsView: View {
                                 } label: {
                                     HStack {
                                         Text(range.displayName)
-                                        Text(range.description)
                                         if range.rawValue == scoreRangeRaw {
                                             Image(systemName: "checkmark")
                                         }
                                     }
                                 }
-                                .disabled(range.rawValue == scoreRangeRaw)
                             }
                         }
                         Section(String(localized: "負あり")) {
@@ -237,46 +255,23 @@ struct SettingsView: View {
                                 } label: {
                                     HStack {
                                         Text(range.displayName)
-                                        Text(range.description)
                                         if range.rawValue == scoreRangeRaw {
                                             Image(systemName: "checkmark")
                                         }
                                     }
                                 }
-                                .disabled(range.rawValue == scoreRangeRaw)
                             }
                         }
-                    } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: "arrow.up.arrow.down")
-                                .font(.system(.title3, design: .rounded, weight: .semibold))
-                            Text("変更")
-                                .font(.system(.caption, design: .rounded, weight: .medium))
-                        }
-                        .foregroundStyle(colors.accent)
-                        .frame(width: 60, height: 60)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(colors.accent.opacity(0.08))
-                        )
                     }
+                } label: {
+                    Text(String(localized: "変更"))
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(colors.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(colors.accent.opacity(0.1)))
                 }
-
-                // 注意書き
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "info.circle.fill")
-                        .font(.system(.caption))
-                        .foregroundStyle(.orange)
-                        .padding(.top, 1)
-
-                    Text("スコア範囲の変更は今後の記録に適用されます。過去の記録は元の範囲のまま保持され、グラフ上では自動的にスケーリングされます。")
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 4)
             }
-            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
 
             // 入力方式Picker（ボタン数が多すぎる場合はスライダー強制のため非表示）
             if (currentScoreRange.maxValue - currentScoreRange.minValue + 1) <= 31 {
