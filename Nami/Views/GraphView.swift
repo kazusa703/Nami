@@ -6,9 +6,9 @@
 //  Based on user requests and design standards.
 //
 
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 // MARK: - Enums & Constants
 
@@ -29,7 +29,9 @@ enum DateSelectionMode: String, CaseIterable, Identifiable {
     case week = "週"
     case month = "月"
     case year = "年"
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 }
 
 // MARK: - Helper Functions (Date & Data Processing)
@@ -70,15 +72,26 @@ func filteredEntries(entries: [MoodEntry], mode: DateSelectionMode, targetDate: 
 struct DailyData: Identifiable {
     let date: Date
     let entries: [MoodEntry]
-    var id: Date { date }
+    var id: Date {
+        date
+    }
 
     var average: Double? {
         guard !entries.isEmpty else { return nil }
         return entries.map { Double($0.score) }.reduce(0, +) / Double(entries.count)
     }
-    var minScore: Int? { entries.map(\.score).min() }
-    var maxScore: Int? { entries.map(\.score).max() }
-    var count: Int { entries.count }
+
+    var minScore: Int? {
+        entries.map(\.score).min()
+    }
+
+    var maxScore: Int? {
+        entries.map(\.score).max()
+    }
+
+    var count: Int {
+        entries.count
+    }
 }
 
 struct PlotDay: Identifiable {
@@ -88,7 +101,9 @@ struct PlotDay: Identifiable {
     let maxScore: Int
     let count: Int
     let segmentId: Int
-    var id: Date { date }
+    var id: Date {
+        date
+    }
 }
 
 func buildPlotDays(from daily: [DailyData]) -> [PlotDay] {
@@ -150,7 +165,7 @@ func yAxisDomain(min: Int, max: Int) -> ClosedRange<Double> {
     let gap = Swift.max(Double(max - min) * 0.05, 0.5)
     let lower: Double = min >= 0 ? -gap : rawLower
     let upper = Double(max) + padding
-    return lower...upper
+    return lower ... upper
 }
 
 func smartYAxisValues(min: Int, max: Int) -> [Int] {
@@ -159,11 +174,11 @@ func smartYAxisValues(min: Int, max: Int) -> [Int] {
 
     let step: Int
     switch range {
-    case 0...10:   step = 2
-    case 11...20:  step = 5
-    case 21...50:  step = 10
-    case 51...100: step = 25
-    default:       step = 50
+    case 0 ... 10: step = 2
+    case 11 ... 20: step = 5
+    case 21 ... 50: step = 10
+    case 51 ... 100: step = 25
+    default: step = 50
     }
 
     var values: [Int] = []
@@ -172,7 +187,7 @@ func smartYAxisValues(min: Int, max: Int) -> [Int] {
         values.append(v)
         v += step
     }
-    if min < 0 && max > 0 && !values.contains(0) {
+    if min < 0, max > 0, !values.contains(0) {
         values.append(0)
         values.sort()
     }
@@ -188,22 +203,22 @@ struct MonthYearPicker: View {
     private let cal = Calendar.current
 
     init(date: Binding<Date>) {
-        self._date = date
-        self._selectedYear = State(initialValue: cal.component(.year, from: date.wrappedValue))
-        self._selectedMonth = State(initialValue: cal.component(.month, from: date.wrappedValue))
+        _date = date
+        _selectedYear = State(initialValue: cal.component(.year, from: date.wrappedValue))
+        _selectedMonth = State(initialValue: cal.component(.month, from: date.wrappedValue))
     }
 
     var body: some View {
         let currentYear = cal.component(.year, from: Date())
         HStack {
             Picker("年", selection: $selectedYear) {
-                ForEach((currentYear - 10)...(currentYear + 5), id: \.self) { year in
+                ForEach((currentYear - 10) ... (currentYear + 5), id: \.self) { year in
                     Text("\(String(format: "%d", year))年").tag(year)
                 }
             }.pickerStyle(.wheel)
 
             Picker("月", selection: $selectedMonth) {
-                ForEach(1...12, id: \.self) { month in
+                ForEach(1 ... 12, id: \.self) { month in
                     Text("\(month)月").tag(month)
                 }
             }.pickerStyle(.wheel)
@@ -225,14 +240,14 @@ struct YearPicker: View {
     private let cal = Calendar.current
 
     init(date: Binding<Date>) {
-        self._date = date
-        self._selectedYear = State(initialValue: cal.component(.year, from: date.wrappedValue))
+        _date = date
+        _selectedYear = State(initialValue: cal.component(.year, from: date.wrappedValue))
     }
 
     var body: some View {
         let currentYear = cal.component(.year, from: Date())
         Picker("年", selection: $selectedYear) {
-            ForEach((currentYear - 10)...(currentYear + 5), id: \.self) { year in
+            ForEach((currentYear - 10) ... (currentYear + 5), id: \.self) { year in
                 Text("\(String(format: "%d", year))年").tag(year)
             }
         }
@@ -256,8 +271,8 @@ struct WeekCalendarPicker: View {
     }()
 
     init(date: Binding<Date>) {
-        self._date = date
-        self._displayMonth = State(initialValue: date.wrappedValue)
+        _date = date
+        _displayMonth = State(initialValue: date.wrappedValue)
     }
 
     private var monthStart: Date {
@@ -269,11 +284,13 @@ struct WeekCalendarPicker: View {
         let leadingBlanks = (firstWeekday + 5) % 7
         var days: [Date?] = Array(repeating: nil, count: leadingBlanks)
         let range = cal.range(of: .day, in: .month, for: monthStart)!
-        for d in 1...range.count {
+        for d in 1 ... range.count {
             days.append(cal.date(byAdding: .day, value: d - 1, to: monthStart))
         }
-        while days.count % 7 != 0 { days.append(nil) }
-        return stride(from: 0, to: days.count, by: 7).map { Array(days[$0..<$0+7]) }
+        while days.count % 7 != 0 {
+            days.append(nil)
+        }
+        return stride(from: 0, to: days.count, by: 7).map { Array(days[$0 ..< $0 + 7]) }
     }
 
     private var selectedWeekStart: Date {
@@ -281,11 +298,12 @@ struct WeekCalendarPicker: View {
         let offset = (wd + 5) % 7
         return cal.date(byAdding: .day, value: -offset, to: cal.startOfDay(for: date))!
     }
+
     private var selectedWeekEnd: Date {
         cal.date(byAdding: .day, value: 6, to: selectedWeekStart)!
     }
 
-    private let weekdayLabels = ["月","火","水","木","金","土","日"]
+    private let weekdayLabels = ["月", "火", "水", "木", "金", "土", "日"]
     private let colCount = 7
 
     var body: some View {
@@ -318,7 +336,7 @@ struct WeekCalendarPicker: View {
                         }
 
                         HStack(spacing: 0) {
-                            ForEach(0..<colCount, id: \.self) { ci in
+                            ForEach(0 ..< colCount, id: \.self) { ci in
                                 if let day = week[ci] {
                                     let isSelected = cal.isDate(day, equalTo: date, toGranularity: .day)
                                     Button {
@@ -353,6 +371,78 @@ struct WeekCalendarPicker: View {
     }
 }
 
+/// Unified wheel picker for all date selection modes
+struct UnifiedDatePicker: View {
+    let mode: DateSelectionMode
+    @Binding var date: Date
+
+    @State private var selectedYear: Int
+    @State private var selectedMonth: Int
+    @State private var selectedDay: Int
+
+    private let cal = Calendar.current
+
+    init(mode: DateSelectionMode, date: Binding<Date>) {
+        self.mode = mode
+        _date = date
+        let d = date.wrappedValue
+        let cal = Calendar.current
+        _selectedYear = State(initialValue: cal.component(.year, from: d))
+        _selectedMonth = State(initialValue: cal.component(.month, from: d))
+        _selectedDay = State(initialValue: cal.component(.day, from: d))
+    }
+
+    private var currentYear: Int {
+        cal.component(.year, from: Date())
+    }
+
+    private var daysInMonth: Int {
+        let comps = DateComponents(year: selectedYear, month: selectedMonth)
+        guard let monthDate = cal.date(from: comps),
+              let range = cal.range(of: .day, in: .month, for: monthDate) else { return 31 }
+        return range.count
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Picker("年", selection: $selectedYear) {
+                ForEach((currentYear - 10) ... (currentYear + 1), id: \.self) { year in
+                    Text("\(String(format: "%d", year))年").tag(year)
+                }
+            }
+            .pickerStyle(.wheel)
+
+            if mode != .year {
+                Picker("月", selection: $selectedMonth) {
+                    ForEach(1 ... 12, id: \.self) { month in
+                        Text("\(month)月").tag(month)
+                    }
+                }
+                .pickerStyle(.wheel)
+            }
+
+            if mode == .day || mode == .week {
+                Picker("日", selection: $selectedDay) {
+                    ForEach(1 ... daysInMonth, id: \.self) { day in
+                        Text("\(day)日").tag(day)
+                    }
+                }
+                .pickerStyle(.wheel)
+            }
+        }
+        .onChange(of: selectedYear) { _, _ in updateDate() }
+        .onChange(of: selectedMonth) { _, _ in updateDate() }
+        .onChange(of: selectedDay) { _, _ in updateDate() }
+    }
+
+    private func updateDate() {
+        let clampedDay = min(selectedDay, daysInMonth)
+        let day = (mode == .day || mode == .week) ? clampedDay : 1
+        if let newDate = cal.date(from: DateComponents(year: selectedYear, month: selectedMonth, day: day)) {
+            date = newDate
+        }
+    }
+}
 
 struct DateSelectorSheet: View {
     @Binding var dateMode: DateSelectionMode
@@ -363,10 +453,10 @@ struct DateSelectorSheet: View {
     @State private var tempDate: Date
 
     init(dateMode: Binding<DateSelectionMode>, targetDate: Binding<Date>) {
-        self._dateMode = dateMode
-        self._targetDate = targetDate
-        self._tempMode = State(initialValue: dateMode.wrappedValue)
-        self._tempDate = State(initialValue: targetDate.wrappedValue)
+        _dateMode = dateMode
+        _targetDate = targetDate
+        _tempMode = State(initialValue: dateMode.wrappedValue)
+        _tempDate = State(initialValue: targetDate.wrappedValue)
     }
 
     var body: some View {
@@ -382,17 +472,7 @@ struct DateSelectorSheet: View {
                 }
 
                 Section(header: Text("対象の期間")) {
-                    switch tempMode {
-                    case .day:
-                        DatePicker("日付を選択", selection: $tempDate, displayedComponents: .date)
-                            .datePickerStyle(.graphical)
-                    case .week:
-                        WeekCalendarPicker(date: $tempDate)
-                    case .month:
-                        MonthYearPicker(date: $tempDate)
-                    case .year:
-                        YearPicker(date: $tempDate)
-                    }
+                    UnifiedDatePicker(mode: tempMode, date: $tempDate)
                 }
             }
             .navigationTitle("期間の設定")
@@ -477,6 +557,7 @@ struct GraphView: View {
                         Spacer()
                     } else if let day = selectedDay {
                         // MARK: 日詳細モード
+
                         controlBar(colors: colors)
                         ScrollView {
                             VStack(spacing: 16) {
@@ -504,6 +585,7 @@ struct GraphView: View {
                         }
                     } else if graphMode == .heatmap {
                         // MARK: ヒートマップモード
+
                         controlBar(colors: colors)
                         ScrollView {
                             YearInPixelsView(entries: entries, themeColors: colors)
@@ -511,6 +593,7 @@ struct GraphView: View {
                         }
                     } else {
                         // MARK: 通常グラフモード（折れ線）
+
                         controlBar(colors: colors)
 
                         Group {
@@ -606,10 +689,10 @@ struct GraphView: View {
 
         let tolerance: TimeInterval
         switch dateMode {
-        case .day:   tolerance = 3600 * 2
-        case .week:  tolerance = 86400
+        case .day: tolerance = 3600 * 2
+        case .week: tolerance = 86400
         case .month: tolerance = 86400 * 3
-        case .year:  tolerance = 86400 * 15
+        case .year: tolerance = 86400 * 15
         }
 
         if let closest, abs(closest.createdAt.timeIntervalSince(date)) < tolerance {
@@ -826,7 +909,7 @@ struct GraphView: View {
         case .week:
             let range = periodRange(mode: .week, targetDate: targetDate)
             let startYear = cal.component(.year, from: range.start)
-            let endYear   = cal.component(.year, from: range.end)
+            let endYear = cal.component(.year, from: range.end)
             if startYear != endYear {
                 f.dateFormat = "yyyy/M/d"
             } else {
@@ -891,7 +974,7 @@ struct GraphView: View {
             }
         }
         .chartXSelection(value: $rawSelectedDate)
-        .chartXScale(domain: range.start...range.end)
+        .chartXScale(domain: range.start ... range.end)
         .chartYScale(domain: yDomain)
         .chartXAxis {
             AxisMarks(values: .stride(by: .hour, count: 3)) { _ in
@@ -964,7 +1047,7 @@ struct GraphView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
         }
-        .chartXScale(domain: range.start...range.end)
+        .chartXScale(domain: range.start ... range.end)
         .chartYScale(domain: yDomain)
         .chartXAxis {
             if dateMode == .week {
@@ -1061,7 +1144,7 @@ struct GraphView: View {
                 }
             }
             .chartXSelection(value: $rawSelectedDate)
-            .chartXScale(domain: dayStart...dayEnd)
+            .chartXScale(domain: dayStart ... dayEnd)
             .chartYScale(domain: yDomain)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .hour, count: 4)) { _ in
@@ -1084,7 +1167,6 @@ struct GraphView: View {
 
     // MARK: - View Components (Rows & States)
 
-    @ViewBuilder
     private func dayEntryRow(entry: MoodEntry, colors: ThemeColors) -> some View {
         HStack(spacing: 12) {
             Text("\(entry.score)")
@@ -1135,7 +1217,6 @@ struct GraphView: View {
         .background(RoundedRectangle(cornerRadius: 16).fill(Color(.secondarySystemGroupedBackground)))
     }
 
-    @ViewBuilder
     private func emptyStateView(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
             Image(systemName: "chart.xyaxis.line")
@@ -1161,7 +1242,6 @@ struct GraphView: View {
         .padding()
     }
 
-    @ViewBuilder
     private func entryDetailCard(entry: MoodEntry, colors: ThemeColors) -> some View {
         VStack(spacing: 16) {
             HStack {
@@ -1267,13 +1347,13 @@ struct FullscreenChartView: View {
 
     init(graphMode: GraphMode, dateMode: DateSelectionMode, targetDate: Date, onDismiss: @escaping () -> Void) {
         self.graphMode = graphMode
-        self.initialDateMode = dateMode
+        initialDateMode = dateMode
         self.targetDate = targetDate
         self.onDismiss = onDismiss
 
         let range = periodRange(mode: dateMode, targetDate: targetDate)
-        self._domainStart = State(initialValue: range.start)
-        self._domainEnd   = State(initialValue: range.end)
+        _domainStart = State(initialValue: range.start)
+        _domainEnd = State(initialValue: range.end)
     }
 
     private var visibleDuration: TimeInterval {
@@ -1287,7 +1367,7 @@ struct FullscreenChartView: View {
     var body: some View {
         let colors = themeManager.colors
         let yValues = smartYAxisValues(min: currentMinScore, max: currentMaxScore)
-        let yDomain  = yAxisDomain(min: currentMinScore, max: currentMaxScore)
+        let yDomain = yAxisDomain(min: currentMinScore, max: currentMaxScore)
 
         ZStack {
             colors.backgroundGradient(for: colorScheme).ignoresSafeArea()
@@ -1308,7 +1388,7 @@ struct FullscreenChartView: View {
                                 let center = domainCenter
                                 withAnimation(.easeInOut(duration: 0.25)) {
                                     domainStart = center.addingTimeInterval(-newDur / 2)
-                                    domainEnd   = center.addingTimeInterval( newDur / 2)
+                                    domainEnd = center.addingTimeInterval(newDur / 2)
                                 }
                             } label: {
                                 Image(systemName: "plus.magnifyingglass")
@@ -1320,7 +1400,7 @@ struct FullscreenChartView: View {
                                 let center = domainCenter
                                 withAnimation(.easeInOut(duration: 0.25)) {
                                     domainStart = center.addingTimeInterval(-newDur / 2)
-                                    domainEnd   = center.addingTimeInterval( newDur / 2)
+                                    domainEnd = center.addingTimeInterval(newDur / 2)
                                 }
                             } label: {
                                 Image(systemName: "minus.magnifyingglass")
@@ -1411,7 +1491,7 @@ struct FullscreenChartView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
         }
-        .chartXScale(domain: domainStart...domainEnd)
+        .chartXScale(domain: domainStart ... domainEnd)
         .chartYScale(domain: yDomain)
         .chartYAxis {
             AxisMarks(values: yValues) { _ in
@@ -1479,7 +1559,7 @@ struct FullscreenChartView: View {
         .chartOverlay { proxy in
             GeometryReader { geo in
                 let plotOriginX: CGFloat = proxy.plotFrame.map { geo[$0].origin.x } ?? 0
-                let plotWidth: CGFloat   = proxy.plotFrame.map { geo[$0].width }   ?? geo.size.width
+                let plotWidth: CGFloat = proxy.plotFrame.map { geo[$0].width } ?? geo.size.width
 
                 Color.clear.contentShape(Rectangle())
                     .onTapGesture { location in
@@ -1506,7 +1586,7 @@ struct FullscreenChartView: View {
                                 let secsPerPixel = duration / Double(max(plotWidth, 1))
                                 let offset = Double(-value.translation.width) * secsPerPixel
                                 domainStart = s.addingTimeInterval(offset)
-                                domainEnd   = e.addingTimeInterval(offset)
+                                domainEnd = e.addingTimeInterval(offset)
                             }
                             .onEnded { _ in dragAnchor = nil }
                     )
@@ -1519,7 +1599,7 @@ struct FullscreenChartView: View {
                                 var newDur = e.timeIntervalSince(s) / value.magnification
                                 newDur = max(minZoom, min(maxZoom, newDur))
                                 domainStart = center.addingTimeInterval(-newDur / 2)
-                                domainEnd   = center.addingTimeInterval(newDur / 2)
+                                domainEnd = center.addingTimeInterval(newDur / 2)
                             }
                             .onEnded { _ in pinchAnchor = nil }
                     )
@@ -1529,7 +1609,6 @@ struct FullscreenChartView: View {
         .padding(.horizontal)
     }
 
-    @ViewBuilder
     private func fullscreenDetailCard(entry: MoodEntry, colors: ThemeColors) -> some View {
         HStack(spacing: 16) {
             Text("\(entry.score)")
