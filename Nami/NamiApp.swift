@@ -111,6 +111,11 @@ struct NamiApp: App {
                     WatchConnectivityManager.shared.activate()
 
                     // Google Mobile Ads SDK の初期化
+                    #if DEBUG
+                        // Print test device ID to console for AdMob test device registration
+                        // Check Xcode console for: "To get test ads on this device, set..."
+                        MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["GADSimulatorID"]
+                    #endif
                     _ = await MobileAds.shared.start()
 
                     // ATT（App Tracking Transparency）許可リクエスト

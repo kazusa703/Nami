@@ -422,18 +422,32 @@ struct StatsView: View {
     /// インサイトキャッシュを再構築する
     private func rebuildInsightCaches() {
         var insights = InsightEngine.generate(from: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
-        // Add HealthKit correlation insights if available
+        // Add HealthKit correlation insights with personal thresholds
         if healthKitManager.isEnabled {
-            let hkInsights = InsightEngine.healthKitInsights(
-                stepsCorrelation: healthCorrelations.steps,
-                sleepCorrelation: healthCorrelations.sleep,
-                heartRateCorrelation: healthCorrelations.heartRate
-            )
-            insights.append(contentsOf: hkInsights)
+            let cachedMetricsArray = Array(healthKitManager.cachedMetrics.values)
+            if !cachedMetricsArray.isEmpty {
+                let hkInsights = InsightEngine.healthKitInsights(
+                    entries: entries,
+                    metrics: cachedMetricsArray,
+                    currentMax: currentMaxScore,
+                    currentMin: currentMinScore
+                )
+                insights.append(contentsOf: hkInsights)
+            } else {
+                // Fallback to legacy correlation-based insights
+                let hkInsights = InsightEngine.healthKitInsights(
+                    stepsCorrelation: healthCorrelations.steps,
+                    sleepCorrelation: healthCorrelations.sleep,
+                    heartRateCorrelation: healthCorrelations.heartRate
+                )
+                insights.append(contentsOf: hkInsights)
+            }
             insights.sort { $0.priority > $1.priority }
             insights = Array(insights.prefix(InsightEngine.maxDisplayCards))
         }
         cachedInsights = insights
+        // Mark as viewed for evolving text
+        InsightEngine.markInsightsAsViewed(insights)
         cachedPremiumInsights = InsightEngine.generatePremium(from: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
     }
 

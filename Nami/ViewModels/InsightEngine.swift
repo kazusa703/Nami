@@ -14,10 +14,10 @@ import SwiftUI
 
 /// インサイトカードの感情トーン（色分け用）
 enum InsightTone {
-    case positive    // ポジティブな発見（緑系）
-    case caution     // 注意喚起（オレンジ系）
-    case neutral     // ニュートラルな観察（青系）
-    case discovery   // 新しい発見（紫系）
+    case positive // ポジティブな発見（緑系）
+    case caution // 注意喚起（オレンジ系）
+    case neutral // ニュートラルな観察（青系）
+    case discovery // 新しい発見（紫系）
 
     var color: Color {
         switch self {
@@ -33,12 +33,12 @@ enum InsightTone {
 
 /// 表示用インサイトカード
 struct InsightCard: Identifiable {
-    let id: String         // 同一インサイトの重複防止 + ローテーション用
-    let icon: String       // SF Symbols
+    let id: String // 同一インサイトの重複防止 + ローテーション用
+    let icon: String // SF Symbols
     let tone: InsightTone
-    let title: String      // 短いタイトル（例: "水曜日の傾向"）
-    let body: String       // 本文（問いかけ形式、断定しすぎない）
-    let priority: Double   // 0.0〜1.0（高いほど優先表示）
+    let title: String // 短いタイトル（例: "水曜日の傾向"）
+    let body: String // 本文（問いかけ形式、断定しすぎない）
+    let priority: Double // 0.0〜1.0（高いほど優先表示）
 }
 
 // MARK: - インサイトエンジン
@@ -46,7 +46,6 @@ struct InsightCard: Identifiable {
 /// データからパーソナルインサイトを自動生成するエンジン
 /// 各インサイトタイプの条件チェック → 計算 → 優先度スコア算出 → 上位3-5枚を返す
 enum InsightEngine {
-
     // MARK: - しきい値定数（インサイトタイプごとの最低サンプル数）
 
     /// 全体の最低エントリ数（これ未満ならインサイト非表示）
@@ -67,6 +66,41 @@ enum InsightEngine {
     static let minimumWeekendSamples = 5
     /// 表示するインサイトの最大数
     static let maxDisplayCards = 5
+
+    // MARK: - Insight View Count Tracking
+
+    /// Tracks how many times each insight has been shown
+    private static var insightViewCounts: [String: Int] {
+        get {
+            (UserDefaults.standard.dictionary(forKey: "insightViewCounts") as? [String: Int]) ?? [:]
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "insightViewCounts")
+        }
+    }
+
+    /// Increment view count for displayed insights.
+    /// NOTE: Call this from StatsView when insights are displayed to the user.
+    static func markInsightsAsViewed(_ insights: [InsightCard]) {
+        var counts = insightViewCounts
+        for insight in insights {
+            counts[insight.id, default: 0] += 1
+        }
+        insightViewCounts = counts
+    }
+
+    // MARK: - Question/Discovery Alternating Styles
+
+    enum InsightStyle { case statement, question, comparison }
+
+    private static func styleForDay(_ cardId: String, daysSinceEpoch: Int) -> InsightStyle {
+        let hash = (cardId.hashValue &+ daysSinceEpoch) & 0x7FFF_FFFF
+        switch hash % 3 {
+        case 0: return .statement
+        case 1: return .question
+        default: return .comparison
+        }
+    }
 
     // MARK: - メイン生成メソッド
 
@@ -98,14 +132,20 @@ enum InsightEngine {
         candidates.append(contentsOf: thresholdBreakInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
         candidates.append(contentsOf: predictionDeviationInsight(entries: entries, currentMax: currentMax, currentMin: currentMin))
 
+        // Monthly gold card (rare, always shown first if present)
+        if let gold = monthlyGoldInsight(from: entries, currentMax: currentMax, currentMin: currentMin) {
+            candidates.append(gold)
+        }
+
         // 日付ベースのローテーションを適用して上位N枚を返す
         return applyRotation(candidates: candidates)
     }
 
     // MARK: - 1. 曜日別インサイト（落ち込み / ピーク）
 
-    private static func weekdayInsights(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func weekdayInsights(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
+        let daysSinceEpoch = Int(Date.now.timeIntervalSince1970 / 86400)
         var grouped: [Int: [Double]] = [:]
 
         for entry in entries {
@@ -120,33 +160,80 @@ enum InsightEngine {
         let weekdayNames = [""] + calendar.shortWeekdaySymbols
         var results: [InsightCard] = []
 
-        // 最も低い曜日
+        // Lowest weekday - with evolving text based on view count
         if let (lowDay, lowScores) = validDays.min(by: { avg($0.value) < avg($1.value) }) {
             let deviation = overallAvg - avg(lowScores)
             if deviation > 0.08 {
                 let scaledDiff = deviation * Double(currentMax - 1)
+                let name = weekdayNames[lowDay]
+                let cardId = "weekday_low_\(lowDay)"
+                let viewCount = insightViewCounts[cardId] ?? 0
+                let style = styleForDay(cardId, daysSinceEpoch: daysSinceEpoch)
+
+                let body: String
+                switch viewCount {
+                case 0:
+                    // First time: standard statement
+                    body = String(localized: "\(name)曜日は気分が下がりやすい傾向があります（平均 \(fmt(scaledDiff))pt 低い）。")
+                case 1:
+                    body = String(localized: "また\(name)曜日ですね。先週の\(name)曜も低めでした。何か共通点はありますか？")
+                case 2:
+                    body = String(localized: "\(name)曜日の低下パターンが続いています。\(name)曜に小さなご褒美を入れてみては？")
+                default:
+                    body = String(localized: "\(name)曜日の傾向は変わらず（平均 \(fmt(scaledDiff))pt 低い）。曜日を意識するだけでも変化のきっかけになります。")
+                }
+
+                // Apply style variation for non-first views
+                let styledBody: String
+                if viewCount == 0 {
+                    styledBody = body
+                } else {
+                    switch style {
+                    case .statement:
+                        styledBody = body
+                    case .question:
+                        styledBody = String(localized: "\(name)曜日が低めなのはなぜだと思いますか？（平均 \(fmt(scaledDiff))pt 低い）")
+                    case .comparison:
+                        styledBody = String(localized: "\(name)曜日 vs 他の曜日：\(fmt(scaledDiff))ptの差があります。")
+                    }
+                }
+
                 results.append(InsightCard(
-                    id: "weekday_low_\(lowDay)",
+                    id: cardId,
                     icon: "calendar.badge.minus",
                     tone: .caution,
-                    title: String(localized: "\(weekdayNames[lowDay])曜日の傾向"),
-                    body: String(localized: "\(weekdayNames[lowDay])曜日は気分が下がりやすい傾向があります（平均 \(fmt(scaledDiff))pt 低い）。この日に小さなご褒美を入れてみては？"),
+                    title: String(localized: "\(name)曜日の傾向"),
+                    body: styledBody,
                     priority: min(deviation * 5, 0.9)
                 ))
             }
         }
 
-        // 最も高い曜日
+        // Highest weekday - with style variations
         if let (highDay, highScores) = validDays.max(by: { avg($0.value) < avg($1.value) }) {
             let deviation = avg(highScores) - overallAvg
             if deviation > 0.08 {
                 let scaledDiff = deviation * Double(currentMax - 1)
+                let name = weekdayNames[highDay]
+                let cardId = "weekday_high_\(highDay)"
+                let style = styleForDay(cardId, daysSinceEpoch: daysSinceEpoch)
+
+                let body: String
+                switch style {
+                case .statement:
+                    body = String(localized: "\(name)曜日はスコアが平均 +\(fmt(scaledDiff))。この日に何か良い習慣がありますか？")
+                case .question:
+                    body = String(localized: "\(name)曜日が好調なのはなぜでしょう？（平均 +\(fmt(scaledDiff))）")
+                case .comparison:
+                    body = String(localized: "\(name)曜日は他の曜日より+\(fmt(scaledDiff))高いです。")
+                }
+
                 results.append(InsightCard(
-                    id: "weekday_high_\(highDay)",
+                    id: cardId,
                     icon: "calendar.badge.plus",
                     tone: .positive,
-                    title: String(localized: "\(weekdayNames[highDay])曜日が好調"),
-                    body: String(localized: "\(weekdayNames[highDay])曜日はスコアが平均 +\(fmt(scaledDiff))。この日に何か良い習慣がありますか？"),
+                    title: String(localized: "\(name)曜日が好調"),
+                    body: body,
                     priority: min(deviation * 4, 0.85)
                 ))
             }
@@ -157,19 +244,20 @@ enum InsightEngine {
 
     // MARK: - 2. タグ翌日効果インサイト
 
-    private static func tagNextDayInsights(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func tagNextDayInsights(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
+        let daysSinceEpoch = Int(Date.now.timeIntervalSince1970 / 86400)
         let sorted = entries.sorted { $0.createdAt < $1.createdAt }
         let overallNorm = avg(sorted.map(\.normalizedScore))
 
-        // 日別にグルーピング
+        // Group by day
         var dayEntries: [Date: [MoodEntry]] = [:]
         for entry in sorted {
             let day = calendar.startOfDay(for: entry.createdAt)
             dayEntries[day, default: []].append(entry)
         }
 
-        // タグごとに翌日スコアを集計
+        // Collect next-day scores per tag
         var tagNextDayNorm: [String: [Double]] = [:]
         let allDays = dayEntries.keys.sorted()
 
@@ -192,33 +280,69 @@ enum InsightEngine {
             let deltaScaled = deltaNorm * Double(currentMax - 1)
 
             if deltaNorm > 0.06 {
+                let cardId = "tag_nextday_pos_\(tag)"
+                let viewCount = insightViewCounts[cardId] ?? 0
+                let style = styleForDay(cardId, daysSinceEpoch: daysSinceEpoch)
+
+                let body: String
+                if viewCount == 0 {
+                    body = String(localized: "「\(tag)」の翌日、スコアが平均 +\(fmt(deltaScaled))。あなたの気分に良い影響を与えているようです。")
+                } else {
+                    switch style {
+                    case .statement:
+                        body = String(localized: "「\(tag)」の翌日、スコアが平均 +\(fmt(deltaScaled))。")
+                    case .question:
+                        body = String(localized: "「\(tag)」の後に気分が上がるのはなぜだと思いますか？（平均 +\(fmt(deltaScaled))）")
+                    case .comparison:
+                        body = String(localized: "「\(tag)」ありの翌日 vs なしの翌日：+\(fmt(deltaScaled))の差があります")
+                    }
+                }
+
                 results.append(InsightCard(
-                    id: "tag_nextday_pos_\(tag)",
+                    id: cardId,
                     icon: "arrow.up.heart.fill",
                     tone: .positive,
                     title: String(localized: "「\(tag)」の翌日効果"),
-                    body: String(localized: "「\(tag)」の翌日、スコアが平均 +\(fmt(deltaScaled))。あなたの気分に良い影響を与えているようです。"),
+                    body: body,
                     priority: min(deltaNorm * 6, 0.95)
                 ))
             } else if deltaNorm < -0.06 {
+                let cardId = "tag_nextday_neg_\(tag)"
+                let viewCount = insightViewCounts[cardId] ?? 0
+                let style = styleForDay(cardId, daysSinceEpoch: daysSinceEpoch)
+
+                let body: String
+                if viewCount == 0 {
+                    body = String(localized: "「\(tag)」の翌日はスコアが平均 \(fmt(deltaScaled))。回復のための工夫を試してみては？")
+                } else {
+                    switch style {
+                    case .statement:
+                        body = String(localized: "「\(tag)」の翌日はスコアが平均 \(fmt(deltaScaled))。")
+                    case .question:
+                        body = String(localized: "「\(tag)」の後に気分が下がるのはなぜでしょう？（平均 \(fmt(deltaScaled))）")
+                    case .comparison:
+                        body = String(localized: "「\(tag)」ありの翌日 vs なしの翌日：\(fmt(deltaScaled))の差があります")
+                    }
+                }
+
                 results.append(InsightCard(
-                    id: "tag_nextday_neg_\(tag)",
+                    id: cardId,
                     icon: "arrow.down.heart.fill",
                     tone: .caution,
                     title: String(localized: "「\(tag)」の翌日"),
-                    body: String(localized: "「\(tag)」の翌日はスコアが平均 \(fmt(deltaScaled))。回復のための工夫を試してみては？"),
+                    body: body,
                     priority: min(abs(deltaNorm) * 5, 0.9)
                 ))
             }
         }
 
-        // 最も効果の大きいもの上位2件
+        // Top 2 by priority
         return Array(results.sorted { $0.priority > $1.priority }.prefix(2))
     }
 
     // MARK: - 3. ボラティリティ変化インサイト
 
-    private static func volatilityInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func volatilityInsight(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
         let sorted = entries.sorted { $0.createdAt < $1.createdAt }
 
@@ -280,8 +404,9 @@ enum InsightEngine {
 
     // MARK: - 4. 時間帯インサイト
 
-    private static func timeOfDayInsights(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func timeOfDayInsights(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
+        let daysSinceEpoch = Int(Date.now.timeIntervalSince1970 / 86400)
         var grouped: [TimeOfDay: [Double]] = [:]
 
         for entry in entries {
@@ -295,20 +420,33 @@ enum InsightEngine {
 
         let overallAvg = avg(entries.map(\.normalizedScore))
 
-        // 最も低い時間帯
+        // Lowest time of day - with style variations
         if let (lowTod, lowScores) = validGroups.min(by: { avg($0.value) < avg($1.value) }) {
             let deviation = overallAvg - avg(lowScores)
             if deviation > 0.08 {
                 let scaledDiff = deviation * Double(currentMax - 1)
-                let advice = lowTod == .night
-                    ? String(localized: "疲れが出る時間帯かもしれません。")
-                    : String(localized: "この時間帯にリフレッシュを取り入れてみては？")
+                let cardId = "tod_low_\(lowTod.rawValue)"
+                let style = styleForDay(cardId, daysSinceEpoch: daysSinceEpoch)
+
+                let body: String
+                switch style {
+                case .statement:
+                    let advice = lowTod == .night
+                        ? String(localized: "疲れが出る時間帯かもしれません。")
+                        : String(localized: "この時間帯にリフレッシュを取り入れてみては？")
+                    body = String(localized: "\(lowTod.timeRange)のスコアが平均より \(fmt(scaledDiff))pt 低め。\(advice)")
+                case .question:
+                    body = String(localized: "\(lowTod.label)に気分が下がるのはなぜでしょう？（平均 \(fmt(scaledDiff))pt 低い）")
+                case .comparison:
+                    body = String(localized: "\(lowTod.label) vs 他の時間帯：\(fmt(scaledDiff))ptの差があります。")
+                }
+
                 return [InsightCard(
-                    id: "tod_low_\(lowTod.rawValue)",
+                    id: cardId,
                     icon: lowTod.icon,
                     tone: .caution,
                     title: String(localized: "\(lowTod.label)の傾向"),
-                    body: String(localized: "\(lowTod.timeRange)のスコアが平均より \(fmt(scaledDiff))pt 低め。\(advice)"),
+                    body: body,
                     priority: min(deviation * 4, 0.8)
                 )]
             }
@@ -341,16 +479,29 @@ enum InsightEngine {
             checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate)!
         }
 
-        // マイルストーン到達から3日間表示
+        // Show for 3 days after milestone - with evolving text
         let milestones = [7, 14, 21, 30, 50, 100, 200, 365]
         for milestone in milestones {
-            if streak >= milestone && streak < milestone + 3 {
+            if streak >= milestone, streak < milestone + 3 {
+                let cardId = "streak_\(milestone)"
+                let viewCount = insightViewCounts[cardId] ?? 0
+
+                let body: String
+                switch viewCount {
+                case 0:
+                    body = String(localized: "\(streak)日連続で記録を続けています。小さな習慣の積み重ねが、自己理解を深めています。")
+                case 1:
+                    body = String(localized: "\(streak)日目！前回の\(milestone)日達成時と比べて、気持ちの変化はありますか？")
+                default:
+                    body = String(localized: "\(streak)日連続。この習慣はもうあなたの一部ですね。")
+                }
+
                 return [InsightCard(
-                    id: "streak_\(milestone)",
+                    id: cardId,
                     icon: "flame.fill",
                     tone: .positive,
                     title: String(localized: "\(milestone)日達成！"),
-                    body: String(localized: "\(streak)日連続で記録を続けています。小さな習慣の積み重ねが、自己理解を深めています。"),
+                    body: body,
                     priority: 0.95
                 )]
             }
@@ -361,7 +512,7 @@ enum InsightEngine {
 
     // MARK: - 6. 週間トレンドインサイト
 
-    private static func weeklyTrendInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func weeklyTrendInsight(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
         guard let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: .now)?.start else { return [] }
         let lastWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart)!
@@ -378,17 +529,30 @@ enum InsightEngine {
         let delta = (thisAvgNorm - lastAvgNorm) * Double(currentMax - 1)
 
         if delta > 1.0 {
-            var body = String(localized: "今週は先週より平均 +\(fmt(delta))。")
-            if twoWeeksAgo.count >= 3 {
-                let twoWeeksAvgNorm = avg(twoWeeksAgo.map(\.normalizedScore))
-                body += lastAvgNorm > twoWeeksAvgNorm
-                    ? String(localized: "2週連続で上向いています。良い流れですね！")
-                    : String(localized: "先週からの回復が見られます。")
-            } else {
-                body += String(localized: "良い調子が続いているようです。")
+            let cardId = "weekly_up"
+            let viewCount = insightViewCounts[cardId] ?? 0
+
+            let body: String
+            switch viewCount {
+            case 0:
+                var text = String(localized: "今週は先週より平均 +\(fmt(delta))。")
+                if twoWeeksAgo.count >= 3 {
+                    let twoWeeksAvgNorm = avg(twoWeeksAgo.map(\.normalizedScore))
+                    text += lastAvgNorm > twoWeeksAvgNorm
+                        ? String(localized: "2週連続で上向いています。良い流れですね！")
+                        : String(localized: "先週からの回復が見られます。")
+                } else {
+                    text += String(localized: "良い調子が続いているようです。")
+                }
+                body = text
+            case 1:
+                body = String(localized: "先週に続き好調です（+\(fmt(delta))）。何が効いているか振り返ってみませんか？")
+            default:
+                body = String(localized: "今週も好調（+\(fmt(delta))）。この良い流れを言葉にしてみると、再現しやすくなります。")
             }
+
             return [InsightCard(
-                id: "weekly_up",
+                id: cardId,
                 icon: "chart.line.uptrend.xyaxis",
                 tone: .positive,
                 title: String(localized: "今週は好調"),
@@ -396,12 +560,25 @@ enum InsightEngine {
                 priority: min(delta / 5.0, 0.85)
             )]
         } else if delta < -1.0 {
+            let cardId = "weekly_down"
+            let viewCount = insightViewCounts[cardId] ?? 0
+
+            let body: String
+            switch viewCount {
+            case 0:
+                body = String(localized: "今週は先週より平均 \(fmt(delta))。無理せず、自分をいたわる時間を作ってみてください。")
+            case 1:
+                body = String(localized: "先週から少し低調が続いています（\(fmt(delta))）。小さな楽しみを予定に入れてみては？")
+            default:
+                body = String(localized: "今週は\(fmt(delta))。調子の波は自然なこと。焦らずいきましょう。")
+            }
+
             return [InsightCard(
-                id: "weekly_down",
+                id: cardId,
                 icon: "chart.line.downtrend.xyaxis",
                 tone: .neutral,
                 title: String(localized: "少しお疲れの週"),
-                body: String(localized: "今週は先週より平均 \(fmt(delta))。無理せず、自分をいたわる時間を作ってみてください。"),
+                body: body,
                 priority: min(abs(delta) / 5.0, 0.8)
             )]
         }
@@ -423,8 +600,8 @@ enum InsightEngine {
                 tagCounts[tag, default: 0] += 1
             }
             let sorted = entry.tags.sorted()
-            for i in 0..<sorted.count {
-                for j in (i + 1)..<sorted.count {
+            for i in 0 ..< sorted.count {
+                for j in (i + 1) ..< sorted.count {
                     pairs["\(sorted[i])|\(sorted[j])", default: 0] += 1
                 }
             }
@@ -482,8 +659,9 @@ enum InsightEngine {
 
     // MARK: - 9. 週末vs平日 インサイト
 
-    private static func weekendComparisonInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func weekendComparisonInsight(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
+        let daysSinceEpoch = Int(Date.now.timeIntervalSince1970 / 86400)
 
         let weekdayEntries = entries.filter {
             let wd = calendar.component(.weekday, from: $0.createdAt)
@@ -505,21 +683,47 @@ enum InsightEngine {
         guard abs(deltaScaled) > 0.8 else { return [] }
 
         if deltaScaled > 0 {
+            let cardId = "weekend_higher"
+            let style = styleForDay(cardId, daysSinceEpoch: daysSinceEpoch)
+
+            let body: String
+            switch style {
+            case .statement:
+                body = String(localized: "週末のスコアは平日より平均 +\(fmt(deltaScaled))。お休みの日がしっかりエネルギー回復になっているようです。")
+            case .question:
+                body = String(localized: "週末に気分が上がるのはなぜでしょう？（平日より +\(fmt(deltaScaled))）")
+            case .comparison:
+                body = String(localized: "週末 vs 平日：+\(fmt(deltaScaled))の差があります。")
+            }
+
             return [InsightCard(
-                id: "weekend_higher",
+                id: cardId,
                 icon: "sun.and.horizon.fill",
                 tone: .neutral,
                 title: String(localized: "週末がリフレッシュに"),
-                body: String(localized: "週末のスコアは平日より平均 +\(fmt(deltaScaled))。お休みの日がしっかりエネルギー回復になっているようです。"),
+                body: body,
                 priority: min(abs(deltaNorm) * 3, 0.7)
             )]
         } else {
+            let cardId = "weekday_higher"
+            let style = styleForDay(cardId, daysSinceEpoch: daysSinceEpoch)
+
+            let body: String
+            switch style {
+            case .statement:
+                body = String(localized: "意外にも平日のスコアが週末より +\(fmt(abs(deltaScaled)))。仕事や日常の活動がエネルギーになっているのかも？")
+            case .question:
+                body = String(localized: "平日の方が好調なのはなぜでしょう？（週末より +\(fmt(abs(deltaScaled)))）")
+            case .comparison:
+                body = String(localized: "平日 vs 週末：+\(fmt(abs(deltaScaled)))の差があります。")
+            }
+
             return [InsightCard(
-                id: "weekday_higher",
+                id: cardId,
                 icon: "briefcase.fill",
                 tone: .discovery,
                 title: String(localized: "平日が充実"),
-                body: String(localized: "意外にも平日のスコアが週末より +\(fmt(abs(deltaScaled)))。仕事や日常の活動がエネルギーになっているのかも？"),
+                body: body,
                 priority: min(abs(deltaNorm) * 3, 0.7)
             )]
         }
@@ -527,7 +731,7 @@ enum InsightEngine {
 
     // MARK: - 10. 記録頻度インサイト
 
-    private static func recordFrequencyInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func recordFrequencyInsight(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
         var dayEntries: [Date: [MoodEntry]] = [:]
         for entry in entries {
@@ -557,7 +761,6 @@ enum InsightEngine {
             priority: min((multiAvg - singleAvg) * 3, 0.7)
         )]
     }
-
 
     // MARK: - プレミアムインサイト生成
 
@@ -633,8 +836,8 @@ enum InsightEngine {
 
         // 各カードの優先度にシードベースのノイズ（±0.1）を加える
         let adjusted = candidates.map { card -> InsightCard in
-            let hash = (card.id.hashValue &+ daysSinceEpoch) & 0x7FFFFFFF
-            let noise = Double(hash % 100) / 1000.0  // 0.0〜0.099
+            let hash = (card.id.hashValue &+ daysSinceEpoch) & 0x7FFF_FFFF
+            let noise = Double(hash % 100) / 1000.0 // 0.0〜0.099
             return InsightCard(
                 id: card.id,
                 icon: card.icon,
@@ -677,7 +880,7 @@ enum InsightEngine {
             "rainy": String(localized: "雨"),
             "snowy": String(localized: "雪"),
             "stormy": String(localized: "嵐"),
-            "foggy": String(localized: "霧")
+            "foggy": String(localized: "霧"),
         ]
 
         var results: [InsightCard] = []
@@ -711,7 +914,7 @@ enum InsightEngine {
 
     // MARK: - 12. エネルギー×気分インサイト
 
-    private static func energyMoodInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func energyMoodInsight(entries: [MoodEntry], currentMax _: Int, currentMin _: Int = 1) -> [InsightCard] {
         let energyEntries = entries.filter { $0.energyLevel != nil }
         guard energyEntries.count >= 5 else { return [] }
 
@@ -727,9 +930,9 @@ enum InsightEngine {
             let highMood = entry.normalizedScore >= overallAvg + 0.1
             let lowMood = entry.normalizedScore < overallAvg - 0.1
 
-            if highMood && energy == 1 {
+            if highMood, energy == 1 {
                 highMoodLowEnergy += 1
-            } else if lowMood && energy == 3 {
+            } else if lowMood, energy == 3 {
                 lowMoodHighEnergy += 1
             }
         }
@@ -799,7 +1002,7 @@ enum InsightEngine {
 
     // MARK: - 14. 安定度変化インサイト
 
-    private static func stabilityChangeInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func stabilityChangeInsight(entries: [MoodEntry], currentMax _: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
         let now = Date.now
         guard let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start,
@@ -810,7 +1013,7 @@ enum InsightEngine {
 
         guard thisWeek.count >= 3, lastWeek.count >= 3 else { return [] }
 
-        // Calculate CV-based stability (0-100 scale)
+        /// Calculate CV-based stability (0-100 scale)
         func stability(_ scores: [Double]) -> Double {
             let mean = avg(scores)
             guard mean > 0 else { return 100.0 }
@@ -848,7 +1051,7 @@ enum InsightEngine {
 
     // MARK: - 15. 閾値ブレークインサイト
 
-    private static func thresholdBreakInsight(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [InsightCard] {
+    private static func thresholdBreakInsight(entries: [MoodEntry], currentMax _: Int, currentMin _: Int = 1) -> [InsightCard] {
         let calendar = Calendar.current
         let overallAvg = avg(entries.map(\.normalizedScore))
 
@@ -931,9 +1134,9 @@ enum InsightEngine {
         }
     }
 
-    // MARK: - 11. HealthKit相関インサイト
+    // MARK: - 11. HealthKit Insights (Legacy wrapper for correlation-based API)
 
-    /// Generate insights from HealthKit correlation data
+    /// Legacy: Generate insights from HealthKit correlation data
     static func healthKitInsights(
         stepsCorrelation: Double?,
         sleepCorrelation: Double?,
@@ -1002,6 +1205,399 @@ enum InsightEngine {
         }
 
         return results
+    }
+
+    // MARK: - 11b. HealthKit Insights with Personal Thresholds
+
+    /// Generate personalized HealthKit insights with specific numbers
+    static func healthKitInsights(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> [InsightCard] {
+        let calendar = Calendar.current
+        let minimumMatchedDays = 7
+
+        // Match entries to metrics by date (startOfDay)
+        var entryByDay: [Date: [MoodEntry]] = [:]
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            entryByDay[day, default: []].append(entry)
+        }
+
+        var metricByDay: [Date: DailyHealthMetric] = [:]
+        for metric in metrics {
+            let day = calendar.startOfDay(for: metric.date)
+            metricByDay[day] = metric
+        }
+
+        // Build matched pairs
+        struct DayPair {
+            let avgNorm: Double
+            let steps: Double?
+            let sleepHours: Double?
+            let restingHR: Double?
+        }
+
+        var matched: [DayPair] = []
+        for (day, dayEntries) in entryByDay {
+            guard let metric = metricByDay[day] else { continue }
+            let avgNorm = avg(dayEntries.map(\.normalizedScore))
+            matched.append(DayPair(
+                avgNorm: avgNorm,
+                steps: metric.steps,
+                sleepHours: metric.sleepHours,
+                restingHR: metric.restingHeartRate
+            ))
+        }
+
+        guard matched.count >= minimumMatchedDays else { return [] }
+
+        let overallAvg = avg(matched.map(\.avgNorm))
+        var results: [InsightCard] = []
+
+        // --- STEPS: Find best threshold ---
+        let stepsThresholds: [Double] = [5000, 8000, 10000]
+        let stepPairs = matched.filter { $0.steps != nil }
+        if stepPairs.count >= minimumMatchedDays {
+            var bestThreshold: Double = 0
+            var bestDelta: Double = 0
+
+            for threshold in stepsThresholds {
+                let above = stepPairs.filter { ($0.steps ?? 0) > threshold }
+                let atOrBelow = stepPairs.filter { ($0.steps ?? 0) <= threshold }
+                guard above.count >= 3, atOrBelow.count >= 3 else { continue }
+
+                let delta = avg(above.map(\.avgNorm)) - avg(atOrBelow.map(\.avgNorm))
+                if abs(delta) > abs(bestDelta) {
+                    bestDelta = delta
+                    bestThreshold = threshold
+                }
+            }
+
+            if abs(bestDelta) > 0.05 {
+                let scaledDelta = bestDelta * Double(currentMax - currentMin)
+                let stepsInt = Int(bestThreshold)
+                if bestDelta > 0 {
+                    results.append(InsightCard(
+                        id: "hk_steps_threshold",
+                        icon: "figure.walk",
+                        tone: .positive,
+                        title: String(localized: "歩数と気分"),
+                        body: String(localized: "あなたは\(stepsInt)歩以上歩いた日にスコアが平均+\(fmt(scaledDelta))高いです"),
+                        priority: min(abs(bestDelta) * 5, 0.85)
+                    ))
+                } else {
+                    results.append(InsightCard(
+                        id: "hk_steps_threshold",
+                        icon: "figure.walk",
+                        tone: .caution,
+                        title: String(localized: "歩数と気分"),
+                        body: String(localized: "\(stepsInt)歩以上の日はスコアが平均\(fmt(scaledDelta))です。疲れが溜まっているのかもしれません。"),
+                        priority: min(abs(bestDelta) * 5, 0.8)
+                    ))
+                }
+            }
+        }
+
+        // --- SLEEP: Find best threshold ---
+        let sleepThresholds: [Double] = [6.0, 6.5, 7.0, 7.5]
+        let sleepPairs = matched.filter { $0.sleepHours != nil }
+        if sleepPairs.count >= minimumMatchedDays {
+            var bestThreshold: Double = 0
+            var bestDelta: Double = 0
+
+            for threshold in sleepThresholds {
+                let above = sleepPairs.filter { ($0.sleepHours ?? 0) >= threshold }
+                let below = sleepPairs.filter { ($0.sleepHours ?? 0) < threshold }
+                guard above.count >= 3, below.count >= 3 else { continue }
+
+                let delta = avg(above.map(\.avgNorm)) - avg(below.map(\.avgNorm))
+                if abs(delta) > abs(bestDelta) {
+                    bestDelta = delta
+                    bestThreshold = threshold
+                }
+            }
+
+            if abs(bestDelta) > 0.05 {
+                let scaledDelta = bestDelta * Double(currentMax - currentMin)
+                if bestDelta > 0 {
+                    results.append(InsightCard(
+                        id: "hk_sleep_threshold",
+                        icon: "bed.double.fill",
+                        tone: .positive,
+                        title: String(localized: "睡眠と気分"),
+                        body: String(localized: "\(fmt(bestThreshold))時間以上眠った日は気分が平均+\(fmt(scaledDelta))高いです"),
+                        priority: min(abs(bestDelta) * 5, 0.9)
+                    ))
+                } else {
+                    results.append(InsightCard(
+                        id: "hk_sleep_threshold",
+                        icon: "bed.double.fill",
+                        tone: .caution,
+                        title: String(localized: "睡眠と気分"),
+                        body: String(localized: "\(fmt(bestThreshold))時間未満の翌日はスコアが平均\(fmt(scaledDelta))です"),
+                        priority: min(abs(bestDelta) * 5, 0.85)
+                    ))
+                }
+            }
+        }
+
+        // --- HEART RATE: Compare this week vs last week ---
+        let hrPairs = matched.filter { $0.restingHR != nil }
+        if hrPairs.count >= minimumMatchedDays {
+            // Use metrics directly for weekly HR comparison
+            let now = Date.now
+            guard let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start else {
+                return results
+            }
+            let lastWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: thisWeekStart)!
+
+            let thisWeekHR = metrics.filter { $0.date >= thisWeekStart && $0.restingHeartRate != nil }
+                .compactMap(\.restingHeartRate)
+            let lastWeekHR = metrics.filter { $0.date >= lastWeekStart && $0.date < thisWeekStart && $0.restingHeartRate != nil }
+                .compactMap(\.restingHeartRate)
+
+            if thisWeekHR.count >= 2, lastWeekHR.count >= 2 {
+                let thisAvgHR = avg(thisWeekHR)
+                let lastAvgHR = avg(lastWeekHR)
+                let hrDelta = thisAvgHR - lastAvgHR
+
+                if abs(hrDelta) >= 2.0 {
+                    let sign = hrDelta > 0 ? "+" : ""
+                    results.append(InsightCard(
+                        id: "hk_hr_weekly",
+                        icon: "heart.fill",
+                        tone: hrDelta > 3.0 ? .caution : .neutral,
+                        title: String(localized: "心拍数の変化"),
+                        body: String(localized: "今週の安静時心拍数が先週より\(sign)\(fmt(hrDelta))bpm高いです"),
+                        priority: min(abs(hrDelta) / 10.0, 0.8)
+                    ))
+                }
+            }
+        }
+
+        return results
+    }
+
+    // MARK: - Monthly Gold Card (rare insight)
+
+    /// Generate a special monthly insight that appears once per month.
+    /// Requires 100+ entries for deep analysis.
+    static func monthlyGoldInsight(from entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> InsightCard? {
+        guard entries.count >= 100 else { return nil }
+
+        let calendar = Calendar.current
+        let monthKey = "\(calendar.component(.year, from: .now))-\(calendar.component(.month, from: .now))"
+        let lastShownMonth = UserDefaults.standard.string(forKey: "goldInsightLastMonth")
+        guard lastShownMonth != monthKey else { return nil }
+
+        let monthIndex = calendar.component(.month, from: .now)
+        let overallAvg = avg(entries.map(\.normalizedScore))
+
+        let card: InsightCard?
+
+        switch monthIndex % 4 {
+        case 0:
+            // Top influence factor: find most impactful tag
+            card = goldTopInfluenceFactor(entries: entries, currentMax: currentMax, currentMin: currentMin, overallAvg: overallAvg)
+
+        case 1:
+            // Mood personality type
+            card = goldMoodPersonality(entries: entries, currentMax: currentMax, currentMin: currentMin)
+
+        case 2:
+            // Growth over time
+            card = goldGrowthOverTime(entries: entries, currentMax: currentMax, currentMin: currentMin)
+
+        case 3:
+            // Hidden pattern: surprising tag co-occurrence with high mood
+            card = goldHiddenPattern(entries: entries, currentMax: currentMax, currentMin: currentMin, overallAvg: overallAvg)
+
+        default:
+            card = nil
+        }
+
+        if card != nil {
+            UserDefaults.standard.set(monthKey, forKey: "goldInsightLastMonth")
+        }
+        return card
+    }
+
+    // MARK: - Gold Card Sub-methods
+
+    private static func goldTopInfluenceFactor(entries: [MoodEntry], currentMax _: Int, currentMin _: Int, overallAvg: Double) -> InsightCard? {
+        // Find the tag with the highest absolute impact on mood
+        var tagScores: [String: [Double]] = [:]
+        for entry in entries {
+            for tag in entry.tags {
+                tagScores[tag, default: []].append(entry.normalizedScore)
+            }
+        }
+
+        var bestTag = ""
+        var bestImpact: Double = 0
+
+        for (tag, scores) in tagScores where scores.count >= 5 {
+            let tagAvg = avg(scores)
+            let impact = abs(tagAvg - overallAvg)
+            if impact > bestImpact {
+                bestImpact = impact
+                bestTag = tag
+            }
+        }
+
+        guard !bestTag.isEmpty, bestImpact > 0.05 else { return nil }
+
+        return InsightCard(
+            id: "gold_top_influence_\(Calendar.current.component(.month, from: .now))",
+            icon: "crown.fill",
+            tone: .discovery,
+            title: String(localized: "✦ \(entries.count)日分のデータ分析"),
+            body: String(localized: "\(entries.count)日分のデータ分析：あなたの気分に最も影響するのは「\(bestTag)」です"),
+            priority: 1.0
+        )
+    }
+
+    private static func goldMoodPersonality(entries: [MoodEntry], currentMax _: Int, currentMin _: Int) -> InsightCard? {
+        let calendar = Calendar.current
+
+        // Classify personality type
+        let weekendEntries = entries.filter {
+            let wd = calendar.component(.weekday, from: $0.createdAt)
+            return wd == 1 || wd == 7
+        }
+        let weekdayEntries = entries.filter {
+            let wd = calendar.component(.weekday, from: $0.createdAt)
+            return wd >= 2 && wd <= 6
+        }
+
+        let morningEntries = entries.filter {
+            let hour = calendar.component(.hour, from: $0.createdAt)
+            return hour >= 5 && hour < 11
+        }
+
+        let taggedEntries = entries.filter { !$0.tags.isEmpty }
+        let overallStd = stdDev(entries.map(\.normalizedScore))
+
+        let weekendAvg = weekendEntries.isEmpty ? 0 : avg(weekendEntries.map(\.normalizedScore))
+        let weekdayAvg = weekdayEntries.isEmpty ? 0 : avg(weekdayEntries.map(\.normalizedScore))
+        let morningAvg = morningEntries.isEmpty ? 0 : avg(morningEntries.map(\.normalizedScore))
+        let overallAvg = avg(entries.map(\.normalizedScore))
+
+        let personality: String
+        let description: String
+
+        if weekendAvg - weekdayAvg > 0.1 {
+            personality = String(localized: "週末回復型")
+            description = String(localized: "平日の疲れを週末でリセットするタイプ。平日にも小さな楽しみを取り入れると安定感が増します。")
+        } else if morningEntries.count > entries.count / 3, morningAvg > overallAvg + 0.05 {
+            personality = String(localized: "朝型ポジティブ")
+            description = String(localized: "午前中に調子が良い傾向があります。大事な決断や挑戦は午前中がおすすめです。")
+        } else if Double(taggedEntries.count) / Double(entries.count) > 0.7 {
+            personality = String(localized: "タグ活用型")
+            description = String(localized: "感情を言語化する力が高いタイプ。自己理解が深く、気分の管理が上手です。")
+        } else if overallStd < 0.15 {
+            personality = String(localized: "安定型")
+            description = String(localized: "気分の波が小さく安定しています。穏やかな日常を大切にするタイプです。")
+        } else {
+            return nil
+        }
+
+        return InsightCard(
+            id: "gold_personality_\(Calendar.current.component(.month, from: .now))",
+            icon: "crown.fill",
+            tone: .discovery,
+            title: String(localized: "✦ あなたの気分パターン"),
+            body: String(localized: "あなたの気分パターンは「\(personality)」です。\(description)"),
+            priority: 1.0
+        )
+    }
+
+    private static func goldGrowthOverTime(entries: [MoodEntry], currentMax: Int, currentMin: Int) -> InsightCard? {
+        let sorted = entries.sorted { $0.createdAt < $1.createdAt }
+        guard sorted.count >= 60 else { return nil }
+
+        // First 30 entries vs last 30 entries
+        let firstMonth = Array(sorted.prefix(30))
+        let recentMonth = Array(sorted.suffix(30))
+
+        let firstAvg = avg(firstMonth.map(\.normalizedScore))
+        let recentAvg = avg(recentMonth.map(\.normalizedScore))
+        let firstStd = stdDev(firstMonth.map(\.normalizedScore))
+        let recentStd = stdDev(recentMonth.map(\.normalizedScore))
+
+        let scoreDelta = (recentAvg - firstAvg) * Double(currentMax - currentMin)
+        let volChange = firstStd > 0 ? ((firstStd - recentStd) / firstStd * 100) : 0
+
+        guard abs(scoreDelta) > 0.3 || abs(volChange) > 10 else { return nil }
+
+        var bodyParts: [String] = []
+        if abs(scoreDelta) > 0.3 {
+            let sign = scoreDelta > 0 ? String(localized: "上がり") : String(localized: "下がり")
+            bodyParts.append(String(localized: "平均スコアが\(fmt(abs(scoreDelta)))\(sign)"))
+        }
+        if abs(volChange) > 10 {
+            let direction = volChange > 0 ? String(localized: "下がり") : String(localized: "上がり")
+            bodyParts.append(String(localized: "ボラティリティが\(fmt(abs(volChange)))%\(direction)ました"))
+        }
+
+        let bodyText = String(localized: "最初の1ヶ月と比べて、\(bodyParts.joined(separator: "、"))")
+
+        return InsightCard(
+            id: "gold_growth_\(Calendar.current.component(.month, from: .now))",
+            icon: "crown.fill",
+            tone: .discovery,
+            title: String(localized: "✦ あなたの成長"),
+            body: bodyText,
+            priority: 1.0
+        )
+    }
+
+    private static func goldHiddenPattern(entries: [MoodEntry], currentMax: Int, currentMin: Int, overallAvg: Double) -> InsightCard? {
+        // Find the most surprising two-tag combination with high mood
+        let taggedEntries = entries.filter { $0.tags.count >= 2 }
+        guard taggedEntries.count >= 10 else { return nil }
+
+        var pairScores: [String: [Double]] = [:]
+
+        for entry in taggedEntries {
+            let sortedTags = entry.tags.sorted()
+            for i in 0 ..< sortedTags.count {
+                for j in (i + 1) ..< sortedTags.count {
+                    let key = "\(sortedTags[i])|\(sortedTags[j])"
+                    pairScores[key, default: []].append(entry.normalizedScore)
+                }
+            }
+        }
+
+        var bestPair = ""
+        var bestDelta: Double = 0
+
+        for (pair, scores) in pairScores where scores.count >= 3 {
+            let delta = avg(scores) - overallAvg
+            if delta > bestDelta {
+                bestDelta = delta
+                bestPair = pair
+            }
+        }
+
+        guard !bestPair.isEmpty, bestDelta > 0.08 else { return nil }
+
+        let parts = bestPair.split(separator: "|", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return nil }
+
+        let scaledDelta = bestDelta * Double(currentMax - currentMin)
+
+        return InsightCard(
+            id: "gold_hidden_\(Calendar.current.component(.month, from: .now))",
+            icon: "crown.fill",
+            tone: .discovery,
+            title: String(localized: "✦ 意外な発見"),
+            body: String(localized: "意外な発見：「\(parts[0])」と「\(parts[1])」が同時に記録された日は、他の日より平均\(fmt(scaledDelta))高いです"),
+            priority: 1.0
+        )
     }
 
     // MARK: - ヘルパー

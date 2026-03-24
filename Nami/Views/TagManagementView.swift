@@ -5,8 +5,8 @@
 //  タグ管理画面 - デフォルト/カスタムタグの一覧、追加、削除、並び替え
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// タグ管理画面
 struct TagManagementView: View {
@@ -18,6 +18,8 @@ struct TagManagementView: View {
 
     /// 新規タグ追加シート表示フラグ
     @State private var showAddSheet = false
+    /// カテゴリ追加シート表示フラグ
+    @State private var showAddCategorySheet = false
     /// 並び替えモード
     @State private var isReordering = false
 
@@ -68,25 +70,17 @@ struct TagManagementView: View {
                     }
                 }
 
-                // Add custom tag section
-                Section {
-                    Button {
-                        showAddSheet = true
-                    } label: {
-                        Label(String(localized: "カスタムタグを追加"), systemImage: "plus.circle.fill")
-                            .font(.system(.body, design: .rounded))
-                            .foregroundStyle(colors.accent)
-                    }
-                    .disabled(!premiumManager.canCreateCustomTag(currentCount: customTagCount))
-                } footer: {
-                    if premiumManager.isPremium {
-                        Text(String(localized: "プレミアムプラン: 無制限にカスタムタグを作成できます。"))
-                    } else {
+                // Free user tag limit footer
+                if !premiumManager.isPremium {
+                    Section {
                         let remaining = premiumManager.remainingCustomTags(currentCount: customTagCount)
                         if remaining > 0 {
-                            Text(String(localized: "あと\(remaining)個のカスタムタグを作成できます。"))
+                            Text(String(localized: "カスタムタグ: あと\(remaining)個作成可能"))
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
                         } else {
                             Text(String(localized: "カスタムタグの上限に達しました。プレミアムプランで無制限に。"))
+                                .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(.orange)
                         }
                     }
@@ -99,11 +93,32 @@ struct TagManagementView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    withAnimation { isReordering.toggle() }
-                } label: {
-                    Text(isReordering ? String(localized: "完了") : String(localized: "並び替え"))
-                        .font(.system(.body, design: .rounded))
+                HStack(spacing: 12) {
+                    Menu {
+                        Button {
+                            showAddSheet = true
+                        } label: {
+                            Label(String(localized: "タグを追加"), systemImage: "tag.fill")
+                        }
+                        .disabled(!premiumManager.canCreateCustomTag(currentCount: customTagCount))
+
+                        Button {
+                            showAddCategorySheet = true
+                        } label: {
+                            Label(String(localized: "カテゴリを追加"), systemImage: "folder.badge.plus")
+                        }
+                        .disabled(!premiumManager.isPremium)
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(.body, design: .rounded, weight: .medium))
+                    }
+
+                    Button {
+                        withAnimation { isReordering.toggle() }
+                    } label: {
+                        Text(isReordering ? String(localized: "完了") : String(localized: "並び替え"))
+                            .font(.system(.body, design: .rounded))
+                    }
                 }
             }
         }
@@ -112,10 +127,14 @@ struct TagManagementView: View {
                 addCustomTag(name: name, category: category)
             }
         }
+        .sheet(isPresented: $showAddCategorySheet) {
+            AddCategorySheet(themeColors: colors) { name, icon in
+                addCustomCategory(name: name, icon: icon)
+            }
+        }
     }
 
     /// Tag row
-    @ViewBuilder
     private func tagRow(tag: EmotionTag, colors: ThemeColors) -> some View {
         HStack(spacing: 12) {
             Image(systemName: tag.icon)
@@ -174,6 +193,121 @@ struct TagManagementView: View {
         )
         modelContext.insert(tag)
         HapticManager.lightFeedback()
+    }
+
+    /// Add a custom category (creates a placeholder tag so the category appears)
+    private func addCustomCategory(name: String, icon: String) {
+        // Custom categories are created by adding a tag with a unique category name
+        // Since EmotionTagCategory is a fixed enum, custom categories use .custom
+        // and differentiate via a prefix in the tag name
+        let nextOrder = (allTags.map(\.sortOrder).max() ?? 0) + 1
+        let tag = EmotionTag(
+            name: name,
+            category: .custom,
+            icon: icon,
+            isDefault: false,
+            sortOrder: nextOrder
+        )
+        modelContext.insert(tag)
+        HapticManager.lightFeedback()
+    }
+}
+
+// MARK: - Category Add Sheet
+
+/// Sheet for adding a custom category
+struct AddCategorySheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let themeColors: ThemeColors
+    let onAdd: (String, String) -> Void
+
+    @State private var categoryName = ""
+    @State private var selectedIcon = "star.fill"
+    @FocusState private var isNameFocused: Bool
+
+    private let iconOptions = [
+        "star.fill", "heart.fill", "bolt.fill", "flame.fill",
+        "leaf.fill", "drop.fill", "moon.fill", "sun.max.fill",
+        "cloud.fill", "snowflake", "wind", "sparkles",
+        "music.note", "book.fill", "pencil", "paintbrush.fill",
+        "camera.fill", "gamecontroller.fill", "trophy.fill", "flag.fill",
+        "house.fill", "building.2.fill", "car.fill", "airplane",
+        "cup.and.saucer.fill", "fork.knife", "dumbbell.fill", "figure.run",
+    ]
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField(String(localized: "カテゴリ名"), text: $categoryName)
+                        .font(.system(.body, design: .rounded))
+                        .focused($isNameFocused)
+                } header: {
+                    Text(String(localized: "名前"))
+                }
+
+                Section {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 12) {
+                        ForEach(iconOptions, id: \.self) { icon in
+                            Button {
+                                selectedIcon = icon
+                                HapticManager.lightFeedback()
+                            } label: {
+                                Image(systemName: icon)
+                                    .font(.title3)
+                                    .frame(width: 40, height: 40)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(selectedIcon == icon ? themeColors.accent.opacity(0.2) : Color.clear)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(selectedIcon == icon ? themeColors.accent : Color.clear, lineWidth: 2)
+                                    )
+                                    .foregroundStyle(selectedIcon == icon ? themeColors.accent : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                } header: {
+                    Text(String(localized: "アイコン"))
+                }
+
+                // Preview
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: selectedIcon)
+                            .font(.body)
+                            .foregroundStyle(themeColors.accent)
+                        Text(categoryName.isEmpty ? String(localized: "カテゴリ名") : categoryName)
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(categoryName.isEmpty ? .tertiary : .primary)
+                    }
+                } header: {
+                    Text(String(localized: "プレビュー"))
+                }
+            }
+            .navigationTitle(String(localized: "カテゴリを追加"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "キャンセル")) { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "追加")) {
+                        let trimmed = categoryName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            onAdd(trimmed, selectedIcon)
+                            dismiss()
+                        }
+                    }
+                    .disabled(categoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .fontWeight(.semibold)
+                }
+            }
+            .onAppear { isNameFocused = true }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -311,7 +445,6 @@ struct AddTagSheet: View {
     }
 
     /// Live preview of the tag being created
-    @ViewBuilder
     private var previewCard: some View {
         VStack(spacing: 8) {
             Text(String(localized: "プレビュー"))
