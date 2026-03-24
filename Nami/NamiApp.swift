@@ -124,6 +124,9 @@ struct NamiApp: App {
                     // 週間サマリー通知のスケジュール（毎週月曜9時）
                     Self.scheduleWeeklySummaryIfNeeded(context: sharedModelContainer.mainContext)
 
+                    // ネガティブ傾向検知（3日連続低スコア → 通知）
+                    Self.checkNegativeTrend(context: sharedModelContainer.mainContext)
+
                     // アプリ起動時にリマインダーが有効ならスケジュールを再設定
                     if reminderEnabled {
                         let authorized = await NotificationManager.isAuthorized()
@@ -204,6 +207,49 @@ struct NamiApp: App {
             bestDay: bestDayName,
             currentMax: 10
         )
+    }
+
+    // MARK: - Negative Trend Detection
+
+    /// Check if user has 3+ consecutive days below personal average and notify
+    private static func checkNegativeTrend(context: ModelContext) {
+        guard NotificationManager.negativeAlertEnabled else { return }
+
+        let calendar = Calendar.current
+        guard let weekAgo = calendar.date(byAdding: .day, value: -7, to: .now) else { return }
+
+        let descriptor = FetchDescriptor<MoodEntry>(
+            predicate: #Predicate<MoodEntry> { $0.createdAt >= weekAgo },
+            sortBy: [SortDescriptor(\MoodEntry.createdAt, order: .reverse)]
+        )
+        guard let recentEntries = try? context.fetch(descriptor),
+              recentEntries.count >= 5 else { return }
+
+        // Calculate personal average (all time, approximated from recent)
+        let allAvg = recentEntries.map(\.normalizedScore).reduce(0, +) / Double(recentEntries.count)
+
+        // Check consecutive days below average
+        var consecutiveLowDays = 0
+        var totalLowScore = 0.0
+        var currentDay = calendar.startOfDay(for: .now)
+
+        for _ in 0 ..< 7 {
+            let dayEntries = recentEntries.filter { calendar.isDate($0.createdAt, inSameDayAs: currentDay) }
+            if dayEntries.isEmpty { break }
+            let dayAvg = dayEntries.map(\.normalizedScore).reduce(0, +) / Double(dayEntries.count)
+            if dayAvg < allAvg - 0.05 {
+                consecutiveLowDays += 1
+                totalLowScore += dayAvg
+            } else {
+                break
+            }
+            currentDay = calendar.date(byAdding: .day, value: -1, to: currentDay)!
+        }
+
+        if consecutiveLowDays >= 3 {
+            let avgScore = (totalLowScore / Double(consecutiveLowDays)) * 10 // rough scale to 10
+            NotificationManager.scheduleNegativeAlert(averageScore: avgScore, days: consecutiveLowDays)
+        }
     }
 
     // MARK: - データ移行

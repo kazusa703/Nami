@@ -85,6 +85,9 @@ struct SettingsView: View {
                     // リマインダーセクション
                     reminderSection()
 
+                    // インサイト通知セクション
+                    insightNotificationSection()
+
                     // ウィジェットセクション
                     widgetSection(colors: colors)
 
@@ -518,6 +521,37 @@ struct SettingsView: View {
             Button("キャンセル", role: .cancel) {}
         } message: {
             Text("リマインダーを受け取るには、設定アプリで通知を許可してください。")
+        }
+    }
+
+    // MARK: - インサイト通知セクション
+
+    private func insightNotificationSection() -> some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { NotificationManager.insightNotificationsEnabled },
+                set: { NotificationManager.insightNotificationsEnabled = $0 }
+            )) {
+                Label(String(localized: "インサイト通知"), systemImage: "lightbulb")
+                    .font(.system(.body, design: .rounded))
+            }
+
+            Toggle(isOn: Binding(
+                get: { NotificationManager.negativeAlertEnabled },
+                set: { NotificationManager.negativeAlertEnabled = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label(String(localized: "傾向アラート"), systemImage: "exclamationmark.triangle")
+                        .font(.system(.body, design: .rounded))
+                    Text(String(localized: "低スコアが続いた時にお知らせ"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text(String(localized: "インサイト通知"))
+        } footer: {
+            Text(String(localized: "週1回の週間サマリーとパーソナルインサイトを通知で受け取ります。1日1回まで。"))
         }
     }
 

@@ -109,4 +109,128 @@ enum NotificationManager {
         UNUserNotificationCenter.current()
             .removePendingNotificationRequests(withIdentifiers: [weeklySummaryIdentifier])
     }
+
+    // MARK: - Insight Notifications
+
+    private static let insightIdentifier = "nami.insight"
+    private static let streakInsightIdentifier = "nami.insight.streak"
+    private static let negativeAlertIdentifier = "nami.insight.negative"
+
+    /// Max 1 insight notification per day
+    private static let lastInsightNotifKey = "lastInsightNotificationDate"
+
+    private static var canSendInsightToday: Bool {
+        guard let lastDate = UserDefaults.standard.object(forKey: lastInsightNotifKey) as? Date else { return true }
+        return !Calendar.current.isDateInToday(lastDate)
+    }
+
+    private static func markInsightSent() {
+        UserDefaults.standard.set(Date.now, forKey: lastInsightNotifKey)
+    }
+
+    // MARK: ① Delayed Insight (next day at same time as last recording)
+
+    /// Schedule "yesterday's insight" notification for tomorrow at the same time
+    /// Called after recording + insight generation
+    static func scheduleDelayedInsight(title: String, body: String) {
+        guard canSendInsightToday else { return }
+
+        cancelPending(identifier: insightIdentifier)
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.categoryIdentifier = "INSIGHT"
+
+        // 24 hours from now
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 86400, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: insightIdentifier,
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error { print("Insight notification error: \(error)") }
+        }
+        markInsightSent()
+    }
+
+    // MARK: ② Streak Milestone Notification
+
+    /// Notify when user hits a recording streak milestone
+    static func scheduleStreakNotification(days: Int) {
+        cancelPending(identifier: streakInsightIdentifier)
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "\(days)日連続達成！")
+        content.body = String(localized: "\(days)日間のデータが溜まりました。あなたの気分パターンが見えてきました。統計タブを確認しましょう。")
+        content.sound = .default
+        content.categoryIdentifier = "STREAK"
+
+        // Show immediately (1 second delay to avoid blocking)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: streakInsightIdentifier,
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
+    // MARK: ④ Negative Trend Alert
+
+    /// Alert when 3+ consecutive negative recordings detected
+    /// Only if user has opted in (checked via UserDefaults)
+    static func scheduleNegativeAlert(averageScore: Double, days: Int) {
+        let optedIn = UserDefaults.standard.bool(forKey: "negativeAlertEnabled")
+        guard optedIn, canSendInsightToday else { return }
+
+        cancelPending(identifier: negativeAlertIdentifier)
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "最近の傾向")
+        let scoreText = String(format: "%.1f", averageScore)
+        content.body = String(localized: "\(days)日連続で平均より低めのスコア（平均\(scoreText)）です。過去に回復したときのパターンを統計タブで確認してみましょう。")
+        content.sound = .default
+        content.categoryIdentifier = "INSIGHT"
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5, repeats: false)
+
+        let request = UNNotificationRequest(
+            identifier: negativeAlertIdentifier,
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error { print("Negative alert error: \(error)") }
+        }
+        markInsightSent()
+    }
+
+    // MARK: - Insight Notification Preferences
+
+    /// Whether insight notifications are enabled (separate from reminder)
+    static var insightNotificationsEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "insightNotificationsEnabled") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "insightNotificationsEnabled") }
+    }
+
+    /// Whether negative trend alerts are enabled (requires explicit opt-in)
+    static var negativeAlertEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "negativeAlertEnabled") }
+        set { UserDefaults.standard.set(newValue, forKey: "negativeAlertEnabled") }
+    }
+
+    // MARK: - Helpers
+
+    private static func cancelPending(identifier: String) {
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: [identifier])
+    }
 }
