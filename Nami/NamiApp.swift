@@ -5,8 +5,6 @@
 //  アプリのエントリポイント
 //
 
-import AppTrackingTransparency
-import GoogleMobileAds
 import SwiftData
 import SwiftUI
 import UIKit
@@ -109,21 +107,6 @@ struct NamiApp: App {
                     // WatchConnectivityの初期化
                     WatchConnectivityManager.shared.modelContainer = sharedModelContainer
                     WatchConnectivityManager.shared.activate()
-
-                    // Google Mobile Ads SDK の初期化
-                    #if DEBUG
-                        // Print test device ID to console for AdMob test device registration
-                        // Check Xcode console for: "To get test ads on this device, set..."
-                        MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["GADSimulatorID"]
-                    #endif
-                    _ = await MobileAds.shared.start()
-
-                    // ATT（App Tracking Transparency）許可リクエスト
-                    // 広告パーソナライズのためのトラッキング許可ダイアログ
-                    // UI表示後に少し遅延してダイアログを表示
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        ATTrackingManager.requestTrackingAuthorization { _ in }
-                    }
 
                     // HealthKit連携の初期化
                     if healthKitManager.isEnabled {

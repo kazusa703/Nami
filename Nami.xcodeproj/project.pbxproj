@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		05070A14C239A86DBF22C9C4 /* WatchConnectivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 31FBE724B8E421F97648B388 /* WatchConnectivity.framework */; };
 		2D09B70F67D4D73B8311CEE3 /* NamiWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC5F421D2F39E7F100F0008A /* NamiWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		AC40FCBC2F3E67C600390C78 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = AC40FCBB2F3E67C600390C78 /* GoogleMobileAds */; };
 		AC5F42202F39E7F100F0008A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F421F2F39E7F100F0008A /* WidgetKit.framework */; };
 		AC5F42222F39E7F100F0008A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F42212F39E7F100F0008A /* SwiftUI.framework */; };
 		AC5F547B2F3D458400F0008A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F42212F39E7F100F0008A /* SwiftUI.framework */; };
@@ -121,7 +120,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AC40FCBC2F3E67C600390C78 /* GoogleMobileAds in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -343,7 +341,6 @@
 			mainGroup = AC5F41B32F39D66D00F0008A;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				AC40FCBA2F3E67C600390C78 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = AC5F41BD2F39D66D00F0008A /* Products */;
@@ -592,7 +589,6 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "気分と健康データの関連を分析するために使用します";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "天気情報を取得するために現在地を使用します";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "気分記録時にボイスメモを録音するために使用します";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "パーソナライズされた広告を表示するために使用します。広告除去を購入すると不要になります。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -635,7 +631,6 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "気分と健康データの関連を分析するために使用します";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "天気情報を取得するために現在地を使用します";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "気分記録時にボイスメモを録音するために使用します";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "パーソナライズされた広告を表示するために使用します。広告除去を購入すると不要になります。";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -936,22 +931,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		AC40FCBA2F3E67C600390C78 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 13.0.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		AC40FCBB2F3E67C600390C78 /* GoogleMobileAds */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AC40FCBA2F3E67C600390C78 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
-			productName = GoogleMobileAds;
-		};
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AC5F41B42F39D66D00F0008A /* Project object */;

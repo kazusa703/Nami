@@ -5,9 +5,9 @@
 //  上部タブナビゲーション + 下部広告のメインレイアウト
 //
 
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 /// タブ種別
 enum AppTab: Int, CaseIterable {
@@ -52,7 +52,7 @@ struct ContentView: View {
     /// 全画面チャート表示モード（nilなら非表示）
     @State private var fullscreenChartMode: GraphMode? = nil
     @State private var fullscreenDateMode: DateSelectionMode = .week
-    @State private var fullscreenTargetDate: Date = Date()
+    @State private var fullscreenTargetDate: Date = .init()
     /// フルスクリーン解除時にレイアウトを強制再描画するためのID
     @State private var contentRefreshID = UUID()
 
@@ -82,8 +82,8 @@ struct ContentView: View {
                                     fullscreenDateMode = dateMode
                                     fullscreenTargetDate = targetDate
                                 })
-                                    .opacity(selectedTab == .graph ? 1 : 0)
-                                    .allowsHitTesting(selectedTab == .graph)
+                                .opacity(selectedTab == .graph ? 1 : 0)
+                                .allowsHitTesting(selectedTab == .graph)
                             }
                             if loadedTabs.contains(.stats) {
                                 StatsView()
@@ -103,8 +103,7 @@ struct ContentView: View {
                         }
                         .frame(maxHeight: .infinity)
 
-                        // 広告を一番下に配置
-                        BannerAdView()
+                        // Ad-free app
                     }
                     // 明示的に現在のジオメトリサイズに制約（横幅キャッシュ問題を防止）
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -133,7 +132,8 @@ struct ContentView: View {
                     NamiAppDelegate.allowLandscape = false
                     // 2. ポートレートへの回転を強制リクエスト
                     if let windowScene = UIApplication.shared.connectedScenes
-                        .first as? UIWindowScene {
+                        .first as? UIWindowScene
+                    {
                         windowScene.requestGeometryUpdate(
                             .iOS(interfaceOrientations: .portrait)
                         )

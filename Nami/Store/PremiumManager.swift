@@ -6,21 +6,18 @@
 //  StoreKit 2: monthly subscription, yearly subscription, lifetime purchase
 //
 
-import SwiftUI
 import StoreKit
+import SwiftUI
 
 // MARK: - PremiumPlan
 
 /// Represents the active premium plan type
 enum PremiumPlan: String {
-    case monthly
     case yearly
     case lifetime
 
     var displayName: String {
         switch self {
-        case .monthly:
-            return String(localized: "月額プラン")
         case .yearly:
             return String(localized: "年額プラン")
         case .lifetime:
@@ -33,13 +30,11 @@ enum PremiumPlan: String {
 /// Supports monthly/yearly subscriptions and lifetime non-consumable purchase
 @Observable
 class PremiumManager {
-
     // MARK: - Product IDs
 
-    static let monthlyProductID = "com.imai.Nami.premium.monthly"
     static let yearlyProductID = "com.imai.Nami.premium.yearly"
     static let lifetimeProductID = "com.imai.Nami.removeAds"
-    static let allProductIDs: Set<String> = [monthlyProductID, yearlyProductID, lifetimeProductID]
+    static let allProductIDs: Set<String> = [yearlyProductID, lifetimeProductID]
 
     // MARK: - Properties
 
@@ -49,7 +44,6 @@ class PremiumManager {
     var activePlan: PremiumPlan?
 
     /// Fetched products
-    var monthlyProduct: Product?
     var yearlyProduct: Product?
     var lifetimeProduct: Product?
 
@@ -95,13 +89,11 @@ class PremiumManager {
     @MainActor
     func fetchProducts() async {
         productFetchFailed = false
-        for attempt in 1...3 {
+        for attempt in 1 ... 3 {
             do {
                 let products = try await Product.products(for: Self.allProductIDs)
                 for p in products {
                     switch p.id {
-                    case Self.monthlyProductID:
-                        monthlyProduct = p
                     case Self.yearlyProductID:
                         yearlyProduct = p
                     case Self.lifetimeProductID:
@@ -110,7 +102,7 @@ class PremiumManager {
                         break
                     }
                 }
-                let anyFetched = monthlyProduct != nil || yearlyProduct != nil || lifetimeProduct != nil
+                let anyFetched = yearlyProduct != nil || lifetimeProduct != nil
                 productFetchFailed = !anyFetched
                 return
             } catch {
@@ -143,7 +135,7 @@ class PremiumManager {
             let result = try await product.purchase()
 
             switch result {
-            case .success(let verification):
+            case let .success(verification):
                 let transaction = try checkVerified(verification)
                 await transaction.finish()
                 await updatePurchasedStatus()
@@ -212,6 +204,15 @@ class PremiumManager {
         return max(0, freeCustomTagLimit - currentCount)
     }
 
+    /// Free user history limit in days
+    static let freeHistoryDays = 30
+
+    /// Cutoff date for free users (entries older than this are hidden)
+    var historyLimitDate: Date? {
+        if isPremium { return nil }
+        return Calendar.current.date(byAdding: .day, value: -Self.freeHistoryDays, to: .now)
+    }
+
     // MARK: - Internal
 
     /// Check all current entitlements and update premium status
@@ -220,7 +221,7 @@ class PremiumManager {
         var foundPlan: PremiumPlan?
 
         for await result in Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result else { continue }
+            guard case let .verified(transaction) = result else { continue }
 
             switch transaction.productID {
             case Self.lifetimeProductID:
@@ -229,20 +230,11 @@ class PremiumManager {
                     foundPlan = .lifetime
                 }
 
-            case Self.monthlyProductID:
-                if transaction.revocationDate == nil,
-                   let expiration = transaction.expirationDate,
-                   expiration > Date.now {
-                    // Prefer lifetime over subscriptions
-                    if foundPlan != .lifetime {
-                        foundPlan = .monthly
-                    }
-                }
-
             case Self.yearlyProductID:
                 if transaction.revocationDate == nil,
                    let expiration = transaction.expirationDate,
-                   expiration > Date.now {
+                   expiration > Date.now
+                {
                     // Prefer lifetime, then yearly over monthly
                     if foundPlan != .lifetime {
                         foundPlan = .yearly
@@ -262,7 +254,7 @@ class PremiumManager {
     private func listenForTransactions() -> Task<Void, Error> {
         Task.detached {
             for await result in Transaction.updates {
-                if case .verified(let transaction) = result {
+                if case let .verified(transaction) = result {
                     await transaction.finish()
                     if PremiumManager.allProductIDs.contains(transaction.productID) {
                         await self.updatePurchasedStatus()
@@ -275,9 +267,9 @@ class PremiumManager {
     /// Verify transaction signature
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
-        case .unverified(_, let error):
+        case let .unverified(_, error):
             throw error
-        case .verified(let value):
+        case let .verified(value):
             return value
         }
     }

@@ -5,17 +5,17 @@
   ],
   "products" : [
     {
-      "displayPrice" : "4800",
+      "displayPrice" : "39.99",
       "familyShareable" : false,
       "internalID" : "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
       "localizations" : [
         {
-          "description" : "すべての広告を永久に非表示にし、全機能を開放します",
+          "description" : "全機能を永久にアンロック",
           "displayName" : "プレミアム（買い切り）",
           "locale" : "ja"
         },
         {
-          "description" : "Remove all ads permanently and unlock all features",
+          "description" : "Unlock all features permanently",
           "displayName" : "Premium (Lifetime)",
           "locale" : "en"
         }
@@ -53,42 +53,7 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "480",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "C3D4E5F6-A7B8-9012-CDEF-123456789012",
-          "introductoryOffer" : {
-            "displayPrice" : "0",
-            "internalID" : "E5F6A7B8-C9D0-1234-EFAB-345678901234",
-            "paymentMode" : "free",
-            "subscriptionPeriod" : "P1W"
-          },
-          "localizations" : [
-            {
-              "description" : "広告非表示、無制限タグ、全分析機能",
-              "displayName" : "プレミアム（月額）",
-              "locale" : "ja"
-            },
-            {
-              "description" : "No ads, unlimited tags, all analytics",
-              "displayName" : "Premium (Monthly)",
-              "locale" : "en"
-            }
-          ],
-          "productID" : "com.imai.Nami.premium.monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Premium Monthly",
-          "subscriptionGroupID" : "B2C3D4E5-F6A7-8901-BCDE-F12345678901",
-          "type" : "RecurringSubscription"
-        },
-        {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "2800",
+          "displayPrice" : "12.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "D4E5F6A7-B8C9-0123-DEFA-234567890123",
@@ -100,12 +65,12 @@
           },
           "localizations" : [
             {
-              "description" : "広告非表示、無制限タグ、全分析機能（年額でお得）",
+              "description" : "全機能アンロック（年額でお得）",
               "displayName" : "プレミアム（年額）",
               "locale" : "ja"
             },
             {
-              "description" : "No ads, unlimited tags, all analytics (save with annual)",
+              "description" : "Unlock all features (save with annual)",
               "displayName" : "Premium (Yearly)",
               "locale" : "en"
             }

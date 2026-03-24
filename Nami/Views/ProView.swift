@@ -5,8 +5,8 @@
 //  Premium feature showcase + plan selection paywall screen
 //
 
-import SwiftUI
 import StoreKit
+import SwiftUI
 
 struct ProView: View {
     @Environment(\.premiumManager) private var premiumManager
@@ -125,14 +125,17 @@ struct ProView: View {
 
     @ViewBuilder
     private func featureListSection(colors: ThemeColors) -> some View {
-        let features: [(icon: String, text: String)] = [
-            ("eye.slash", String(localized: "広告の完全非表示")),
-            ("tag.fill", String(localized: "無制限のカスタムタグ作成")),
-            ("brain.head.profile", String(localized: "AIスコア予測")),
-            ("arrow.triangle.branch", String(localized: "タグ遷移マップ")),
-            ("chart.bar.doc.horizontal", String(localized: "高度な分析（タグチェーン、回復トリガー等）")),
-            ("doc.text.fill", String(localized: "月間レポートカード生成")),
-            ("cloud.sun.fill", String(localized: "天気×気分の詳細分析")),
+        let features: [(icon: String, text: String, free: Bool)] = [
+            ("pencil.circle", String(localized: "気分記録・基本チャート"), true),
+            ("calendar.badge.clock", String(localized: "直近30日の履歴"), true),
+            ("clock.arrow.circlepath", String(localized: "全履歴の無制限アクセス"), false),
+            ("tag.fill", String(localized: "無制限のカスタムタグ作成"), false),
+            ("lightbulb.fill", String(localized: "パーソナルインサイト"), false),
+            ("brain.head.profile", String(localized: "AIスコア予測"), false),
+            ("arrow.triangle.branch", String(localized: "タグ遷移マップ"), false),
+            ("chart.bar.doc.horizontal", String(localized: "高度な分析"), false),
+            ("doc.text.fill", String(localized: "月間レポートカード"), false),
+            ("heart.fill", String(localized: "HealthKit相関分析"), false),
         ]
 
         VStack(spacing: 0) {
@@ -140,7 +143,7 @@ struct ProView: View {
                 HStack(spacing: 14) {
                     Image(systemName: feature.icon)
                         .font(.system(size: 16))
-                        .foregroundStyle(premiumManager.isPremium ? colors.accent : .orange)
+                        .foregroundStyle(feature.free ? .green : (premiumManager.isPremium ? colors.accent : .orange))
                         .frame(width: 28)
 
                     Text(feature.text)
@@ -148,14 +151,24 @@ struct ProView: View {
 
                     Spacer()
 
-                    if premiumManager.isPremium {
+                    if feature.free {
+                        Text(String(localized: "無料"))
+                            .font(.system(.caption2, design: .rounded, weight: .medium))
+                            .foregroundStyle(.green)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(.green.opacity(0.1)))
+                    } else if premiumManager.isPremium {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 18))
                             .foregroundStyle(.green)
                     } else {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.secondary)
+                        Text("PRO")
+                            .font(.system(.caption2, design: .rounded, weight: .bold))
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(.orange.opacity(0.1)))
                     }
                 }
                 .padding(.vertical, 12)
@@ -170,24 +183,14 @@ struct ProView: View {
 
     // MARK: - Plan Selection
 
-    @ViewBuilder
     private func planSelectionSection(colors: ThemeColors) -> some View {
         VStack(spacing: 12) {
-            // Monthly
-            planCard(
-                plan: .monthly,
-                product: premiumManager.monthlyProduct,
-                badge: nil,
-                sublabel: String(localized: "/月"),
-                colors: colors
-            )
-
             // Yearly (recommended)
             planCard(
                 plan: .yearly,
                 product: premiumManager.yearlyProduct,
                 badge: String(localized: "おすすめ"),
-                sublabel: yearlySublabel,
+                sublabel: String(localized: "/年"),
                 colors: colors
             )
 
@@ -200,19 +203,6 @@ struct ProView: View {
                 colors: colors
             )
         }
-    }
-
-    /// Calculate savings text for yearly plan
-    private var yearlySublabel: String {
-        if let monthly = premiumManager.monthlyProduct,
-           let yearly = premiumManager.yearlyProduct {
-            let monthlyAnnual = monthly.price * 12
-            if monthlyAnnual > yearly.price {
-                let savings = Int(((monthlyAnnual - yearly.price) / monthlyAnnual * 100).doubleValue)
-                return String(localized: "/年 (\(savings)%お得)")
-            }
-        }
-        return String(localized: "/年")
     }
 
     @ViewBuilder
@@ -284,10 +274,9 @@ struct ProView: View {
     // MARK: - Purchase Button
 
     @ViewBuilder
-    private func purchaseButton(colors: ThemeColors) -> some View {
+    private func purchaseButton(colors _: ThemeColors) -> some View {
         let selectedProduct: Product? = {
             switch selectedPlan {
-            case .monthly: return premiumManager.monthlyProduct
             case .yearly: return premiumManager.yearlyProduct
             case .lifetime: return premiumManager.lifetimeProduct
             }
@@ -326,7 +315,6 @@ struct ProView: View {
 
     // MARK: - Footer
 
-    @ViewBuilder
     private func footerSection() -> some View {
         VStack(spacing: 8) {
             HStack(spacing: 16) {
