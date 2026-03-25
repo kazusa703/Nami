@@ -451,6 +451,15 @@ struct StatsView: View {
                     currentMin: currentMinScore
                 )
                 insights.append(contentsOf: crossInsights)
+
+                // Headphone × Mood analysis (unique to Nami)
+                let headphoneInsights = InsightEngine.headphoneMoodInsights(
+                    entries: entries,
+                    metrics: cachedMetricsArray,
+                    currentMax: currentMaxScore,
+                    currentMin: currentMinScore
+                )
+                insights.append(contentsOf: headphoneInsights)
             }
 
             insights.sort { $0.priority > $1.priority }

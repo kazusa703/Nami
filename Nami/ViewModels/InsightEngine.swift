@@ -1716,6 +1716,118 @@ enum InsightEngine {
         return Array(results.sorted { $0.priority > $1.priority }.prefix(2))
     }
 
+    // MARK: - 14. Headphone × Mood Cross Analysis
+
+    /// Analyze headphone listening time correlation with mood
+    /// Unique feature: no competing mood tracker does this
+    static func headphoneMoodInsights(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> [InsightCard] {
+        let calendar = Calendar.current
+        guard entries.count >= 14 else { return [] }
+
+        var metricByDay: [Date: DailyHealthMetric] = [:]
+        for m in metrics {
+            metricByDay[calendar.startOfDay(for: m.date)] = m
+        }
+
+        struct Pair { let score: Double; let minutes: Double }
+        var pairs: [Pair] = []
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if let m = metricByDay[day], let mins = m.headphoneMinutes {
+                pairs.append(Pair(score: entry.normalizedScore, minutes: mins))
+            }
+        }
+        guard pairs.count >= 7 else { return [] }
+
+        var results: [InsightCard] = []
+        let range = Double(currentMax - currentMin)
+
+        // High vs low headphone usage comparison
+        let highUsage = pairs.filter { $0.minutes > 180 } // 3h+
+        let lowUsage = pairs.filter { $0.minutes < 60 } // <1h
+
+        if highUsage.count >= 3, lowUsage.count >= 3 {
+            let highAvg = avg(highUsage.map(\.score))
+            let lowAvg = avg(lowUsage.map(\.score))
+            let delta = (lowAvg - highAvg) * range
+
+            if abs(delta) >= 0.8 {
+                let highScaled = highAvg * range + Double(currentMin)
+                let lowScaled = lowAvg * range + Double(currentMin)
+
+                if delta > 0 {
+                    results.append(InsightCard(
+                        id: "headphone_high_impact",
+                        icon: "headphones",
+                        tone: .discovery,
+                        title: String(localized: "イヤホンと気分"),
+                        body: String(localized: "イヤホン3時間以上の日はスコア\(fmt(highScaled))。1時間未満の日は\(fmt(lowScaled))。耳を休める時間を意識してみては？"),
+                        priority: min(abs(delta) / 3.0, 0.92)
+                    ))
+                } else {
+                    results.append(InsightCard(
+                        id: "headphone_positive",
+                        icon: "headphones",
+                        tone: .positive,
+                        title: String(localized: "イヤホンと気分"),
+                        body: String(localized: "イヤホンを使う日の方がスコアが高い傾向（\(fmt(highScaled)) vs \(fmt(lowScaled))）。音楽がリラックスに役立っているのかも。"),
+                        priority: min(abs(delta) / 3.0, 0.85)
+                    ))
+                }
+            }
+        }
+
+        // Tag × Headphone cross analysis
+        var tagCounts: [String: Int] = [:]
+        for entry in entries {
+            for tag in entry.tags {
+                tagCounts[tag, default: 0] += 1
+            }
+        }
+        let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key)
+
+        for tag in topTags {
+            let tagPairs = entries
+                .filter { $0.tags.contains(tag) }
+                .compactMap { entry -> Pair? in
+                    let day = calendar.startOfDay(for: entry.createdAt)
+                    guard let m = metricByDay[day], let mins = m.headphoneMinutes else { return nil }
+                    return Pair(score: entry.normalizedScore, minutes: mins)
+                }
+            guard tagPairs.count >= 5 else { continue }
+
+            let tagHigh = tagPairs.filter { $0.minutes > 180 }
+            let tagLow = tagPairs.filter { $0.minutes < 60 }
+            guard tagHigh.count >= 2, tagLow.count >= 2 else { continue }
+
+            let hAvg = avg(tagHigh.map(\.score))
+            let lAvg = avg(tagLow.map(\.score))
+            let d = (lAvg - hAvg) * range
+
+            if abs(d) >= 1.0 {
+                let hScaled = hAvg * range + Double(currentMin)
+                let lScaled = lAvg * range + Double(currentMin)
+                results.append(InsightCard(
+                    id: "tag_headphone_\(tag)",
+                    icon: "headphones",
+                    tone: d > 0 ? .caution : .discovery,
+                    title: String(localized: "「\(tag)」× イヤホン"),
+                    body: d > 0
+                        ? String(localized: "「\(tag)」の日にイヤホン3時間以上だとスコア\(fmt(hScaled))。1時間未満なら\(fmt(lScaled))。耳を休めると気分が改善するかも。")
+                        : String(localized: "「\(tag)」の日はイヤホンで音楽を聴くとスコアが\(fmt(hScaled))→\(fmt(lScaled))に改善。"),
+                    priority: min(abs(d) / 3.0, 0.9)
+                ))
+            }
+        }
+
+        return Array(results.sorted { $0.priority > $1.priority }.prefix(2))
+    }
+
     // MARK: - ヘルパー
 
     private static func avg(_ values: [Double]) -> Double {

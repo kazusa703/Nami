@@ -15,17 +15,19 @@ struct DailyHealthMetric: Sendable {
     let steps: Double?
     let sleepHours: Double?
     let restingHeartRate: Double?
+    let headphoneMinutes: Double?
 }
 
 /// Manages HealthKit authorization and data queries
 @Observable
 @MainActor
 final class HealthKitManager {
-
     // MARK: - State
 
     /// Whether HealthKit is available on this device
-    var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
+    var isAvailable: Bool {
+        HKHealthStore.isHealthDataAvailable()
+    }
 
     /// Current authorization status (nil = not determined)
     var isAuthorized: Bool = false
@@ -58,6 +60,9 @@ final class HealthKitManager {
         }
         if let hr = HKQuantityType.quantityType(forIdentifier: .restingHeartRate) {
             types.insert(hr)
+        }
+        if let headphone = HKQuantityType.quantityType(forIdentifier: .headphoneAudioExposure) {
+            types.insert(headphone)
         }
         return types
     }()
@@ -192,6 +197,41 @@ final class HealthKitManager {
         }
     }
 
+    /// Fetch total headphone listening minutes for a specific date
+    func fetchHeadphoneMinutes(for date: Date) async -> Double? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .headphoneAudioExposure) else { return nil }
+
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return nil }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: type,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: nil
+            ) { _, results, error in
+                if error != nil {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                guard let samples = results as? [HKQuantitySample], !samples.isEmpty else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                // Sum duration of all headphone audio samples
+                let totalSeconds = samples.reduce(0.0) { total, sample in
+                    total + sample.endDate.timeIntervalSince(sample.startDate)
+                }
+                continuation.resume(returning: totalSeconds / 60.0) // minutes
+            }
+            store.execute(query)
+        }
+    }
+
     /// Fetch daily metrics for a date range
     func fetchDailyMetrics(from startDate: Date, to endDate: Date) async -> [DailyHealthMetric] {
         let calendar = Calendar.current
@@ -204,12 +244,14 @@ final class HealthKitManager {
             async let steps = fetchSteps(for: day)
             async let sleep = fetchSleepHours(for: day)
             async let hr = fetchRestingHeartRate(for: day)
+            async let headphone = fetchHeadphoneMinutes(for: day)
 
             let metric = DailyHealthMetric(
                 date: day,
                 steps: await steps,
                 sleepHours: await sleep,
-                restingHeartRate: await hr
+                restingHeartRate: await hr,
+                headphoneMinutes: await headphone
             )
             metrics.append(metric)
             cachedMetrics[day] = metric
