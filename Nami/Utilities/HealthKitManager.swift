@@ -32,7 +32,7 @@ final class HealthKitManager {
     /// Current authorization status (nil = not determined)
     var isAuthorized: Bool = false
 
-    /// User preference to enable HealthKit integration
+    /// User preference to enable HealthKit integration (master toggle)
     var isEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: "healthKitEnabled") }
         set {
@@ -41,6 +41,27 @@ final class HealthKitManager {
                 Task { await requestAuthorization() }
             }
         }
+    }
+
+    /// Individual data type toggles (only effective when isEnabled is true)
+    var stepsEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "hk_steps") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "hk_steps") }
+    }
+
+    var sleepEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "hk_sleep") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "hk_sleep") }
+    }
+
+    var heartRateEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "hk_heartrate") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "hk_heartrate") }
+    }
+
+    var headphoneEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "hk_headphone") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "hk_headphone") }
     }
 
     /// Cached daily metrics for current display
@@ -241,17 +262,17 @@ final class HealthKitManager {
 
         while current <= end {
             let day = current
-            async let steps = fetchSteps(for: day)
-            async let sleep = fetchSleepHours(for: day)
-            async let hr = fetchRestingHeartRate(for: day)
-            async let headphone = fetchHeadphoneMinutes(for: day)
+            let stepsVal: Double? = stepsEnabled ? await fetchSteps(for: day) : nil
+            let sleepVal: Double? = sleepEnabled ? await fetchSleepHours(for: day) : nil
+            let hrVal: Double? = heartRateEnabled ? await fetchRestingHeartRate(for: day) : nil
+            let hpVal: Double? = headphoneEnabled ? await fetchHeadphoneMinutes(for: day) : nil
 
             let metric = DailyHealthMetric(
                 date: day,
-                steps: await steps,
-                sleepHours: await sleep,
-                restingHeartRate: await hr,
-                headphoneMinutes: await headphone
+                steps: stepsVal,
+                sleepHours: sleepVal,
+                restingHeartRate: hrVal,
+                headphoneMinutes: hpVal
             )
             metrics.append(metric)
             cachedMetrics[day] = metric

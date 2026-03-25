@@ -700,6 +700,41 @@ struct SettingsView: View {
                 }
             }
 
+            // Individual data type toggles
+            if healthKitManager.isEnabled && healthKitManager.isAuthorized {
+                Toggle(isOn: Binding(
+                    get: { healthKitManager.stepsEnabled },
+                    set: { healthKitManager.stepsEnabled = $0 }
+                )) {
+                    Label(String(localized: "歩数"), systemImage: "figure.walk")
+                        .font(.system(.subheadline, design: .rounded))
+                }
+
+                Toggle(isOn: Binding(
+                    get: { healthKitManager.sleepEnabled },
+                    set: { healthKitManager.sleepEnabled = $0 }
+                )) {
+                    Label(String(localized: "睡眠"), systemImage: "bed.double.fill")
+                        .font(.system(.subheadline, design: .rounded))
+                }
+
+                Toggle(isOn: Binding(
+                    get: { healthKitManager.heartRateEnabled },
+                    set: { healthKitManager.heartRateEnabled = $0 }
+                )) {
+                    Label(String(localized: "安静時心拍数"), systemImage: "heart.fill")
+                        .font(.system(.subheadline, design: .rounded))
+                }
+
+                Toggle(isOn: Binding(
+                    get: { healthKitManager.headphoneEnabled },
+                    set: { healthKitManager.headphoneEnabled = $0 }
+                )) {
+                    Label(String(localized: "イヤホン使用時間"), systemImage: "headphones")
+                        .font(.system(.subheadline, design: .rounded))
+                }
+            }
+
             if healthKitManager.isEnabled && !healthKitManager.isAvailable {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -712,7 +747,7 @@ struct SettingsView: View {
         } header: {
             Text(String(localized: "ヘルスケア"))
         } footer: {
-            Text(String(localized: "ヘルスケアアプリの歩数・睡眠時間・安静時心拍数と気分スコアの相関を分析します。データはこのデバイス内でのみ処理されます。"))
+            Text(String(localized: "気分スコアとの相関を分析します。データはこのデバイス内でのみ処理されます。取得したくない項目はオフにできます。"))
         }
     }
 
