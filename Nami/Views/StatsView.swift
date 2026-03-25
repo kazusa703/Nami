@@ -442,6 +442,17 @@ struct StatsView: View {
                 )
                 insights.append(contentsOf: hkInsights)
             }
+            // Tag × HealthKit cross analysis (the key differentiator)
+            if !cachedMetricsArray.isEmpty {
+                let crossInsights = InsightEngine.tagHealthKitCrossInsights(
+                    entries: entries,
+                    metrics: cachedMetricsArray,
+                    currentMax: currentMaxScore,
+                    currentMin: currentMinScore
+                )
+                insights.append(contentsOf: crossInsights)
+            }
+
             insights.sort { $0.priority > $1.priority }
             insights = Array(insights.prefix(InsightEngine.maxDisplayCards))
         }

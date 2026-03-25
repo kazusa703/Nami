@@ -1600,6 +1600,122 @@ enum InsightEngine {
         )
     }
 
+    // MARK: - 13. Tag × HealthKit Cross Analysis
+
+    /// Cross-analyze tags with HealthKit data for deep insights
+    /// e.g. "仕事 × 睡眠6h未満 → 2.1" vs "仕事 × 睡眠7h以上 → 3.8"
+    static func tagHealthKitCrossInsights(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> [InsightCard] {
+        let calendar = Calendar.current
+        guard entries.count >= 20 else { return [] }
+
+        // Build metric lookup by date
+        var metricByDay: [Date: DailyHealthMetric] = [:]
+        for m in metrics {
+            metricByDay[calendar.startOfDay(for: m.date)] = m
+        }
+
+        // Match entries with metrics
+        struct TaggedEntry {
+            let normalizedScore: Double
+            let tags: [String]
+            let sleepHours: Double?
+            let steps: Double?
+        }
+
+        var matched: [TaggedEntry] = []
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            let metric = metricByDay[day]
+            matched.append(TaggedEntry(
+                normalizedScore: entry.normalizedScore,
+                tags: entry.tags,
+                sleepHours: metric?.sleepHours,
+                steps: metric?.steps
+            ))
+        }
+
+        // Find top 5 most-used tags
+        var tagCounts: [String: Int] = [:]
+        for entry in entries {
+            for tag in entry.tags {
+                tagCounts[tag, default: 0] += 1
+            }
+        }
+        let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(5).map(\.key)
+
+        var results: [InsightCard] = []
+
+        // Tag × Sleep cross analysis
+        for tag in topTags {
+            let tagEntries = matched.filter { $0.tags.contains(tag) && $0.sleepHours != nil }
+            guard tagEntries.count >= 5 else { continue }
+
+            let lowSleep = tagEntries.filter { ($0.sleepHours ?? 0) < 6.5 }
+            let highSleep = tagEntries.filter { ($0.sleepHours ?? 0) >= 7.0 }
+
+            guard lowSleep.count >= 3, highSleep.count >= 3 else { continue }
+
+            let lowAvg = avg(lowSleep.map(\.normalizedScore))
+            let highAvg = avg(highSleep.map(\.normalizedScore))
+            let delta = (highAvg - lowAvg) * Double(currentMax - currentMin)
+
+            if abs(delta) >= 1.0 {
+                let lowScaled = lowAvg * Double(currentMax - currentMin) + Double(currentMin)
+                let highScaled = highAvg * Double(currentMax - currentMin) + Double(currentMin)
+
+                results.append(InsightCard(
+                    id: "tag_sleep_cross_\(tag)",
+                    icon: "bed.double.fill",
+                    tone: delta > 0 ? .discovery : .caution,
+                    title: String(localized: "「\(tag)」× 睡眠"),
+                    body: delta > 0
+                        ? String(localized: "「\(tag)」の日、睡眠7h以上だとスコア\(fmt(highScaled))ですが、6.5h未満だと\(fmt(lowScaled))に下がります。睡眠が特に影響しています。")
+                        : String(localized: "「\(tag)」の日は睡眠時間に関わらずスコアが低め。睡眠以外の要因を探ってみましょう。"),
+                    priority: min(abs(delta) / 3.0, 0.95)
+                ))
+            }
+        }
+
+        // Tag × Steps cross analysis
+        for tag in topTags {
+            let tagEntries = matched.filter { $0.tags.contains(tag) && $0.steps != nil }
+            guard tagEntries.count >= 5 else { continue }
+
+            let lowSteps = tagEntries.filter { ($0.steps ?? 0) < 5000 }
+            let highSteps = tagEntries.filter { ($0.steps ?? 0) >= 8000 }
+
+            guard lowSteps.count >= 3, highSteps.count >= 3 else { continue }
+
+            let lowAvg = avg(lowSteps.map(\.normalizedScore))
+            let highAvg = avg(highSteps.map(\.normalizedScore))
+            let delta = (highAvg - lowAvg) * Double(currentMax - currentMin)
+
+            if abs(delta) >= 1.0 {
+                let lowScaled = lowAvg * Double(currentMax - currentMin) + Double(currentMin)
+                let highScaled = highAvg * Double(currentMax - currentMin) + Double(currentMin)
+
+                results.append(InsightCard(
+                    id: "tag_steps_cross_\(tag)",
+                    icon: "figure.walk",
+                    tone: delta > 0 ? .positive : .discovery,
+                    title: String(localized: "「\(tag)」× 歩数"),
+                    body: delta > 0
+                        ? String(localized: "「\(tag)」の日にたくさん歩くとスコア\(fmt(highScaled))。あまり歩かないと\(fmt(lowScaled))。運動が「\(tag)」のストレスを緩和しているかもしれません。")
+                        : String(localized: "「\(tag)」の日は歩数が多くてもスコアに変化なし。歩数以外のケアが効果的かも。"),
+                    priority: min(abs(delta) / 3.0, 0.9)
+                ))
+            }
+        }
+
+        // Return top 2 most significant
+        return Array(results.sorted { $0.priority > $1.priority }.prefix(2))
+    }
+
     // MARK: - ヘルパー
 
     private static func avg(_ values: [Double]) -> Double {
