@@ -460,6 +460,24 @@ struct StatsView: View {
                     currentMin: currentMinScore
                 )
                 insights.append(contentsOf: headphoneInsights)
+
+                // HRV × Mood analysis
+                let hrvInsights = InsightEngine.hrvMoodInsights(
+                    entries: entries,
+                    metrics: cachedMetricsArray,
+                    currentMax: currentMaxScore,
+                    currentMin: currentMinScore
+                )
+                insights.append(contentsOf: hrvInsights)
+
+                // Exercise & Workout × Mood analysis
+                let exerciseInsights = InsightEngine.exerciseMoodInsights(
+                    entries: entries,
+                    metrics: cachedMetricsArray,
+                    currentMax: currentMaxScore,
+                    currentMin: currentMinScore
+                )
+                insights.append(contentsOf: exerciseInsights)
             }
 
             insights.sort { $0.priority > $1.priority }

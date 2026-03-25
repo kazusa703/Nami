@@ -16,6 +16,10 @@ struct DailyHealthMetric: Sendable {
     let sleepHours: Double?
     let restingHeartRate: Double?
     let headphoneMinutes: Double?
+    let hrvSDNN: Double? // Heart Rate Variability (ms)
+    let exerciseMinutes: Double? // Apple Exercise Ring minutes
+    let workoutType: String? // Most significant workout type of the day
+    let workoutMinutes: Double? // Total workout duration
 }
 
 /// Manages HealthKit authorization and data queries
@@ -64,6 +68,21 @@ final class HealthKitManager {
         set { UserDefaults.standard.set(newValue, forKey: "hk_headphone") }
     }
 
+    var hrvEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "hk_hrv") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "hk_hrv") }
+    }
+
+    var exerciseEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "hk_exercise") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "hk_exercise") }
+    }
+
+    var workoutEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "hk_workout") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "hk_workout") }
+    }
+
     /// Cached daily metrics for current display
     var cachedMetrics: [Date: DailyHealthMetric] = [:]
 
@@ -85,6 +104,13 @@ final class HealthKitManager {
         if let headphone = HKQuantityType.quantityType(forIdentifier: .headphoneAudioExposure) {
             types.insert(headphone)
         }
+        if let hrv = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) {
+            types.insert(hrv)
+        }
+        if let exercise = HKQuantityType.quantityType(forIdentifier: .appleExerciseTime) {
+            types.insert(exercise)
+        }
+        types.insert(HKObjectType.workoutType())
         return types
     }()
 
@@ -253,6 +279,114 @@ final class HealthKitManager {
         }
     }
 
+    /// Fetch HRV (SDNN) for a specific date
+    func fetchHRV(for date: Date) async -> Double? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRateVariabilitySDNN) else { return nil }
+
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return nil }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(
+                quantityType: type,
+                quantitySamplePredicate: predicate,
+                options: .discreteAverage
+            ) { _, result, error in
+                if error != nil {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let value = result?.averageQuantity()?.doubleValue(for: .secondUnit(with: .milli))
+                continuation.resume(returning: value)
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Fetch Apple Exercise Time minutes for a specific date
+    func fetchExerciseMinutes(for date: Date) async -> Double? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .appleExerciseTime) else { return nil }
+
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return nil }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(
+                quantityType: type,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum
+            ) { _, result, error in
+                if error != nil {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let value = result?.sumQuantity()?.doubleValue(for: .minute())
+                continuation.resume(returning: value)
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Fetch the most significant workout for a specific date
+    func fetchWorkout(for date: Date) async -> (type: String, minutes: Double)? {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: date)
+        guard let end = calendar.date(byAdding: .day, value: 1, to: start) else { return nil }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: HKObjectType.workoutType(),
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+            ) { _, results, error in
+                if error != nil {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                guard let workouts = results as? [HKWorkout], !workouts.isEmpty else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                // Return the longest workout of the day
+                let longest = workouts.max(by: { $0.duration < $1.duration }) ?? workouts[0]
+                let typeName = Self.workoutTypeName(longest.workoutActivityType)
+                let minutes = longest.duration / 60.0
+                continuation.resume(returning: (typeName, minutes))
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Convert HKWorkoutActivityType to readable Japanese name
+    nonisolated static func workoutTypeName(_ type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .running: return String(localized: "ランニング")
+        case .walking: return String(localized: "ウォーキング")
+        case .cycling: return String(localized: "サイクリング")
+        case .swimming: return String(localized: "水泳")
+        case .yoga: return String(localized: "ヨガ")
+        case .functionalStrengthTraining, .traditionalStrengthTraining: return String(localized: "筋トレ")
+        case .highIntensityIntervalTraining: return String(localized: "HIIT")
+        case .dance: return String(localized: "ダンス")
+        case .hiking: return String(localized: "ハイキング")
+        case .pilates: return String(localized: "ピラティス")
+        case .mindAndBody: return String(localized: "瞑想")
+        case .elliptical: return String(localized: "エリプティカル")
+        case .coreTraining: return String(localized: "体幹トレーニング")
+        case .cooldown: return String(localized: "クールダウン")
+        default: return String(localized: "その他の運動")
+        }
+    }
+
     /// Fetch daily metrics for a date range
     func fetchDailyMetrics(from startDate: Date, to endDate: Date) async -> [DailyHealthMetric] {
         let calendar = Calendar.current
@@ -266,13 +400,20 @@ final class HealthKitManager {
             let sleepVal: Double? = sleepEnabled ? await fetchSleepHours(for: day) : nil
             let hrVal: Double? = heartRateEnabled ? await fetchRestingHeartRate(for: day) : nil
             let hpVal: Double? = headphoneEnabled ? await fetchHeadphoneMinutes(for: day) : nil
+            let hrvVal: Double? = hrvEnabled ? await fetchHRV(for: day) : nil
+            let exVal: Double? = exerciseEnabled ? await fetchExerciseMinutes(for: day) : nil
+            let workout = workoutEnabled ? await fetchWorkout(for: day) : nil
 
             let metric = DailyHealthMetric(
                 date: day,
                 steps: stepsVal,
                 sleepHours: sleepVal,
                 restingHeartRate: hrVal,
-                headphoneMinutes: hpVal
+                headphoneMinutes: hpVal,
+                hrvSDNN: hrvVal,
+                exerciseMinutes: exVal,
+                workoutType: workout?.type,
+                workoutMinutes: workout?.minutes
             )
             metrics.append(metric)
             cachedMetrics[day] = metric

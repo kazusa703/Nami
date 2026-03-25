@@ -733,6 +733,30 @@ struct SettingsView: View {
                     Label(String(localized: "イヤホン使用時間"), systemImage: "headphones")
                         .font(.system(.subheadline, design: .rounded))
                 }
+
+                Toggle(isOn: Binding(
+                    get: { healthKitManager.hrvEnabled },
+                    set: { healthKitManager.hrvEnabled = $0 }
+                )) {
+                    Label(String(localized: "心拍変動（HRV）"), systemImage: "waveform.path.ecg")
+                        .font(.system(.subheadline, design: .rounded))
+                }
+
+                Toggle(isOn: Binding(
+                    get: { healthKitManager.exerciseEnabled },
+                    set: { healthKitManager.exerciseEnabled = $0 }
+                )) {
+                    Label(String(localized: "運動時間"), systemImage: "figure.run")
+                        .font(.system(.subheadline, design: .rounded))
+                }
+
+                Toggle(isOn: Binding(
+                    get: { healthKitManager.workoutEnabled },
+                    set: { healthKitManager.workoutEnabled = $0 }
+                )) {
+                    Label(String(localized: "ワークアウト種類"), systemImage: "figure.mixed.cardio")
+                        .font(.system(.subheadline, design: .rounded))
+                }
             }
 
             if healthKitManager.isEnabled && !healthKitManager.isAvailable {

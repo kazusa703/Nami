@@ -1828,6 +1828,167 @@ enum InsightEngine {
         return Array(results.sorted { $0.priority > $1.priority }.prefix(2))
     }
 
+    // MARK: - 15. HRV × Mood Analysis
+
+    /// Correlate Heart Rate Variability with mood
+    /// HRV is an objective stress biomarker — low HRV = high stress
+    static func hrvMoodInsights(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> [InsightCard] {
+        let calendar = Calendar.current
+        guard entries.count >= 14 else { return [] }
+
+        var metricByDay: [Date: DailyHealthMetric] = [:]
+        for m in metrics {
+            metricByDay[calendar.startOfDay(for: m.date)] = m
+        }
+
+        struct Pair { let score: Double; let hrv: Double }
+        var pairs: [Pair] = []
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if let m = metricByDay[day], let hrv = m.hrvSDNN {
+                pairs.append(Pair(score: entry.normalizedScore, hrv: hrv))
+            }
+        }
+        guard pairs.count >= 7 else { return [] }
+
+        let range = Double(currentMax - currentMin)
+        var results: [InsightCard] = []
+
+        // Split by median HRV
+        let medianHRV = pairs.map(\.hrv).sorted()[pairs.count / 2]
+        let highHRV = pairs.filter { $0.hrv > medianHRV + 5 }
+        let lowHRV = pairs.filter { $0.hrv < medianHRV - 5 }
+
+        if highHRV.count >= 3, lowHRV.count >= 3 {
+            let highAvg = avg(highHRV.map(\.score))
+            let lowAvg = avg(lowHRV.map(\.score))
+            let delta = (highAvg - lowAvg) * range
+
+            if abs(delta) >= 0.8 {
+                let highScaled = highAvg * range + Double(currentMin)
+                let lowScaled = lowAvg * range + Double(currentMin)
+                let medianText = String(format: "%.0f", medianHRV)
+
+                if delta > 0 {
+                    results.append(InsightCard(
+                        id: "hrv_mood_positive",
+                        icon: "waveform.path.ecg",
+                        tone: .discovery,
+                        title: String(localized: "自律神経と気分"),
+                        body: String(localized: "心拍変動（HRV）が高い日（リラックス状態）はスコア\(fmt(highScaled))。低い日（ストレス状態）は\(fmt(lowScaled))。あなたの基準値は約\(medianText)msです。"),
+                        priority: min(abs(delta) / 3.0, 0.93)
+                    ))
+                } else {
+                    results.append(InsightCard(
+                        id: "hrv_mood_inverted",
+                        icon: "waveform.path.ecg",
+                        tone: .neutral,
+                        title: String(localized: "自律神経と気分"),
+                        body: String(localized: "興味深い傾向：HRVが低い（緊張状態の）日でも気分スコアは高め。集中や興奮がポジティブに働いているのかもしれません。"),
+                        priority: 0.8
+                    ))
+                }
+            }
+        }
+
+        return results
+    }
+
+    // MARK: - 16. Exercise & Workout × Mood Analysis
+
+    /// Correlate exercise time and workout types with mood
+    static func exerciseMoodInsights(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> [InsightCard] {
+        let calendar = Calendar.current
+        guard entries.count >= 14 else { return [] }
+
+        var metricByDay: [Date: DailyHealthMetric] = [:]
+        for m in metrics {
+            metricByDay[calendar.startOfDay(for: m.date)] = m
+        }
+
+        let range = Double(currentMax - currentMin)
+        var results: [InsightCard] = []
+
+        // Exercise minutes analysis
+        struct ExPair { let score: Double; let minutes: Double }
+        var exPairs: [ExPair] = []
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if let m = metricByDay[day], let mins = m.exerciseMinutes {
+                exPairs.append(ExPair(score: entry.normalizedScore, minutes: mins))
+            }
+        }
+
+        if exPairs.count >= 7 {
+            let active = exPairs.filter { $0.minutes >= 30 }
+            let sedentary = exPairs.filter { $0.minutes < 10 }
+
+            if active.count >= 3, sedentary.count >= 3 {
+                let activeAvg = avg(active.map(\.score))
+                let sedentaryAvg = avg(sedentary.map(\.score))
+                let delta = (activeAvg - sedentaryAvg) * range
+
+                if delta >= 0.8 {
+                    let activeScaled = activeAvg * range + Double(currentMin)
+                    let sedentaryScaled = sedentaryAvg * range + Double(currentMin)
+                    results.append(InsightCard(
+                        id: "exercise_mood",
+                        icon: "figure.run",
+                        tone: .positive,
+                        title: String(localized: "運動と気分"),
+                        body: String(localized: "30分以上運動した日はスコア\(fmt(activeScaled))。10分未満の日は\(fmt(sedentaryScaled))。体を動かすことが気分を支えています。"),
+                        priority: min(delta / 3.0, 0.9)
+                    ))
+                }
+            }
+        }
+
+        // Workout type analysis — compare different workout types
+        var workoutScores: [String: [Double]] = [:]
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if let m = metricByDay[day], let wType = m.workoutType {
+                workoutScores[wType, default: []].append(entry.normalizedScore)
+            }
+        }
+
+        // Find types with enough data
+        let validTypes = workoutScores.filter { $0.value.count >= 3 }
+        if validTypes.count >= 2 {
+            let bestType = validTypes.max { avg($0.value) < avg($1.value) }
+            let worstType = validTypes.min { avg($0.value) < avg($1.value) }
+
+            if let best = bestType, let worst = worstType, best.key != worst.key {
+                let bestAvg = avg(best.value) * range + Double(currentMin)
+                let worstAvg = avg(worst.value) * range + Double(currentMin)
+                let delta = bestAvg - worstAvg
+
+                if delta >= 1.0 {
+                    results.append(InsightCard(
+                        id: "workout_type_compare",
+                        icon: "figure.mixed.cardio",
+                        tone: .discovery,
+                        title: String(localized: "運動の種類と気分"),
+                        body: String(localized: "\(best.key)の日はスコア\(fmt(bestAvg))で最も気分が良く、\(worst.key)の日は\(fmt(worstAvg))。あなたに合った運動が見えてきました。"),
+                        priority: min(delta / 3.0, 0.92)
+                    ))
+                }
+            }
+        }
+
+        return Array(results.sorted { $0.priority > $1.priority }.prefix(2))
+    }
+
     // MARK: - ヘルパー
 
     private static func avg(_ values: [Double]) -> Double {
