@@ -227,6 +227,134 @@ enum NotificationManager {
         set { UserDefaults.standard.set(newValue, forKey: "negativeAlertEnabled") }
     }
 
+    // MARK: - ⑤ Smart Reminder (Auto-learn recording time)
+
+    private static let smartReminderKey = "recordingTimeHistory"
+    private static let smartReminderEnabledKey = "smartReminderEnabled"
+
+    /// Whether smart reminder is enabled
+    static var smartReminderEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: smartReminderEnabledKey) as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: smartReminderEnabledKey) }
+    }
+
+    /// Record the time user made a mood entry (call after each recording)
+    static func trackRecordingTime() {
+        let hour = Calendar.current.component(.hour, from: .now)
+        var history = UserDefaults.standard.array(forKey: smartReminderKey) as? [Int] ?? []
+        history.append(hour)
+        // Keep last 14 entries
+        if history.count > 14 { history = Array(history.suffix(14)) }
+        UserDefaults.standard.set(history, forKey: smartReminderKey)
+
+        // After 7+ recordings, auto-set reminder to most common hour
+        if history.count >= 7, smartReminderEnabled {
+            updateSmartReminder(from: history)
+        }
+    }
+
+    /// Calculate most common recording hour and schedule reminder
+    private static func updateSmartReminder(from hours: [Int]) {
+        var counts: [Int: Int] = [:]
+        for h in hours {
+            counts[h, default: 0] += 1
+        }
+        guard let peakHour = counts.max(by: { $0.value < $1.value })?.key else { return }
+
+        // Schedule 30 min before peak hour
+        let reminderHour = peakHour
+        let reminderMinute = 0
+        scheduleReminder(hour: reminderHour, minute: reminderMinute)
+
+        // Save for display in settings
+        UserDefaults.standard.set(peakHour, forKey: "smartReminderHour")
+    }
+
+    /// Get the learned peak recording hour (nil if not enough data)
+    static var learnedRecordingHour: Int? {
+        let history = UserDefaults.standard.array(forKey: smartReminderKey) as? [Int] ?? []
+        guard history.count >= 7 else { return nil }
+        var counts: [Int: Int] = [:]
+        for h in history {
+            counts[h, default: 0] += 1
+        }
+        return counts.max(by: { $0.value < $1.value })?.key
+    }
+
+    // MARK: - ⑥ Win-back Notifications (inactive user re-engagement)
+
+    private static let winbackPrefix = "nami.winback"
+    private static let lastRecordDateKey = "lastMoodRecordDate"
+
+    /// Update the last recording date (call after each recording)
+    static func updateLastRecordDate() {
+        UserDefaults.standard.set(Date.now, forKey: lastRecordDateKey)
+    }
+
+    /// Schedule win-back notifications for inactive users
+    /// Call on app launch
+    static func scheduleWinbackIfNeeded() {
+        guard insightNotificationsEnabled else { return }
+
+        // Cancel existing win-back notifications
+        let ids = ["\(winbackPrefix).7", "\(winbackPrefix).14", "\(winbackPrefix).30"]
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+
+        guard let lastRecord = UserDefaults.standard.object(forKey: lastRecordDateKey) as? Date else { return }
+
+        let daysSinceRecord = Calendar.current.dateComponents([.day], from: lastRecord, to: .now).day ?? 0
+
+        // Only schedule future win-backs (don't send if already past the window)
+        if daysSinceRecord < 7 {
+            scheduleWinback(
+                identifier: "\(winbackPrefix).7",
+                afterDays: 7 - daysSinceRecord,
+                title: String(localized: "最近どうですか？"),
+                body: String(localized: "少しの間記録が途切れていますが、それも大丈夫。気が向いたときに、また気分を残してみませんか？")
+            )
+        }
+
+        if daysSinceRecord < 14 {
+            scheduleWinback(
+                identifier: "\(winbackPrefix).14",
+                afterDays: 14 - daysSinceRecord,
+                title: String(localized: "データは残っています"),
+                body: String(localized: "これまでの記録はすべて保存されています。いつでも戻って、振り返ることができます。")
+            )
+        }
+
+        if daysSinceRecord < 30 {
+            scheduleWinback(
+                identifier: "\(winbackPrefix).30",
+                afterDays: 30 - daysSinceRecord,
+                title: String(localized: "お久しぶりです"),
+                body: String(localized: "1ヶ月ぶりですね。たった1回の記録から、また始められます。")
+            )
+        }
+    }
+
+    private static func scheduleWinback(identifier: String, afterDays: Int, title: String, body: String) {
+        guard afterDays > 0 else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        content.categoryIdentifier = "WINBACK"
+
+        let seconds = TimeInterval(afterDays * 86400)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
+    /// Cancel all win-back notifications (call when user records)
+    static func cancelWinback() {
+        let ids = ["\(winbackPrefix).7", "\(winbackPrefix).14", "\(winbackPrefix).30"]
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+    }
+
     // MARK: - Helpers
 
     private static func cancelPending(identifier: String) {

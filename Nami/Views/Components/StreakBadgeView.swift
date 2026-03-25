@@ -150,6 +150,19 @@ struct StreakBadgeView: View {
 
             // Milestone badges
             milestoneGrid
+
+            // Badge collection link
+            NavigationLink {
+                BadgeCollectionView()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "trophy")
+                        .font(.caption)
+                    Text(String(localized: "すべてのバッジ"))
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                }
+                .foregroundStyle(colors.accent)
+            }
         }
         .padding()
         .frame(minWidth: 220)

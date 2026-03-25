@@ -5,8 +5,8 @@
 //  気分記録の保存ロジック
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 import WidgetKit
 
 /// 気分記録のビジネスロジックを管理するViewModel
@@ -51,6 +51,11 @@ class MoodViewModel {
 
         // ウィジェットのタイムラインを更新
         WidgetCenter.shared.reloadAllTimelines()
+
+        // Track recording time for smart reminder + cancel win-back
+        NotificationManager.trackRecordingTime()
+        NotificationManager.updateLastRecordDate()
+        NotificationManager.cancelWinback()
 
         // Fetch weather asynchronously after entry creation
         if let weatherManager {

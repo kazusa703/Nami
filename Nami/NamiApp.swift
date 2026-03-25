@@ -127,6 +127,9 @@ struct NamiApp: App {
                     // ネガティブ傾向検知（3日連続低スコア → 通知）
                     Self.checkNegativeTrend(context: sharedModelContainer.mainContext)
 
+                    // Win-back通知のスケジュール（未記録7/14/30日後）
+                    NotificationManager.scheduleWinbackIfNeeded()
+
                     // アプリ起動時にリマインダーが有効ならスケジュールを再設定
                     if reminderEnabled {
                         let authorized = await NotificationManager.isAuthorized()

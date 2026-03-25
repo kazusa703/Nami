@@ -193,6 +193,10 @@ struct MainView: View {
             }
         }
         .animation(.spring(response: 0.4), value: showCoachTip)
+        .sheet(isPresented: $show14DayCard) {
+            FourteenDayMilestoneCard(entries: entries, themeColors: themeManager.colors)
+                .presentationDetents([.medium])
+        }
         .sheet(isPresented: $viewModel.showRecordingSheet) {
             RecordingSheet(
                 score: viewModel.recordedScore,
@@ -382,8 +386,18 @@ struct MainView: View {
             }
         case 7:
             showCoachTipDelayed(String(localized: "1週間の記録が溜まりました！統計タブでインサイトを確認しましょう"))
+        case 14:
+            show14DayMilestone()
         default:
             break
+        }
+    }
+
+    @State private var show14DayCard = false
+
+    private func show14DayMilestone() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            show14DayCard = true
         }
     }
 
@@ -427,6 +441,96 @@ struct MainView: View {
     private func rebuildStreakCache() {
         cachedCurrentStreak = statsVM.currentStreak(entries: entries)
         cachedLongestStreak = statsVM.longestStreak(entries: entries)
+    }
+}
+
+// MARK: - 14-Day Milestone Card
+
+/// Shown after 14 days of recording - the first real payoff
+struct FourteenDayMilestoneCard: View {
+    @Environment(\.dismiss) private var dismiss
+    let entries: [MoodEntry]
+    let themeColors: ThemeColors
+
+    private let statsVM = StatsViewModel()
+
+    var body: some View {
+        let cal = Calendar.current
+        let weekdayAvg = statsVM.weekdayAverages(entries: entries, currentMax: 10)
+        let bestWeekday = weekdayAvg.max(by: { $0.value < $1.value })
+        let worstWeekday = weekdayAvg.min(by: { $0.value < $1.value })
+        let weekdayNames = ["", "日", "月", "火", "水", "木", "金", "土"]
+
+        NavigationStack {
+            VStack(spacing: 20) {
+                // Celebration
+                Image(systemName: "party.popper.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(themeColors.accent)
+                    .symbolEffect(.bounce)
+
+                Text(String(localized: "2週間記録できました！"))
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+
+                Text(String(localized: "あなたのデータからわかったこと"))
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    if let best = bestWeekday {
+                        insightRow(
+                            icon: "calendar.badge.plus",
+                            color: .green,
+                            text: String(localized: "\(weekdayNames[best.key])曜日が最も気分が良い（\(String(format: "%.1f", best.value))）")
+                        )
+                    }
+                    if let worst = worstWeekday {
+                        insightRow(
+                            icon: "calendar.badge.minus",
+                            color: .orange,
+                            text: String(localized: "\(weekdayNames[worst.key])曜日が最も低め（\(String(format: "%.1f", worst.value))）")
+                        )
+                    }
+
+                    let avg = entries.map(\.normalizedScore).reduce(0, +) / Double(max(entries.count, 1)) * 10
+                    insightRow(
+                        icon: "chart.bar.fill",
+                        color: themeColors.accent,
+                        text: String(localized: "2週間の平均スコア: \(String(format: "%.1f", avg))")
+                    )
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(.ultraThinMaterial)
+                )
+
+                Button {
+                    dismiss()
+                } label: {
+                    Text(String(localized: "統計タブでもっと見る"))
+                        .font(.system(.headline, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(themeColors.accent)
+                        )
+                }
+            }
+            .padding(24)
+        }
+    }
+
+    private func insightRow(icon: String, color: Color, text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(color)
+                .frame(width: 24)
+            Text(text)
+                .font(.system(.subheadline, design: .rounded))
+        }
     }
 }
 
