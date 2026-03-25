@@ -63,23 +63,6 @@
           }
         }
       }
-    },
-    "NSUserTrackingUsageDescription" : {
-      "comment" : "Privacy - Tracking Usage Description",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Used to show personalized ads. Not needed if you purchase ad removal."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "パーソナライズされた広告を表示するために使用します。広告除去を購入すると不要になります。"
-          }
-        }
-      }
     }
   },
   "version" : "1.0"
