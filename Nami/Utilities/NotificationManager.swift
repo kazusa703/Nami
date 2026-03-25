@@ -195,7 +195,7 @@ enum NotificationManager {
         let content = UNMutableNotificationContent()
         content.title = String(localized: "最近の傾向")
         let scoreText = String(format: "%.1f", averageScore)
-        content.body = String(localized: "\(days)日連続で平均より低めのスコア（平均\(scoreText)）です。過去に回復したときのパターンを統計タブで確認してみましょう。")
+        content.body = String(localized: "最近しんどい日が\(days)日続いています（平均\(scoreText)）。少し振り返ってみませんか？")
         content.sound = .default
         content.categoryIdentifier = "INSIGHT"
 

@@ -5,16 +5,19 @@
 //  シェア用サマリー画面 - 週間/月間/月間レポートを切り替えてプレビュー + 画像生成 + 共有
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// シェア期間の選択肢
 enum SharePeriod: String, CaseIterable, Identifiable {
     case weekly = "週間"
     case monthly = "月間"
     case monthlyReport = "月間レポート"
+    case pdf = "PDF"
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 }
 
 /// シェアサマリーシート
@@ -32,6 +35,7 @@ struct ShareSummaryView: View {
     @State private var showShareSheet = false
     @State private var shareImage: UIImage?
     @State private var shareText: String?
+    @State private var sharePDFURL: URL?
 
     init(entries: [MoodEntry], currentMaxScore: Int, currentMinScore: Int = 1, themeColors: ThemeColors, statsVM: StatsViewModel) {
         self.entries = entries
@@ -59,10 +63,14 @@ struct ShareSummaryView: View {
 
                     // Card preview
                     ScrollView {
-                        if selectedPeriod == .monthlyReport {
+                        switch selectedPeriod {
+                        case .monthlyReport:
                             monthlyReportCard
                                 .padding()
-                        } else {
+                        case .pdf:
+                            pdfPreview
+                                .padding()
+                        default:
                             summaryCard
                                 .padding()
                         }
@@ -74,15 +82,18 @@ struct ShareSummaryView: View {
                     Button {
                         generateAndShare()
                     } label: {
-                        Label("シェアする", systemImage: "square.and.arrow.up")
-                            .font(.system(.headline, design: .rounded))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(themeColors.accent)
-                            )
+                        Label(
+                            selectedPeriod == .pdf ? String(localized: "PDFを書き出す") : String(localized: "シェアする"),
+                            systemImage: selectedPeriod == .pdf ? "doc.text" : "square.and.arrow.up"
+                        )
+                        .font(.system(.headline, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(themeColors.accent)
+                        )
                     }
                     .padding(.horizontal)
                     .padding(.bottom)
@@ -96,7 +107,9 @@ struct ShareSummaryView: View {
                 }
             }
             .sheet(isPresented: $showShareSheet) {
-                if let image = shareImage {
+                if let pdfURL = sharePDFURL {
+                    ShareSheet(items: [pdfURL])
+                } else if let image = shareImage {
                     ShareSheet(items: [image])
                 } else if let text = shareText {
                     ShareSheet(items: [text])
@@ -181,7 +194,9 @@ struct ShareSummaryView: View {
         // Weather summary - most common condition this month
         let weatherEntries = monthEntries.compactMap { $0.weatherCondition }
         var weatherCounts: [String: Int] = [:]
-        for w in weatherEntries { weatherCounts[w, default: 0] += 1 }
+        for w in weatherEntries {
+            weatherCounts[w, default: 0] += 1
+        }
         let topWeather = weatherCounts.max(by: { $0.value < $1.value })?.key
 
         // Daily scores for color bar (one per day of month)
@@ -226,7 +241,7 @@ struct ShareSummaryView: View {
             let sparkline = statsVM.sparklineData(entries: entries, since: startOfWeek)
             return (String(localized: "今週のまとめ"), avg, trend, weekEntries.count, sparkline)
 
-        case .monthly, .monthlyReport:
+        case .monthly, .monthlyReport, .pdf:
             let startOfMonth = calendar.dateInterval(of: .month, for: .now)?.start ?? .now
             let monthEntries = entries.filter { $0.createdAt >= startOfMonth }
             let avg = statsVM.monthlyAverage(entries: entries, currentMax: currentMaxScore) ?? 0
@@ -241,9 +256,14 @@ struct ShareSummaryView: View {
     // MARK: - Image Generation + Share
 
     private func generateAndShare() {
-        if selectedPeriod == .monthlyReport {
+        sharePDFURL = nil
+        shareImage = nil
+        switch selectedPeriod {
+        case .monthlyReport:
             generateReportAndShare()
-        } else {
+        case .pdf:
+            generatePDFAndShare()
+        default:
             generateSummaryAndShare()
         }
     }
@@ -299,6 +319,320 @@ struct ShareSummaryView: View {
             showShareSheet = true
         }
     }
+
+    // MARK: - PDF Preview
+
+    private var pdfPreview: some View {
+        let reportData = buildReportData()
+        let weekdayAvg = statsVM.weekdayAverages(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let timeOfDayAvg = statsVM.timeOfDayAverages(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let tagFreq = statsVM.tagFrequency(entries: entries)
+
+        return PDFReportPreview(
+            reportData: reportData,
+            weekdayAverages: weekdayAvg,
+            timeOfDayAverages: timeOfDayAvg,
+            topTags: Array(tagFreq.prefix(5)),
+            currentMaxScore: currentMaxScore,
+            currentMinScore: currentMinScore,
+            themeColors: themeColors
+        )
+    }
+
+    // MARK: - PDF Generation
+
+    private func generatePDFAndShare() {
+        let reportData = buildReportData()
+        let weekdayAvg = statsVM.weekdayAverages(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let timeOfDayAvg = statsVM.timeOfDayAverages(entries: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let tagFreq = statsVM.tagFrequency(entries: entries)
+
+        let pdfView = PDFReportPreview(
+            reportData: reportData,
+            weekdayAverages: weekdayAvg,
+            timeOfDayAverages: timeOfDayAvg,
+            topTags: Array(tagFreq.prefix(5)),
+            currentMaxScore: currentMaxScore,
+            currentMinScore: currentMinScore,
+            themeColors: themeColors
+        )
+
+        // Render to PDF using ImageRenderer
+        let renderer = ImageRenderer(content: pdfView.frame(width: 595)) // A4 width in points
+        renderer.scale = 2.0
+
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent("Nami_Report_\(reportData.monthLabel).pdf")
+
+        renderer.render { size, renderContext in
+            var box = CGRect(origin: .zero, size: size)
+            guard let context = CGContext(tempURL as CFURL, mediaBox: &box, nil) else { return }
+            context.beginPDFPage(nil)
+            renderContext(context)
+            context.endPDFPage()
+            context.closePDF()
+        }
+
+        sharePDFURL = tempURL
+        showShareSheet = true
+    }
+}
+
+// MARK: - PDF Report Preview View
+
+/// Multi-section PDF report designed for therapists/doctors
+struct PDFReportPreview: View {
+    let reportData: MonthlyReportData
+    let weekdayAverages: [Int: Double]
+    let timeOfDayAverages: [TimeOfDay: Double]
+    let topTags: [(tag: String, count: Int)]
+    let currentMaxScore: Int
+    let currentMinScore: Int
+    let themeColors: ThemeColors
+
+    private let weekdayNames = ["", "日", "月", "火", "水", "木", "金", "土"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            headerSection
+
+            Divider()
+
+            // Overview stats
+            overviewSection
+
+            Divider()
+
+            // Weekday breakdown
+            weekdaySection
+
+            Divider()
+
+            // Time of day
+            timeOfDaySection
+
+            if !topTags.isEmpty {
+                Divider()
+                tagSection
+            }
+
+            // Daily scores bar
+            if !reportData.dailyScores.isEmpty {
+                Divider()
+                dailySection
+            }
+
+            Divider()
+
+            // Footer
+            footerSection
+        }
+        .padding(24)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 8)
+    }
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Nami")
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+                    .foregroundStyle(themeColors.accent)
+                Spacer()
+                Text(String(localized: "気分レポート"))
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            Text(reportData.monthLabel)
+                .font(.system(.title3, design: .rounded, weight: .semibold))
+        }
+    }
+
+    private var overviewSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "概要"))
+                .font(.system(.headline, design: .rounded))
+
+            HStack(spacing: 24) {
+                statBlock(title: String(localized: "平均スコア"), value: String(format: "%.1f", reportData.averageScore))
+                statBlock(title: String(localized: "記録回数"), value: "\(reportData.totalEntries)")
+                statBlock(title: String(localized: "記録日数"), value: "\(reportData.activeDays)")
+                statBlock(title: String(localized: "ストリーク"), value: "\(reportData.streak)" + String(localized: "日"))
+            }
+
+            if let trend = reportData.trend {
+                HStack(spacing: 4) {
+                    Image(systemName: trend >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .foregroundStyle(trend >= 0 ? .green : .orange)
+                    Text(String(localized: "前月比: \(trend >= 0 ? "+" : "")\(String(format: "%.1f", trend))"))
+                        .font(.system(.subheadline, design: .rounded))
+                }
+            }
+
+            if let best = reportData.bestDay, let worst = reportData.worstDay {
+                HStack(spacing: 16) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                        Text(String(localized: "ベスト: \(best.date, format: .dateTime.month(.defaultDigits).day(.defaultDigits)) (\(best.score))"))
+                            .font(.system(.caption, design: .rounded))
+                    }
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.down")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                        Text(String(localized: "ワースト: \(worst.date, format: .dateTime.month(.defaultDigits).day(.defaultDigits)) (\(worst.score))"))
+                            .font(.system(.caption, design: .rounded))
+                    }
+                }
+            }
+        }
+    }
+
+    private var weekdaySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "曜日別平均"))
+                .font(.system(.headline, design: .rounded))
+
+            HStack(spacing: 0) {
+                ForEach([2, 3, 4, 5, 6, 7, 1], id: \.self) { wd in
+                    VStack(spacing: 4) {
+                        Text(weekdayNames[wd])
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        if let avg = weekdayAverages[wd] {
+                            let height = max(4, CGFloat(avg - Double(currentMinScore)) / CGFloat(currentMaxScore - currentMinScore) * 40)
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(themeColors.accent.opacity(0.7))
+                                .frame(height: height)
+
+                            Text(String(format: "%.1f", avg))
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color.gray.opacity(0.1))
+                                .frame(height: 4)
+                            Text("-")
+                                .font(.system(size: 9, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
+    private var timeOfDaySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "時間帯別平均"))
+                .font(.system(.headline, design: .rounded))
+
+            HStack(spacing: 12) {
+                ForEach(TimeOfDay.allCases) { tod in
+                    VStack(spacing: 4) {
+                        Image(systemName: tod.icon)
+                            .font(.caption)
+                            .foregroundStyle(themeColors.accent)
+                        Text(tod.label)
+                            .font(.system(.caption2, design: .rounded))
+
+                        if let avg = timeOfDayAverages[tod] {
+                            Text(String(format: "%.1f", avg))
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                        } else {
+                            Text("-")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
+    private var tagSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "よく使ったタグ"))
+                .font(.system(.headline, design: .rounded))
+
+            FlowLayout(spacing: 6) {
+                ForEach(topTags, id: \.tag) { item in
+                    HStack(spacing: 4) {
+                        Text(item.tag)
+                            .font(.system(.caption, design: .rounded))
+                        Text("×\(item.count)")
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(themeColors.accent.opacity(0.1)))
+                    .foregroundStyle(themeColors.accent)
+                }
+            }
+        }
+    }
+
+    private var dailySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "日別スコア"))
+                .font(.system(.headline, design: .rounded))
+
+            HStack(spacing: 1) {
+                ForEach(0 ..< reportData.dailyScores.count, id: \.self) { i in
+                    if let score = reportData.dailyScores[i] {
+                        let intScore = Int((score * Double(currentMaxScore - currentMinScore) + Double(currentMinScore)).rounded())
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(themeColors.color(for: intScore, minScore: currentMinScore, maxScore: currentMaxScore))
+                            .frame(height: 16)
+                    } else {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(Color.gray.opacity(0.1))
+                            .frame(height: 16)
+                    }
+                }
+            }
+
+            // Day labels
+            HStack {
+                Text("1")
+                    .font(.system(size: 8, design: .rounded))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Text("\(reportData.dailyScores.count)")
+                    .font(.system(size: 8, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private var footerSection: some View {
+        HStack {
+            Text(String(localized: "このレポートはNamiアプリで生成されました"))
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(.tertiary)
+            Spacer()
+            Text(Date.now, format: .dateTime.year().month().day())
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func statBlock(title: String, value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(.title3, design: .rounded, weight: .bold))
+            Text(title)
+                .font(.system(.caption2, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+    }
 }
 
 // MARK: - Monthly Report Data
@@ -316,7 +650,7 @@ struct MonthlyReportData {
     let topWeather: String?
     let totalEntries: Int
     let activeDays: Int
-    let dailyScores: [Double?]  // normalizedScore per day-of-month (nil = no entry)
+    let dailyScores: [Double?] // normalizedScore per day-of-month (nil = no entry)
 }
 
 // MARK: - Monthly Report Card View (Instagram story aspect ratio)
@@ -566,7 +900,7 @@ struct MonthlyReportCardView: View {
 
             // Thin horizontal strip: each day = small colored segment
             HStack(spacing: 1) {
-                ForEach(0..<data.dailyScores.count, id: \.self) { index in
+                ForEach(0 ..< data.dailyScores.count, id: \.self) { index in
                     if let score = data.dailyScores[index] {
                         let intScore = Int((score * Double(data.maxScore - data.minScore) + Double(data.minScore)).rounded())
                         RoundedRectangle(cornerRadius: 1.5)
