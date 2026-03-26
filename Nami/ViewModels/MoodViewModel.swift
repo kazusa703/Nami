@@ -57,6 +57,13 @@ class MoodViewModel {
         NotificationManager.updateLastRecordDate()
         NotificationManager.cancelWinback()
 
+        // Write mood data for Nemuri (bidirectional sync)
+        NamiDataWriter.writeMoodData(
+            latestEntry: entry,
+            weeklyAvg: Double(score),
+            weeklyCount: 1
+        )
+
         // Fetch weather asynchronously after entry creation
         if let weatherManager {
             let capturedEntry = entry

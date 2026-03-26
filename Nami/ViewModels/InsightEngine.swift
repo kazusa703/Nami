@@ -1989,6 +1989,83 @@ enum InsightEngine {
         return Array(results.sorted { $0.priority > $1.priority }.prefix(2))
     }
 
+    // MARK: - Nemuri Sleep Insights
+
+    /// Generate insights from Nemuri app sleep data (richer than HealthKit)
+    static func nemuriSleepInsights(
+        entries: [MoodEntry],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> [InsightCard] {
+        let sleepRecords = NemuriDataReader.readAllRecords()
+        guard sleepRecords.count >= 7 else { return [] }
+
+        let matched = NemuriDataReader.matchSleepToMood(sleepRecords: sleepRecords, moodEntries: entries)
+        guard matched.count >= 5 else { return [] }
+
+        var results: [InsightCard] = []
+        let overallAvg = avg(matched.map(\.mood.normalizedScore))
+
+        // ① Sleep latency insight (time to fall asleep)
+        let slowSleep = matched.filter { $0.sleep.sleepLatencyMinutes > 20 }
+        let fastSleep = matched.filter { $0.sleep.sleepLatencyMinutes <= 10 }
+        if slowSleep.count >= 3, fastSleep.count >= 3 {
+            let slowAvg = avg(slowSleep.map(\.mood.normalizedScore))
+            let fastAvg = avg(fastSleep.map(\.mood.normalizedScore))
+            let delta = (fastAvg - slowAvg) * Double(currentMax - currentMin)
+            if abs(delta) > 0.5 {
+                results.append(InsightCard(
+                    id: "nemuri_latency",
+                    icon: "bed.double.fill",
+                    tone: .discovery,
+                    title: String(localized: "入眠時間と気分"),
+                    body: String(localized: "すぐ眠れた日（10分以内）は翌日の気分が平均+\(fmt(delta))高い傾向です。寝つきの良さが気分に影響しているかもしれません。"),
+                    priority: 0.88
+                ))
+            }
+        }
+
+        // ② Awakenings insight (middle-of-night waking)
+        let manyWakes = matched.filter { $0.sleep.awakenings >= 3 }
+        let fewWakes = matched.filter { $0.sleep.awakenings <= 1 }
+        if manyWakes.count >= 3, fewWakes.count >= 3 {
+            let manyAvg = avg(manyWakes.map(\.mood.normalizedScore))
+            let fewAvg = avg(fewWakes.map(\.mood.normalizedScore))
+            let delta = (fewAvg - manyAvg) * Double(currentMax - currentMin)
+            if delta > 0.5 {
+                results.append(InsightCard(
+                    id: "nemuri_awakenings",
+                    icon: "moon.zzz.fill",
+                    tone: .caution,
+                    title: String(localized: "中途覚醒と気分"),
+                    body: String(localized: "夜中に3回以上起きた翌日は気分が平均\(fmt(-delta))低い傾向です。睡眠の質が気分に直結しています。"),
+                    priority: 0.86
+                ))
+            }
+        }
+
+        // ③ Sleep efficiency insight
+        let highEff = matched.filter { $0.sleep.efficiency >= 0.90 }
+        let lowEff = matched.filter { $0.sleep.efficiency < 0.80 }
+        if highEff.count >= 3, lowEff.count >= 3 {
+            let highAvg = avg(highEff.map(\.mood.normalizedScore))
+            let lowAvg = avg(lowEff.map(\.mood.normalizedScore))
+            let delta = (highAvg - lowAvg) * Double(currentMax - currentMin)
+            if delta > 0.5 {
+                results.append(InsightCard(
+                    id: "nemuri_efficiency",
+                    icon: "gauge.with.dots.needle.33percent",
+                    tone: .positive,
+                    title: String(localized: "睡眠効率と気分"),
+                    body: String(localized: "睡眠効率90%以上の翌日は気分が平均+\(fmt(delta))高いです。ベッドにいる時間と実際の睡眠時間の比率が大切です。"),
+                    priority: 0.87
+                ))
+            }
+        }
+
+        return results
+    }
+
     // MARK: - ヘルパー
 
     private static func avg(_ values: [Double]) -> Double {

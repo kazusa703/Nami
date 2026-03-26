@@ -363,6 +363,23 @@ struct MainView: View {
                 }
             }
 
+            // Nemuri sleep summary (if available)
+            if let sleep = NemuriDataReader.readLatestSleep(),
+               Calendar.current.isDateInToday(sleep.wakeTime) || Calendar.current.isDateInYesterday(sleep.wakeTime)
+            {
+                HStack(spacing: 6) {
+                    Image(systemName: "moon.zzz.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.indigo)
+                    Text(String(localized: "\(sleep.formattedDuration) · スコア\(Int(sleep.qualityScore))"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(.indigo.opacity(0.08)))
+            }
+
             Text(entry.createdAt, format: .dateTime.month(.defaultDigits).day(.defaultDigits).hour().minute())
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(.tertiary)
