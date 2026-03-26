@@ -5,9 +5,9 @@
 //  統合記録シート（メモ・写真・ボイスメモ）
 //
 
-import SwiftUI
-import SwiftData
 import PhotosUI
+import SwiftData
+import SwiftUI
 
 /// 記録シートのタブ
 enum RecordingTab: String, CaseIterable {
@@ -55,6 +55,7 @@ struct RecordingSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     /// シートの表示サイズ（初期値は中サイズ）
     @State private var sheetDetent: PresentationDetent = .medium
+    @State private var showRecordingHelp = false
 
     /// メモの最大文字数
     private let maxLength = 100
@@ -62,7 +63,7 @@ struct RecordingSheet: View {
     /// クイックメモテンプレート
     private let templates = [
         "仕事がんばった", "リラックスした", "疲れた",
-        "楽しかった", "不安だった", "感謝"
+        "楽しかった", "不安だった", "感謝",
     ]
 
     var body: some View {
@@ -91,6 +92,20 @@ struct RecordingSheet: View {
             }
             .navigationTitle("詳細を追加")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showRecordingHelp = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .sheet(isPresented: $showRecordingHelp) {
+                FeatureHelpSheet(title: String(localized: "記録の補足"), items: HelpContent.recordingHelp, accentColor: themeColors.accent)
+            }
         }
         .presentationDetents([.medium, .large], selection: $sheetDetent)
         .presentationDragIndicator(.visible)
@@ -224,7 +239,7 @@ struct RecordingSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("今の気持ちをひとこと...", text: $memoText, axis: .vertical)
                         .font(.system(.body, design: .rounded))
-                        .lineLimit(3...5)
+                        .lineLimit(3 ... 5)
                         .padding(12)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
@@ -317,7 +332,8 @@ struct RecordingSheet: View {
                     .onChange(of: selectedPhotoItem) { _, newItem in
                         Task {
                             if let data = try? await newItem?.loadTransferable(type: Data.self),
-                               let image = UIImage(data: data) {
+                               let image = UIImage(data: data)
+                            {
                                 capturedPhoto = image
                                 HapticManager.lightFeedback()
                             }
@@ -390,7 +406,7 @@ struct RecordingSheet: View {
                 .font(.system(.caption, design: .rounded, weight: .medium))
                 .foregroundStyle(.secondary)
 
-            ForEach(1...3, id: \.self) { level in
+            ForEach(1 ... 3, id: \.self) { level in
                 let isSelected = selectedEnergyLevel == level
                 Button {
                     withAnimation(.easeInOut(duration: 0.15)) {
@@ -486,7 +502,7 @@ struct RecordingSheet: View {
                 maxScore: 10,
                 themeColors: .ocean,
                 onSave: { _, _, _, _, _ in },
-                onSkip: { }
+                onSkip: {}
             )
         }
         .modelContainer(for: [MoodEntry.self, EmotionTag.self], inMemory: true)

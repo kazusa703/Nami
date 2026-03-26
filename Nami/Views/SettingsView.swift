@@ -53,6 +53,8 @@ struct SettingsView: View {
     @State private var showDeleteAllAlert = false
     /// 通知権限が拒否された場合のアラート
     @State private var showPermissionDeniedAlert = false
+    /// 設定ヘルプシート
+    @State private var showSettingsHelp = false
     // 購入成功アラート
 
     /// クイックタグ追加のテキスト
@@ -112,6 +114,13 @@ struct SettingsView: View {
                 .scrollContentBackground(.hidden)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .sheet(isPresented: $showSettingsHelp) {
+                FeatureHelpSheet(
+                    title: String(localized: "設定の使い方"),
+                    items: HelpContent.settingsHelp,
+                    accentColor: themeManager.colors.accent
+                )
+            }
             .sheet(isPresented: $showExportSheet) {
                 if let url = exportURL {
                     ShareSheet(items: [url])
@@ -955,6 +964,13 @@ struct SettingsView: View {
                 Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
                     .font(.system(.body, design: .rounded))
                     .foregroundStyle(.secondary)
+            }
+
+            // 設定の使い方
+            Button {
+                showSettingsHelp = true
+            } label: {
+                legalLinkRow(icon: "lightbulb", title: String(localized: "設定の使い方"))
             }
 
             // サポート

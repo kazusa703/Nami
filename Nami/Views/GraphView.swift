@@ -534,6 +534,7 @@ struct GraphView: View {
 
     @State private var rawSelectedDate: Date?
     @State private var selectedDay: Date?
+    @State private var showGraphHelp = false
 
     var onShowFullscreen: ((GraphMode, DateSelectionMode, Date) -> Void)? = nil
 
@@ -660,6 +661,9 @@ struct GraphView: View {
                     },
                     onSkip: { editingEntry = nil }
                 )
+            }
+            .sheet(isPresented: $showGraphHelp) {
+                FeatureHelpSheet(title: String(localized: "グラフの使い方"), items: HelpContent.graphHelp, accentColor: themeManager.colors.accent)
             }
             .alert("この記録を削除しますか？", isPresented: Binding(
                 get: { entryToDelete != nil },
@@ -806,6 +810,18 @@ struct GraphView: View {
                         }
                         .buttonStyle(.plain)
                     }
+
+                    // Help button
+                    Button {
+                        showGraphHelp = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .font(.system(.caption, design: .rounded))
+                            .frame(width: 32, height: 32)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(Color(.systemGray5).opacity(0.6)))
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
                 }
 
                 // Row 2: ◀ [日|週|月|年] ▶  date label (only for line mode)

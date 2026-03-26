@@ -25,6 +25,7 @@ struct MainView: View {
     /// Progressive disclosure: coaching tips after Nth recording
     @AppStorage("totalRecordCount") private var totalRecordCount: Int = 0
     @State private var showCoachTip: String? = nil
+    @State private var showMainHelp = false
     @Query(sort: \MoodEntry.createdAt, order: .reverse) private var entries: [MoodEntry]
 
     /// ウィジェットから記録されたエントリ
@@ -175,6 +176,18 @@ struct MainView: View {
                 }
             }
             .navigationBarHidden(true)
+        }
+        .overlay(alignment: .topTrailing) {
+            Button { showMainHelp = true } label: {
+                Image(systemName: "questionmark.circle")
+                    .font(.system(.body))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.trailing, 16)
+            .padding(.top, 8)
+        }
+        .sheet(isPresented: $showMainHelp) {
+            FeatureHelpSheet(title: String(localized: "画面の見方"), items: HelpContent.mainViewHelp, accentColor: themeManager.colors.accent)
         }
         .onAppear { rebuildStreakCache() }
         .onChange(of: entries.count) { oldCount, newCount in

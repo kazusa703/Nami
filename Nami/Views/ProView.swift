@@ -14,6 +14,7 @@ struct ProView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var selectedPlan: PremiumPlan = .yearly
     @State private var showPurchaseSuccessAlert = false
+    @State private var showProHelp = false
 
     var body: some View {
         let colors = themeManager.colors
@@ -25,6 +26,13 @@ struct ProView: View {
 
                 // Feature list
                 featureListSection(colors: colors)
+
+                // Help button for PRO feature details
+                Button { showProHelp = true } label: {
+                    Label(String(localized: "PRO機能の詳細"), systemImage: "questionmark.circle")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(premiumManager.isPremium ? colors.accent : .secondary)
+                }
 
                 if !premiumManager.isPremium {
                     // Plan selection
@@ -71,6 +79,9 @@ struct ProView: View {
                 showPurchaseSuccessAlert = true
                 premiumManager.showPurchaseSuccess = false
             }
+        }
+        .sheet(isPresented: $showProHelp) {
+            FeatureHelpSheet(title: String(localized: "PRO機能"), items: HelpContent.proFeatureHelp, accentColor: themeManager.colors.accent)
         }
     }
 
