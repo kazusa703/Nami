@@ -192,6 +192,7 @@ struct TagManagementView: View {
             sortOrder: nextOrder
         )
         modelContext.insert(tag)
+        UserDefaults.standard.set(true, forKey: "hasCreatedCustomTag")
         HapticManager.lightFeedback()
     }
 

@@ -473,6 +473,7 @@ struct SettingsView: View {
         )
         modelContext.insert(tag)
         quickTagName = ""
+        UserDefaults.standard.set(true, forKey: "hasCreatedCustomTag")
         HapticManager.lightFeedback()
     }
 

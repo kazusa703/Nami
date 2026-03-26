@@ -2,68 +2,74 @@
 //  OnboardingView.swift
 //  Nami
 //
-//  初回起動時のオンボーディングフロー
-//  Welcome → テーマ選択 → スコアレンジ → 通知設定 → 完了
+//  Onboarding flow: Welcome (value) → Theme → First Record → Notification
 //
 
 import SwiftData
 import SwiftUI
+import UIKit
 
-/// オンボーディング画面
-/// 初回起動時にアプリの紹介、テーマ選択、スコア範囲、タグ設定、通知設定を案内する
+/// Onboarding: 4 steps focused on value-first experience
 struct OnboardingView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.themeManager) private var themeManager
     @Environment(\.modelContext) private var modelContext
 
     @AppStorage(AppConstants.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
-    @AppStorage(AppConstants.scoreRangeKey) private var scoreRangeRaw: String = ScoreRange.pos10.rawValue
     @AppStorage("reminderEnabled") private var reminderEnabled = false
     @AppStorage("reminderHour") private var reminderHour = 21
     @AppStorage("reminderMinute") private var reminderMinute = 0
 
-    /// 現在のステップ（0〜5）
     @State private var currentStep = 0
-    /// 通知のON/OFF（ローカルState → 完了時にAppStorageへ反映）
     @State private var enableReminder = false
-    /// 通知権限が拒否された場合
     @State private var showPermissionDeniedAlert = false
-    /// カスタムタグ入力テキスト
-    @State private var customTagText = ""
-    /// オンボーディングで作成したカスタムタグ
-    @State private var createdTags: [String] = []
+    /// First record score (nil = not yet selected)
+    @State private var firstRecordScore: Int? = nil
+    /// Show RecordingSheet after score selection
+    @State private var showRecordingSheet = false
+    /// Onboarding tooltip visibility
+    @State private var showTooltip = true
+    /// Whether first record has been saved (to avoid double-save)
+    @State private var firstRecordSaved = false
 
-    /// ステップ数（Welcome, Theme, ScoreRange, Tags, Notification, Done）
-    private let totalSteps = 6
+    private let totalSteps = 4
 
     var body: some View {
         let colors = themeManager.colors
 
         ZStack {
-            // 背景グラデーション
             colors.backgroundGradient(for: colorScheme)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // コンテンツ
+                // Skip button (top right, not on last step)
+                if currentStep < totalSteps - 1 {
+                    HStack {
+                        Spacer()
+                        Button {
+                            HapticManager.lightFeedback()
+                            completeOnboarding()
+                        } label: {
+                            Text(String(localized: "あとで設定する"))
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.top, 8)
+                    }
+                } else {
+                    Spacer().frame(height: 28)
+                }
+
                 TabView(selection: $currentStep) {
-                    welcomeStep(colors: colors)
-                        .tag(0)
-                    themeStep(colors: colors)
-                        .tag(1)
-                    scoreRangeStep(colors: colors)
-                        .tag(2)
-                    tagStep(colors: colors)
-                        .tag(3)
-                    notificationStep(colors: colors)
-                        .tag(4)
-                    doneStep(colors: colors)
-                        .tag(5)
+                    welcomeStep(colors: colors).tag(0)
+                    themeStep(colors: colors).tag(1)
+                    firstRecordStep(colors: colors).tag(2)
+                    notificationStep(colors: colors).tag(3)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
 
-                // ページインジケーター + ボタン
                 bottomBar(colors: colors)
             }
         }
@@ -79,11 +85,11 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - 下部バー（インジケーター + ボタン）
+    // MARK: - Bottom Bar
 
     private func bottomBar(colors: ThemeColors) -> some View {
         VStack(spacing: 16) {
-            // ページインジケーター
+            // Page indicator
             HStack(spacing: 8) {
                 ForEach(0 ..< totalSteps, id: \.self) { index in
                     Circle()
@@ -94,16 +100,13 @@ struct OnboardingView: View {
                 }
             }
 
-            // ボタン
             if currentStep < totalSteps - 1 {
+                // Next button
                 HStack(spacing: 12) {
-                    // 「戻る」ボタン（ステップ1以降で表示）
                     if currentStep > 0 {
                         Button {
                             HapticManager.lightFeedback()
-                            withAnimation {
-                                currentStep -= 1
-                            }
+                            withAnimation { currentStep -= 1 }
                         } label: {
                             Image(systemName: "chevron.left")
                                 .font(.system(.headline, design: .rounded, weight: .semibold))
@@ -113,14 +116,17 @@ struct OnboardingView: View {
                         }
                     }
 
-                    // 「次へ」ボタン
                     Button {
                         HapticManager.lightFeedback()
-                        withAnimation {
-                            currentStep += 1
+                        // On step 2 (first record), save the entry before moving on
+                        if currentStep == 2, let score = firstRecordScore {
+                            saveFirstRecord(score: score)
                         }
+                        withAnimation { currentStep += 1 }
                     } label: {
-                        Text("次へ")
+                        Text(currentStep == 2
+                            ? (firstRecordScore != nil ? String(localized: "記録して次へ") : String(localized: "スキップして次へ"))
+                            : String(localized: "次へ"))
                             .font(.system(.headline, design: .rounded, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -130,14 +136,11 @@ struct OnboardingView: View {
                 }
                 .padding(.horizontal, 24)
             } else {
-                // 「はじめる」ボタン（最終ステップ）
+                // Final step: "はじめる"
                 HStack(spacing: 12) {
-                    // 戻るボタン
                     Button {
                         HapticManager.lightFeedback()
-                        withAnimation {
-                            currentStep -= 1
-                        }
+                        withAnimation { currentStep -= 1 }
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.system(.headline, design: .rounded, weight: .semibold))
@@ -150,7 +153,7 @@ struct OnboardingView: View {
                         HapticManager.successFeedback()
                         completeOnboarding()
                     } label: {
-                        Text("はじめる")
+                        Text(String(localized: "はじめる"))
                             .font(.system(.headline, design: .rounded, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -160,32 +163,17 @@ struct OnboardingView: View {
                 }
                 .padding(.horizontal, 24)
             }
-
-            // スキップ（最終ステップ以外）
-            if currentStep < totalSteps - 1 && currentStep > 0 {
-                Button {
-                    HapticManager.lightFeedback()
-                    withAnimation {
-                        currentStep = totalSteps - 1
-                    }
-                } label: {
-                    Text("スキップ")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(.secondary)
-                }
-            }
         }
         .padding(.bottom, 32)
         .padding(.top, 8)
     }
 
-    // MARK: - Step 1: Welcome
+    // MARK: - Step 1: Welcome (Value Proposition)
 
     private func welcomeStep(colors: ThemeColors) -> some View {
         VStack(spacing: 32) {
             Spacer()
 
-            // 波アイコン
             Image(systemName: "water.waves")
                 .font(.system(size: 80))
                 .foregroundStyle(colors.accent.gradient)
@@ -196,27 +184,27 @@ struct OnboardingView: View {
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundStyle(colors.accent)
 
-                Text("気分の波を、やさしく記録")
+                Text(String(localized: "気分の波を、数字にする"))
                     .font(.system(.title3, design: .rounded))
                     .foregroundStyle(.secondary)
             }
 
-            // 機能紹介
+            // Value props: quantification + HealthKit + privacy
             VStack(alignment: .leading, spacing: 20) {
-                featureRow(
-                    icon: "pencil.circle.fill",
+                valueRow(
+                    icon: "chart.bar.xaxis.ascending",
                     color: colors.accent,
-                    text: "毎日の気分をスコアで記録"
+                    text: String(localized: "あなたの気分スコアから、隠れたパターンを発見")
                 )
-                featureRow(
-                    icon: "chart.xyaxis.line",
-                    color: colors.graphLine,
-                    text: "グラフや統計で振り返る"
+                valueRow(
+                    icon: "heart.text.clipboard",
+                    color: .red,
+                    text: String(localized: "HealthKitと連携して、睡眠・運動の影響も分析")
                 )
-                featureRow(
-                    icon: "bell.fill",
-                    color: .orange,
-                    text: "リマインダーで習慣化"
+                valueRow(
+                    icon: "lock.shield.fill",
+                    color: .green,
+                    text: String(localized: "プライバシーファースト。データは外に出ません")
                 )
             }
             .padding(.horizontal, 40)
@@ -227,21 +215,19 @@ struct OnboardingView: View {
         .padding(.horizontal, 24)
     }
 
-    /// 機能紹介行
-    private func featureRow(icon: String, color: Color, text: String) -> some View {
+    private func valueRow(icon: String, color: Color, text: String) -> some View {
         HStack(spacing: 16) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundStyle(color)
                 .frame(width: 36)
-
             Text(text)
-                .font(.system(.body, design: .rounded))
+                .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(.primary)
         }
     }
 
-    // MARK: - Step 2: テーマ選択
+    // MARK: - Step 2: Theme
 
     private func themeStep(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
@@ -252,19 +238,18 @@ struct OnboardingView: View {
                     .font(.system(size: 44))
                     .foregroundStyle(colors.accent.gradient)
 
-                Text("テーマを選ぶ")
+                Text(String(localized: "テーマを選ぶ"))
                     .font(.system(.title2, design: .rounded, weight: .bold))
 
-                Text("お好みの色合いを選んでください")
+                Text(String(localized: "お好みの色合いを選んでください"))
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(.secondary)
             }
 
-            // テーマカード
             VStack(spacing: 12) {
                 ForEach(AppTheme.allCases) { theme in
                     let isSelected = themeManager.currentTheme == theme
-                    let themeColors = theme.colors
+                    let tc = theme.colors
 
                     Button {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
@@ -273,34 +258,23 @@ struct OnboardingView: View {
                         HapticManager.lightFeedback()
                     } label: {
                         HStack(spacing: 14) {
-                            // テーマプレビューカード
                             RoundedRectangle(cornerRadius: 10)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            colorScheme == .dark ? themeColors.backgroundStartDark : themeColors.backgroundStartLight,
-                                            colorScheme == .dark ? themeColors.backgroundEndDark : themeColors.backgroundEndLight,
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .fill(LinearGradient(
+                                    colors: [
+                                        colorScheme == .dark ? tc.backgroundStartDark : tc.backgroundStartLight,
+                                        colorScheme == .dark ? tc.backgroundEndDark : tc.backgroundEndLight,
+                                    ],
+                                    startPoint: .topLeading, endPoint: .bottomTrailing
+                                ))
                                 .frame(width: 48, height: 48)
-                                .overlay(
-                                    Circle()
-                                        .fill(themeColors.accent)
-                                        .frame(width: 16, height: 16)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(isSelected ? themeColors.accent : .clear, lineWidth: 2.5)
-                                )
+                                .overlay(Circle().fill(tc.accent).frame(width: 16, height: 16))
+                                .overlay(RoundedRectangle(cornerRadius: 10)
+                                    .stroke(isSelected ? tc.accent : .clear, lineWidth: 2.5))
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(theme.displayName)
                                     .font(.system(.body, design: .rounded, weight: isSelected ? .semibold : .regular))
                                     .foregroundStyle(.primary)
-
                                 Text(theme.themeDescription)
                                     .font(.system(.caption, design: .rounded))
                                     .foregroundStyle(.secondary)
@@ -310,7 +284,7 @@ struct OnboardingView: View {
 
                             if isSelected {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(themeColors.accent)
+                                    .foregroundStyle(tc.accent)
                                     .font(.title3)
                                     .transition(.scale.combined(with: .opacity))
                             }
@@ -320,10 +294,8 @@ struct OnboardingView: View {
                         .background(
                             RoundedRectangle(cornerRadius: 14)
                                 .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(isSelected ? themeColors.accent.opacity(0.5) : .clear, lineWidth: 1)
-                                )
+                                .overlay(RoundedRectangle(cornerRadius: 14)
+                                    .stroke(isSelected ? tc.accent.opacity(0.5) : .clear, lineWidth: 1))
                         )
                     }
                 }
@@ -335,268 +307,181 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 3: スコアレンジ
+    // MARK: - Step 3: First Record (Aha Moment)
 
-    /// 現在のスコアレンジ
-    private var currentScoreRange: ScoreRange {
-        ScoreRange(rawValue: scoreRangeRaw) ?? .pos10
-    }
-
-    private func scoreRangeStep(colors: ThemeColors) -> some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            VStack(spacing: 8) {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 44))
-                    .foregroundStyle(colors.accent.gradient)
-
-                Text("スコアの範囲")
-                    .font(.system(.title2, design: .rounded, weight: .bold))
-
-                Text("記録に使うスコアの範囲を選んでください")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-
-            // スコアレンジ選択（ScrollViewで8パターン表示）
-            ScrollView {
-                VStack(spacing: 8) {
-                    // 正のみセクション
-                    Text("正のみ")
-                        .font(.system(.caption, design: .rounded, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 4)
-
-                    ForEach(ScoreRange.positiveRanges) { range in
-                        scoreRangeButton(range: range, colors: colors)
-                    }
-
-                    // 負ありセクション
-                    Text("負あり")
-                        .font(.system(.caption, design: .rounded, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 4)
-                        .padding(.top, 8)
-
-                    ForEach(ScoreRange.negativeRanges) { range in
-                        scoreRangeButton(range: range, colors: colors)
-                    }
-                }
-            }
-            .padding(.horizontal, 24)
-
-            Spacer()
-        }
-    }
-
-    /// スコアレンジ選択ボタン
-    @ViewBuilder
-    private func scoreRangeButton(range: ScoreRange, colors: ThemeColors) -> some View {
-        let isSelected = scoreRangeRaw == range.rawValue
-
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                scoreRangeRaw = range.rawValue
-            }
-            range.save()
-            HapticManager.lightFeedback()
-        } label: {
-            HStack(spacing: 16) {
-                Text(range.displayName)
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                    .foregroundStyle(isSelected ? .white : colors.accent)
-                    .frame(width: 80, height: 38)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(isSelected ? colors.accent : colors.accent.opacity(0.1))
-                    )
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(range.description)
-                        .font(.system(.subheadline, design: .rounded, weight: isSelected ? .semibold : .regular))
-                        .foregroundStyle(.primary)
+    private func firstRecordStep(colors: ThemeColors) -> some View {
+        ZStack {
+            // Tap anywhere outside buttons to dismiss tooltips
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeOut(duration: 0.2)) { showTooltip = false }
                 }
 
+            VStack(spacing: 20) {
                 Spacer()
 
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(colors.accent)
-                        .font(.title3)
-                        .transition(.scale.combined(with: .opacity))
+                // Title
+                VStack(spacing: 8) {
+                    Text(String(localized: "今の気分は？"))
+                        .font(.system(.title, design: .rounded, weight: .bold))
                 }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isSelected ? colors.accent.opacity(0.5) : .clear, lineWidth: 1)
-                    )
-            )
-        }
-    }
 
-    // MARK: - Step 4: タグ設定
+                // Tooltip A: Large speech bubble with arrow
+                if showTooltip {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "hand.tap.fill")
+                                .font(.title2)
+                                .foregroundStyle(colors.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "数字をタップしてみましょう"))
+                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.primary)
+                                Text(String(localized: "今の気分に近い数字を選んでください"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.regularMaterial)
+                                .shadow(color: colors.accent.opacity(0.15), radius: 8, y: 4)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(colors.accent.opacity(0.3), lineWidth: 1)
+                        )
 
-    private func tagStep(colors: ThemeColors) -> some View {
-        VStack(spacing: 20) {
-            Spacer()
+                        // Arrow pointing down
+                        Triangle()
+                            .fill(Color(.secondarySystemBackground))
+                            .frame(width: 16, height: 8)
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    .padding(.horizontal, 32)
+                }
 
-            VStack(spacing: 8) {
-                Image(systemName: "tag.fill")
-                    .font(.system(size: 44))
-                    .foregroundStyle(colors.accent.gradient)
+                // Score display
+                if let score = firstRecordScore {
+                    Text("\(score)")
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .foregroundStyle(colors.color(for: score, minScore: 1, maxScore: 10))
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    Text("?")
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                }
 
-                Text(String(localized: "タグで記録を豊かに"))
-                    .font(.system(.title2, design: .rounded, weight: .bold))
-
-                Text(String(localized: "気分に関連するタグを付けると\n自動でパターンを分析します"))
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            // カテゴリ紹介
-            VStack(spacing: 8) {
-                tagCategoryRow(icon: "sun.max.fill", color: .yellow, name: String(localized: "感情"), example: String(localized: "嬉しい、不安、リラックス"))
-                tagCategoryRow(icon: "leaf.fill", color: .green, name: String(localized: "要因"), example: String(localized: "運動、仕事、天気"))
-                tagCategoryRow(icon: "mappin.and.ellipse", color: .red, name: String(localized: "場所"), example: String(localized: "自宅、職場、外出先"))
-                tagCategoryRow(icon: "figure.walk", color: .blue, name: String(localized: "活動"), example: String(localized: "読書、散歩、料理"))
-                tagCategoryRow(icon: "person.2.fill", color: .purple, name: String(localized: "人"), example: String(localized: "一人、家族、友人"))
-            }
-            .padding(.horizontal, 24)
-
-            // カスタムタグ作成
-            VStack(alignment: .leading, spacing: 10) {
-                Text(String(localized: "あなただけのタグを作ってみましょう（任意）"))
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(colors.accent)
-
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(colors.accent)
-
-                    TextField(String(localized: "例: コーヒー、筋トレ、推し活..."), text: $customTagText)
-                        .font(.system(.body, design: .rounded))
-                        .submitLabel(.done)
-                        .onSubmit { addCustomTag(colors: colors) }
-
-                    if !customTagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                // Score buttons (1-10 in 2 rows)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
+                    ForEach(1 ... 10, id: \.self) { score in
                         Button {
-                            addCustomTag(colors: colors)
+                            withAnimation(.spring(response: 0.3)) {
+                                firstRecordScore = score
+                                showTooltip = false
+                            }
+                            HapticManager.lightFeedback()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                showRecordingSheet = true
+                            }
                         } label: {
-                            Text(String(localized: "追加"))
-                                .font(.system(.caption, design: .rounded, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Capsule().fill(colors.accent))
+                            Text("\(score)")
+                                .font(.system(.title3, design: .rounded, weight: .semibold))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(firstRecordScore == score
+                                            ? colors.color(for: score, minScore: 1, maxScore: 10)
+                                            : colors.accent.opacity(0.08))
+                                )
+                                .foregroundStyle(firstRecordScore == score ? .white : .primary)
                         }
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(.ultraThinMaterial)
-                )
+                .padding(.horizontal, 24)
 
-                // 作成したタグ表示
-                if !createdTags.isEmpty {
-                    FlowLayout(spacing: 6) {
-                        ForEach(createdTags, id: \.self) { tag in
-                            HStack(spacing: 4) {
-                                Image(systemName: "star.fill")
-                                    .font(.caption2)
-                                Text(tag)
-                                    .font(.system(.caption, design: .rounded))
-                                Button {
-                                    removeCustomTag(tag)
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(.system(size: 8, weight: .bold))
-                                }
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Capsule().fill(colors.accent.opacity(0.12)))
-                            .foregroundStyle(colors.accent)
-                        }
+                // Tooltip B: Subtle bottom hint
+                if showTooltip {
+                    HStack(spacing: 6) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(colors.accent.opacity(0.6))
+                        Text(String(localized: "1 = とても低い　10 = とても高い"))
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(colors.accent.opacity(0.06))
+                    )
+                    .transition(.opacity)
+                } else {
+                    Text(String(localized: "1 = とても低い　10 = とても高い"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.tertiary)
                 }
-            }
-            .padding(.horizontal, 24)
 
-            Spacer()
-        }
-    }
+                // Tooltip C: Floating note
+                if showTooltip {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lightbulb.fill")
+                            .font(.caption)
+                            .foregroundStyle(.yellow)
+                        Text(String(localized: "記録した後にメモやタグも追加できます"))
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+                    )
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
 
-    private func tagCategoryRow(icon: String, color: Color, name: String, example: String) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.body)
-                .foregroundStyle(color)
-                .frame(width: 28)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(name)
-                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                Text(example)
-                    .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.ultraThinMaterial)
-        )
-    }
-
-    private func addCustomTag(colors _: ThemeColors) {
-        let trimmed = customTagText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !createdTags.contains(trimmed) else { return }
-
-        createdTags.append(trimmed)
-
-        // Save to SwiftData
-        let nextOrder = 9000 + createdTags.count
-        let tag = EmotionTag(
-            name: trimmed,
-            category: .custom,
-            icon: "star.fill",
-            isDefault: false,
-            sortOrder: nextOrder
-        )
-        modelContext.insert(tag)
-
-        customTagText = ""
-        HapticManager.lightFeedback()
-    }
-
-    private func removeCustomTag(_ name: String) {
-        createdTags.removeAll { $0 == name }
-        // Remove from SwiftData
-        let descriptor = FetchDescriptor<EmotionTag>(
-            predicate: #Predicate<EmotionTag> { $0.name == name && $0.isDefault == false }
-        )
-        if let tags = try? modelContext.fetch(descriptor) {
-            for tag in tags {
-                modelContext.delete(tag)
+                Spacer()
+                Spacer()
             }
         }
-        HapticManager.lightFeedback()
+        .animation(.spring(response: 0.3), value: firstRecordScore)
+        .animation(.easeInOut(duration: 0.25), value: showTooltip)
+        .sheet(isPresented: $showRecordingSheet) {
+            if let score = firstRecordScore {
+                RecordingSheet(
+                    score: score,
+                    maxScore: 10,
+                    scoreRangeMin: 1,
+                    themeColors: themeManager.colors,
+                    isOnboarding: true,
+                    onSave: { memo, photo, voiceMemoURL, tags, energyLevel in
+                        saveFirstRecordWithDetails(
+                            score: score,
+                            memo: memo,
+                            photo: photo,
+                            voiceMemoURL: voiceMemoURL,
+                            tags: tags,
+                            energyLevel: energyLevel
+                        )
+                    },
+                    onSkip: {
+                        // Just close the sheet, score is already selected
+                        showRecordingSheet = false
+                    }
+                )
+            }
+        }
     }
 
-    // MARK: - Step 5: 通知設定
+    // MARK: - Step 4: Notification + Start
 
     private func notificationStep(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
@@ -607,48 +492,41 @@ struct OnboardingView: View {
                     .font(.system(size: 44))
                     .foregroundStyle(.orange.gradient)
 
-                Text("通知リマインダー")
+                Text(String(localized: "毎日の習慣にする"))
                     .font(.system(.title2, design: .rounded, weight: .bold))
 
-                Text("毎日決まった時間にお知らせします")
+                Text(String(localized: "リマインダーで記録を忘れずに"))
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(.secondary)
             }
 
             VStack(spacing: 20) {
-                // リマインダートグル
                 HStack {
-                    Label("リマインダーを設定", systemImage: "bell")
+                    Label(String(localized: "リマインダーを設定"), systemImage: "bell")
                         .font(.system(.body, design: .rounded))
-
                     Spacer()
-
                     Toggle("", isOn: $enableReminder)
                         .labelsHidden()
                         .tint(colors.accent)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(.ultraThinMaterial)
-                )
+                .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
 
-                // 時刻ピッカー（ONの場合）
                 if enableReminder {
                     DatePicker(
                         "通知時刻",
                         selection: Binding(
                             get: {
-                                var components = DateComponents()
-                                components.hour = reminderHour
-                                components.minute = reminderMinute
-                                return Calendar.current.date(from: components) ?? .now
+                                var c = DateComponents()
+                                c.hour = reminderHour
+                                c.minute = reminderMinute
+                                return Calendar.current.date(from: c) ?? .now
                             },
-                            set: { newDate in
-                                let components = Calendar.current.dateComponents([.hour, .minute], from: newDate)
-                                reminderHour = components.hour ?? 21
-                                reminderMinute = components.minute ?? 0
+                            set: { d in
+                                let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+                                reminderHour = c.hour ?? 21
+                                reminderMinute = c.minute ?? 0
                             }
                         ),
                         displayedComponents: .hourAndMinute
@@ -662,9 +540,12 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
             .animation(.easeInOut(duration: 0.3), value: enableReminder)
 
-            Text("あとで設定する")
+            // Social proof
+            Text(String(localized: "毎日記録するユーザーは、4倍多くのパターンを発見しています"))
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
                 .padding(.top, 4)
 
             Spacer()
@@ -672,35 +553,71 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 6: 完了
+    // MARK: - Actions
 
-    private func doneStep(colors: ThemeColors) -> some View {
-        VStack(spacing: 32) {
-            Spacer()
+    private func saveFirstRecord(score: Int) {
+        guard !firstRecordSaved else { return }
+        let entry = MoodEntry(
+            score: score,
+            maxScore: 10,
+            scoreRangeMin: 1,
+            source: "app"
+        )
+        modelContext.insert(entry)
+        firstRecordSaved = true
+        HapticManager.recordFeedback()
 
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(colors.accent.gradient)
-
-            VStack(spacing: 12) {
-                Text("準備完了！")
-                    .font(.system(.title, design: .rounded, weight: .bold))
-
-                Text("さっそく記録してみましょう")
-                    .font(.system(.title3, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-            Spacer()
-        }
+        // Track recording time for smart reminder
+        NotificationManager.trackRecordingTime()
+        NotificationManager.updateLastRecordDate()
+        NotificationManager.cancelWinback()
     }
 
-    // MARK: - 完了処理
+    private func saveFirstRecordWithDetails(
+        score: Int,
+        memo: String,
+        photo: UIImage?,
+        voiceMemoURL: URL?,
+        tags: [String],
+        energyLevel: Int?
+    ) {
+        guard !firstRecordSaved else { return }
+        let entry = MoodEntry(
+            score: score,
+            maxScore: 10,
+            scoreRangeMin: 1,
+            source: "app"
+        )
 
-    /// オンボーディングを完了する
+        if !memo.isEmpty {
+            entry.memo = String(memo.prefix(100))
+        }
+        if let photo {
+            entry.photoPath = MediaManager.savePhoto(photo)
+        }
+        if let voiceMemoURL {
+            entry.voiceMemoPath = MediaManager.saveVoiceMemo(from: voiceMemoURL)
+        }
+        entry.tags = tags
+        entry.energyLevel = energyLevel
+
+        modelContext.insert(entry)
+        firstRecordSaved = true
+        showRecordingSheet = false
+        HapticManager.recordFeedback()
+
+        NotificationManager.trackRecordingTime()
+        NotificationManager.updateLastRecordDate()
+        NotificationManager.cancelWinback()
+    }
+
     private func completeOnboarding() {
-        // 通知設定を反映
+        // Save first record if selected but not yet saved via RecordingSheet
+        if let score = firstRecordScore, !firstRecordSaved {
+            saveFirstRecord(score: score)
+        }
+
+        // Apply notification settings
         if enableReminder {
             reminderEnabled = true
             Task {
@@ -716,14 +633,27 @@ struct OnboardingView: View {
             }
         }
 
-        // オンボーディング完了
         withAnimation(.easeInOut(duration: 0.4)) {
             hasCompletedOnboarding = true
         }
     }
 }
 
+// MARK: - Triangle Shape
+
+private struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 #Preview {
     OnboardingView()
+        .modelContainer(for: [MoodEntry.self, EmotionTag.self], inMemory: true)
         .environment(\.themeManager, ThemeManager())
 }

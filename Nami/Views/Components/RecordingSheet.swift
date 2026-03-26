@@ -9,19 +9,17 @@ import PhotosUI
 import SwiftData
 import SwiftUI
 
-/// 記録シートのタブ
+/// 記録シートのタブ（タグ → メモ → エネルギー の3タブ）
 enum RecordingTab: String, CaseIterable {
-    case memo = "メモ"
     case tags = "タグ"
-    case photo = "写真"
-    case voice = "ボイス"
+    case memo = "メモ"
+    case energy = "エネルギー"
 
     var iconName: String {
         switch self {
-        case .memo: return "pencil"
         case .tags: return "tag"
-        case .photo: return "camera"
-        case .voice: return "mic"
+        case .memo: return "pencil"
+        case .energy: return "battery.50percent"
         }
     }
 }
@@ -36,6 +34,8 @@ struct RecordingSheet: View {
     let themeColors: ThemeColors
     /// 編集モード（ウィジェット記録の補完時にtrue）
     var isEditing: Bool = false
+    /// オンボーディング中かどうか（説明吹き出し表示用）
+    var isOnboarding: Bool = false
     /// 編集モード時の初期メモ
     var initialMemo: String = ""
     /// 編集モード時の初期タグ
@@ -43,7 +43,7 @@ struct RecordingSheet: View {
     let onSave: (_ memo: String, _ photo: UIImage?, _ voiceMemoURL: URL?, _ tags: [String], _ energyLevel: Int?) -> Void
     let onSkip: () -> Void
 
-    @State private var selectedTab: RecordingTab = .memo
+    @State private var selectedTab: RecordingTab = .tags
     @State private var memoText = ""
     @State private var selectedTags: Set<String> = []
     @State private var selectedEnergyLevel: Int? = nil
@@ -53,9 +53,9 @@ struct RecordingSheet: View {
     @State private var recorder = VoiceRecorderManager()
     @FocusState private var isMemoFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
-    /// シートの表示サイズ（初期値は中サイズ）
-    @State private var sheetDetent: PresentationDetent = .medium
+    // Sheet always opens at full height
     @State private var showRecordingHelp = false
+    @State private var showOnboardingTip = false
 
     /// メモの最大文字数
     private let maxLength = 100
@@ -72,34 +72,83 @@ struct RecordingSheet: View {
                 // スコア表示
                 scoreHeader
 
-                // エネルギーレベル選択
-                energyLevelSelector
+                // オンボーディング説明吹き出し
+                if isOnboarding && showOnboardingTip {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(themeColors.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "このまま右上の ✓ で保存できます"))
+                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.primary)
+                                Text(String(localized: "メモやタグは任意。付けると分析が深まります"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.regularMaterial)
+                                .shadow(color: themeColors.accent.opacity(0.15), radius: 8, y: 4)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(themeColors.accent.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.2)) { showOnboardingTip = false }
+                    }
+                }
 
                 // タブセレクタ
                 tabSelector
 
-                // タブコンテンツ
+                // タブコンテンツ（タグ → メモ → エネルギー）
                 TabView(selection: $selectedTab) {
-                    memoTab.tag(RecordingTab.memo)
                     tagsTab.tag(RecordingTab.tags)
-                    photoTab.tag(RecordingTab.photo)
-                    voiceTab.tag(RecordingTab.voice)
+                    memoTab.tag(RecordingTab.memo)
+                    energyTab.tag(RecordingTab.energy)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-
-                // ボタン群
-                actionButtons
             }
             .navigationTitle("詳細を追加")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        showRecordingHelp = true
+                        cleanupAndSkip()
                     } label: {
-                        Image(systemName: "questionmark.circle")
-                            .font(.system(.body, design: .rounded))
-                            .foregroundStyle(.secondary)
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(.caption, weight: .semibold))
+                            Text(isEditing ? String(localized: "キャンセル") : String(localized: "戻る"))
+                        }
+                        .font(.system(.body, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 12) {
+                        Button {
+                            showRecordingHelp = true
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(.body, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                        Button {
+                            onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags), selectedEnergyLevel)
+                        } label: {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(themeColors.accent)
+                        }
                     }
                 }
             }
@@ -107,7 +156,7 @@ struct RecordingSheet: View {
                 FeatureHelpSheet(title: String(localized: "記録の補足"), items: HelpContent.recordingHelp, accentColor: themeColors.accent)
             }
         }
-        .presentationDetents([.medium, .large], selection: $sheetDetent)
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .onAppear {
             // 編集モード時は初期値を設定
@@ -115,10 +164,14 @@ struct RecordingSheet: View {
                 memoText = initialMemo
                 selectedTags = initialTags
             }
-            // メモ欄に自動フォーカス
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                isMemoFocused = true
+            // オンボーディング中は説明吹き出しを表示
+            if isOnboarding {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation { showOnboardingTip = true }
+                }
             }
+            // メモタブに切り替えた時に自動フォーカス
+            // (タグが最初のタブなので、メモフォーカスは遅延させない)
         }
         .fullScreenCover(isPresented: $showCamera) {
             PhotoCaptureView(
@@ -207,7 +260,16 @@ struct RecordingSheet: View {
         .padding(.top, 4)
     }
 
-    // MARK: - メモタブ
+    // MARK: - タグタブ
+
+    private var tagsTab: some View {
+        TagSelectionView(
+            selectedTags: $selectedTags,
+            themeColors: themeColors
+        )
+    }
+
+    // MARK: - メモタブ（写真・ボイス統合）
 
     private var memoTab: some View {
         ScrollView {
@@ -260,74 +322,75 @@ struct RecordingSheet: View {
                     }
                 }
                 .padding(.horizontal)
-            }
-            .padding(.top, 12)
-        }
-    }
 
-    // MARK: - 写真タブ
+                // 写真・ボイス添付エリア（メモタブ内に統合）
+                Divider().padding(.horizontal)
 
-    private var photoTab: some View {
-        VStack(spacing: 16) {
-            if let photo = capturedPhoto {
-                // プレビュー
-                Image(uiImage: photo)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal)
-
-                HStack(spacing: 20) {
-                    Button {
-                        showCamera = true
-                    } label: {
-                        Label("撮り直し", systemImage: "camera")
-                            .font(.system(.body, design: .rounded, weight: .medium))
-                            .foregroundStyle(themeColors.accent)
-                    }
-
-                    Button {
-                        capturedPhoto = nil
-                        HapticManager.lightFeedback()
-                    } label: {
-                        Label("削除", systemImage: "trash")
-                            .font(.system(.body, design: .rounded, weight: .medium))
-                            .foregroundStyle(.red)
-                    }
-                }
-            } else {
-                Spacer()
-
-                // 写真選択ボタン群
-                VStack(spacing: 16) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 52))
-                        .foregroundStyle(themeColors.accent.opacity(0.4))
-
-                    // カメラボタン
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        Button {
-                            showCamera = true
-                            HapticManager.lightFeedback()
+                HStack(spacing: 16) {
+                    // 写真添付
+                    if let photo = capturedPhoto {
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: photo)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 60, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            Button {
+                                capturedPhoto = nil
+                                HapticManager.lightFeedback()
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.white)
+                                    .background(Circle().fill(.black.opacity(0.5)))
+                            }
+                            .offset(x: 4, y: -4)
+                        }
+                    } else {
+                        Menu {
+                            if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                Button {
+                                    showCamera = true
+                                    HapticManager.lightFeedback()
+                                } label: {
+                                    Label(String(localized: "撮影"), systemImage: "camera.fill")
+                                }
+                            }
+                            Button {
+                                // PhotosPicker is triggered via the binding below
+                            } label: {
+                                Label(String(localized: "ライブラリ"), systemImage: "photo.stack")
+                            }
                         } label: {
-                            Label("撮影する", systemImage: "camera.fill")
-                                .font(.system(.headline, design: .rounded))
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 12)
-                                .background(
-                                    Capsule()
-                                        .fill(themeColors.accent)
-                                )
-                                .foregroundStyle(.white)
+                            VStack(spacing: 4) {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(.title3))
+                                Text(String(localized: "写真"))
+                                    .font(.system(.caption2, design: .rounded))
+                            }
+                            .foregroundStyle(themeColors.accent.opacity(0.6))
+                            .frame(width: 60, height: 60)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(themeColors.accent.opacity(0.08))
+                            )
                         }
                     }
 
-                    // ライブラリから選択
+                    // PhotosPicker (hidden, triggered by menu)
                     PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        Label("ライブラリから選択", systemImage: "photo.stack")
-                            .font(.system(.subheadline, design: .rounded, weight: .medium))
-                            .foregroundStyle(themeColors.accent)
+                        VStack(spacing: 4) {
+                            Image(systemName: "photo.stack")
+                                .font(.system(.title3))
+                            Text(String(localized: "選択"))
+                                .font(.system(.caption2, design: .rounded))
+                        }
+                        .foregroundStyle(themeColors.accent.opacity(0.6))
+                        .frame(width: 60, height: 60)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(themeColors.accent.opacity(0.08))
+                        )
                     }
                     .onChange(of: selectedPhotoItem) { _, newItem in
                         Task {
@@ -339,99 +402,103 @@ struct RecordingSheet: View {
                             }
                         }
                     }
-                }
 
-                Spacer()
-            }
-        }
-        .padding(.top, 12)
-    }
-
-    // MARK: - タグタブ
-
-    private var tagsTab: some View {
-        TagSelectionView(
-            selectedTags: $selectedTags,
-            themeColors: themeColors
-        )
-    }
-
-    // MARK: - ボイスタブ
-
-    private var voiceTab: some View {
-        VStack {
-            Spacer()
-            VoiceRecorderView(themeColors: themeColors, recorder: recorder)
-            Spacer()
-        }
-    }
-
-    // MARK: - ボタン群
-
-    private var actionButtons: some View {
-        VStack(spacing: 12) {
-            // 保存ボタン
-            Button {
-                onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags), selectedEnergyLevel)
-            } label: {
-                Text("保存")
-                    .font(.system(.headline, design: .rounded))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(themeColors.accent)
-                    )
-                    .foregroundStyle(.white)
-            }
-
-            // 詳細なしで閉じる / キャンセル
-            Button {
-                cleanupAndSkip()
-            } label: {
-                Text(isEditing ? "キャンセル" : "詳細なしで閉じる")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 16)
-    }
-
-    // MARK: - エネルギーレベル選択
-
-    private var energyLevelSelector: some View {
-        HStack(spacing: 20) {
-            Text(String(localized: "エネルギー"))
-                .font(.system(.caption, design: .rounded, weight: .medium))
-                .foregroundStyle(.secondary)
-
-            ForEach(1 ... 3, id: \.self) { level in
-                let isSelected = selectedEnergyLevel == level
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        if selectedEnergyLevel == level {
-                            selectedEnergyLevel = nil // Deselect
+                    // ボイスメモ
+                    VStack(spacing: 4) {
+                        if recorder.recordedURL != nil && recorder.state != .idle {
+                            // Recorded indicator
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(.title3))
+                                .foregroundStyle(.green)
+                            Text(String(localized: "録音済"))
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(.green)
                         } else {
-                            selectedEnergyLevel = level
+                            Button {
+                                if recorder.state == .recording {
+                                    recorder.stopRecording()
+                                } else {
+                                    recorder.startRecording()
+                                }
+                                HapticManager.lightFeedback()
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: recorder.state == .recording ? "stop.circle.fill" : "mic.fill")
+                                        .font(.system(.title3))
+                                        .foregroundStyle(recorder.state == .recording ? .red : themeColors.accent.opacity(0.6))
+                                    Text(recorder.state == .recording ? String(localized: "停止") : String(localized: "ボイス"))
+                                        .font(.system(.caption2, design: .rounded))
+                                        .foregroundStyle(recorder.state == .recording ? .red : themeColors.accent.opacity(0.6))
+                                }
+                            }
                         }
                     }
-                    HapticManager.lightFeedback()
-                } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: energyIcon(for: level))
-                            .font(.system(size: 22))
-                            .foregroundStyle(isSelected ? energyColor(for: level) : .secondary.opacity(0.5))
-                        Text(energyLabel(for: level))
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(isSelected ? energyColor(for: level) : .secondary.opacity(0.5))
-                    }
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(width: 60, height: 60)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(themeColors.accent.opacity(0.08))
+                    )
+
+                    Spacer()
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal)
             }
+            .padding(.top, 12)
         }
-        .padding(.vertical, 4)
+    }
+
+    // MARK: - エネルギータブ
+
+    private var energyTab: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Text(String(localized: "今のエネルギーレベルは？"))
+                .font(.system(.headline, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 24) {
+                ForEach(1 ... 3, id: \.self) { level in
+                    let isSelected = selectedEnergyLevel == level
+                    Button {
+                        withAnimation(.spring(response: 0.3)) {
+                            if selectedEnergyLevel == level {
+                                selectedEnergyLevel = nil
+                            } else {
+                                selectedEnergyLevel = level
+                            }
+                        }
+                        HapticManager.lightFeedback()
+                    } label: {
+                        VStack(spacing: 8) {
+                            Image(systemName: energyIcon(for: level))
+                                .font(.system(size: 40))
+                                .foregroundStyle(isSelected ? energyColor(for: level) : .secondary.opacity(0.3))
+                            Text(energyLabel(for: level))
+                                .font(.system(.subheadline, design: .rounded, weight: .medium))
+                                .foregroundStyle(isSelected ? energyColor(for: level) : .secondary.opacity(0.5))
+                        }
+                        .frame(width: 90, height: 90)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(isSelected ? energyColor(for: level).opacity(0.1) : Color(.systemGray6))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(isSelected ? energyColor(for: level).opacity(0.5) : .clear, lineWidth: 2)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text(String(localized: "任意 — スキップしてもOK"))
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.tertiary)
+
+            Spacer()
+            Spacer()
+        }
     }
 
     /// Energy level icon name
@@ -480,10 +547,9 @@ struct RecordingSheet: View {
     /// 指定タブにデータがあるかチェック
     private func hasData(for tab: RecordingTab) -> Bool {
         switch tab {
-        case .memo: return !memoText.isEmpty
         case .tags: return !selectedTags.isEmpty
-        case .photo: return capturedPhoto != nil
-        case .voice: return recorder.recordedURL != nil && recorder.state != .idle
+        case .memo: return !memoText.isEmpty || capturedPhoto != nil || (recorder.recordedURL != nil && recorder.state != .idle)
+        case .energy: return selectedEnergyLevel != nil
         }
     }
 

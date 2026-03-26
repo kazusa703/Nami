@@ -189,7 +189,16 @@ struct MainView: View {
         .sheet(isPresented: $showMainHelp) {
             FeatureHelpSheet(title: String(localized: "画面の見方"), items: HelpContent.mainViewHelp, accentColor: themeManager.colors.accent)
         }
-        .onAppear { rebuildStreakCache() }
+        .onAppear {
+            rebuildStreakCache()
+            // Show custom tag creation tip on first launch after onboarding
+            if !entries.isEmpty && !UserDefaults.standard.bool(forKey: "hasCreatedCustomTag") {
+                let dismissedKey = "dismissedCustomTagTip"
+                if !UserDefaults.standard.bool(forKey: dismissedKey) {
+                    showCoachTipDelayed(String(localized: "💡 自分だけのタグを作ってみましょう！設定 → タグから追加できます"))
+                }
+            }
+        }
         .onChange(of: entries.count) { oldCount, newCount in
             rebuildStreakCache()
             // Progressive disclosure: show coaching tips after specific recording counts
@@ -393,6 +402,11 @@ struct MainView: View {
         switch count {
         case 1:
             showCoachTipDelayed(String(localized: "タグを付けると、パターン分析がもっと深まります"))
+        case 2:
+            // Check if user has created any custom tags
+            if !UserDefaults.standard.bool(forKey: "hasCreatedCustomTag") {
+                showCoachTipDelayed(String(localized: "💡 自分だけのタグを作ってみましょう！設定 → タグから追加できます"))
+            }
         case 3:
             if !entries.contains(where: { $0.energyLevel != nil }) {
                 showCoachTipDelayed(String(localized: "エネルギーレベルも記録してみましょう。気分との関係が見えてきます"))
