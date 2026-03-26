@@ -6,13 +6,15 @@
 //  Welcome → テーマ選択 → スコアレンジ → 通知設定 → 完了
 //
 
+import SwiftData
 import SwiftUI
 
 /// オンボーディング画面
-/// 初回起動時にアプリの紹介、テーマ選択、スコア範囲、通知設定を案内する
+/// 初回起動時にアプリの紹介、テーマ選択、スコア範囲、タグ設定、通知設定を案内する
 struct OnboardingView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.themeManager) private var themeManager
+    @Environment(\.modelContext) private var modelContext
 
     @AppStorage(AppConstants.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
     @AppStorage(AppConstants.scoreRangeKey) private var scoreRangeRaw: String = ScoreRange.pos10.rawValue
@@ -20,15 +22,19 @@ struct OnboardingView: View {
     @AppStorage("reminderHour") private var reminderHour = 21
     @AppStorage("reminderMinute") private var reminderMinute = 0
 
-    /// 現在のステップ（0〜4）
+    /// 現在のステップ（0〜5）
     @State private var currentStep = 0
     /// 通知のON/OFF（ローカルState → 完了時にAppStorageへ反映）
     @State private var enableReminder = false
     /// 通知権限が拒否された場合
     @State private var showPermissionDeniedAlert = false
+    /// カスタムタグ入力テキスト
+    @State private var customTagText = ""
+    /// オンボーディングで作成したカスタムタグ
+    @State private var createdTags: [String] = []
 
-    /// ステップ数（Welcome, Theme, ScoreRange, Notification, Done）
-    private let totalSteps = 5
+    /// ステップ数（Welcome, Theme, ScoreRange, Tags, Notification, Done）
+    private let totalSteps = 6
 
     var body: some View {
         let colors = themeManager.colors
@@ -47,10 +53,12 @@ struct OnboardingView: View {
                         .tag(1)
                     scoreRangeStep(colors: colors)
                         .tag(2)
-                    notificationStep(colors: colors)
+                    tagStep(colors: colors)
                         .tag(3)
-                    doneStep(colors: colors)
+                    notificationStep(colors: colors)
                         .tag(4)
+                    doneStep(colors: colors)
+                        .tag(5)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
@@ -73,12 +81,11 @@ struct OnboardingView: View {
 
     // MARK: - 下部バー（インジケーター + ボタン）
 
-    @ViewBuilder
     private func bottomBar(colors: ThemeColors) -> some View {
         VStack(spacing: 16) {
             // ページインジケーター
             HStack(spacing: 8) {
-                ForEach(0..<totalSteps, id: \.self) { index in
+                ForEach(0 ..< totalSteps, id: \.self) { index in
                     Circle()
                         .fill(index == currentStep ? colors.accent : colors.accent.opacity(0.25))
                         .frame(width: 8, height: 8)
@@ -174,7 +181,6 @@ struct OnboardingView: View {
 
     // MARK: - Step 1: Welcome
 
-    @ViewBuilder
     private func welcomeStep(colors: ThemeColors) -> some View {
         VStack(spacing: 32) {
             Spacer()
@@ -237,7 +243,6 @@ struct OnboardingView: View {
 
     // MARK: - Step 2: テーマ選択
 
-    @ViewBuilder
     private func themeStep(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
             Spacer()
@@ -274,7 +279,7 @@ struct OnboardingView: View {
                                     LinearGradient(
                                         colors: [
                                             colorScheme == .dark ? themeColors.backgroundStartDark : themeColors.backgroundStartLight,
-                                            colorScheme == .dark ? themeColors.backgroundEndDark : themeColors.backgroundEndLight
+                                            colorScheme == .dark ? themeColors.backgroundEndDark : themeColors.backgroundEndLight,
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -337,7 +342,6 @@ struct OnboardingView: View {
         ScoreRange(rawValue: scoreRangeRaw) ?? .pos10
     }
 
-    @ViewBuilder
     private func scoreRangeStep(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
             Spacer()
@@ -438,9 +442,162 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 4: 通知設定
+    // MARK: - Step 4: タグ設定
 
-    @ViewBuilder
+    private func tagStep(colors: ThemeColors) -> some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            VStack(spacing: 8) {
+                Image(systemName: "tag.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(colors.accent.gradient)
+
+                Text(String(localized: "タグで記録を豊かに"))
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+
+                Text(String(localized: "気分に関連するタグを付けると\n自動でパターンを分析します"))
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            // カテゴリ紹介
+            VStack(spacing: 8) {
+                tagCategoryRow(icon: "sun.max.fill", color: .yellow, name: String(localized: "感情"), example: String(localized: "嬉しい、不安、リラックス"))
+                tagCategoryRow(icon: "leaf.fill", color: .green, name: String(localized: "要因"), example: String(localized: "運動、仕事、天気"))
+                tagCategoryRow(icon: "mappin.and.ellipse", color: .red, name: String(localized: "場所"), example: String(localized: "自宅、職場、外出先"))
+                tagCategoryRow(icon: "figure.walk", color: .blue, name: String(localized: "活動"), example: String(localized: "読書、散歩、料理"))
+                tagCategoryRow(icon: "person.2.fill", color: .purple, name: String(localized: "人"), example: String(localized: "一人、家族、友人"))
+            }
+            .padding(.horizontal, 24)
+
+            // カスタムタグ作成
+            VStack(alignment: .leading, spacing: 10) {
+                Text(String(localized: "あなただけのタグを作ってみましょう（任意）"))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(colors.accent)
+
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(colors.accent)
+
+                    TextField(String(localized: "例: コーヒー、筋トレ、推し活..."), text: $customTagText)
+                        .font(.system(.body, design: .rounded))
+                        .submitLabel(.done)
+                        .onSubmit { addCustomTag(colors: colors) }
+
+                    if !customTagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button {
+                            addCustomTag(colors: colors)
+                        } label: {
+                            Text(String(localized: "追加"))
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(colors.accent))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.ultraThinMaterial)
+                )
+
+                // 作成したタグ表示
+                if !createdTags.isEmpty {
+                    FlowLayout(spacing: 6) {
+                        ForEach(createdTags, id: \.self) { tag in
+                            HStack(spacing: 4) {
+                                Image(systemName: "star.fill")
+                                    .font(.caption2)
+                                Text(tag)
+                                    .font(.system(.caption, design: .rounded))
+                                Button {
+                                    removeCustomTag(tag)
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 8, weight: .bold))
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(colors.accent.opacity(0.12)))
+                            .foregroundStyle(colors.accent)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+
+            Spacer()
+        }
+    }
+
+    private func tagCategoryRow(icon: String, color: Color, name: String, example: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(color)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name)
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                Text(example)
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+        )
+    }
+
+    private func addCustomTag(colors _: ThemeColors) {
+        let trimmed = customTagText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !createdTags.contains(trimmed) else { return }
+
+        createdTags.append(trimmed)
+
+        // Save to SwiftData
+        let nextOrder = 9000 + createdTags.count
+        let tag = EmotionTag(
+            name: trimmed,
+            category: .custom,
+            icon: "star.fill",
+            isDefault: false,
+            sortOrder: nextOrder
+        )
+        modelContext.insert(tag)
+
+        customTagText = ""
+        HapticManager.lightFeedback()
+    }
+
+    private func removeCustomTag(_ name: String) {
+        createdTags.removeAll { $0 == name }
+        // Remove from SwiftData
+        let descriptor = FetchDescriptor<EmotionTag>(
+            predicate: #Predicate<EmotionTag> { $0.name == name && $0.isDefault == false }
+        )
+        if let tags = try? modelContext.fetch(descriptor) {
+            for tag in tags {
+                modelContext.delete(tag)
+            }
+        }
+        HapticManager.lightFeedback()
+    }
+
+    // MARK: - Step 5: 通知設定
+
     private func notificationStep(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
             Spacer()
@@ -515,9 +672,8 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 5: 完了
+    // MARK: - Step 6: 完了
 
-    @ViewBuilder
     private func doneStep(colors: ThemeColors) -> some View {
         VStack(spacing: 32) {
             Spacer()
