@@ -185,8 +185,8 @@ struct ShareSummaryView: View {
             worstDay = (wd.date, wd.score)
         }
 
-        // Top 3 tags
-        let topTags = Array((summary?.topTags ?? []).prefix(3).map { $0.tag })
+        // Top 20 tags with counts
+        let topTags = Array((summary?.topTags ?? []).prefix(20))
 
         // Current streak
         let streak = statsVM.currentStreak(entries: entries)
@@ -645,7 +645,7 @@ struct MonthlyReportData {
     let minScore: Int
     let bestDay: (date: Date, score: Int)?
     let worstDay: (date: Date, score: Int)?
-    let topTags: [String]
+    let topTags: [(tag: String, count: Int)]
     let streak: Int
     let topWeather: String?
     let totalEntries: Int
@@ -666,7 +666,13 @@ struct MonthlyReportCardView: View {
     let themeColors: ThemeColors
 
     private let cardWidth: CGFloat = 390
-    private let cardHeight: CGFloat = 692
+    private var cardHeight: CGFloat {
+        // Base height + tag ranking rows
+        let baseHeight: CGFloat = 580
+        let tagRowHeight: CGFloat = 22
+        let tagCount = CGFloat(data.topTags.count)
+        return baseHeight + (tagCount > 0 ? 30 + tagCount * tagRowHeight : 0)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -867,27 +873,51 @@ struct MonthlyReportCardView: View {
 
     // MARK: - Top Tags
 
+    private var tagMaxCount: Int {
+        data.topTags.first?.count ?? 1
+    }
+
     private var topTagsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "よく使ったタグ"))
+            Text(String(localized: "タグランキング"))
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(.white.opacity(0.5))
 
-            HStack(spacing: 8) {
-                ForEach(data.topTags, id: \.self) { tag in
-                    Text(tag)
-                        .font(.system(.caption, design: .rounded, weight: .medium))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            Capsule()
-                                .fill(.white.opacity(0.15))
-                        )
+            VStack(spacing: 3) {
+                ForEach(Array(data.topTags.enumerated()), id: \.offset) { index, item in
+                    tagRankRow(index: index, tag: item.tag, count: item.count)
                 }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func tagRankRow(index: Int, tag: String, count: Int) -> some View {
+        let isTop3 = index < 3
+        return HStack(spacing: 6) {
+            // Rank number
+            Text("\(index + 1)")
+                .font(.system(size: isTop3 ? 13 : 10, weight: isTop3 ? .bold : .medium, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 20, alignment: .trailing)
+
+            // Tag name
+            Text(tag)
+                .font(.system(size: isTop3 ? 13 : 10, weight: isTop3 ? .bold : .medium, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 90, alignment: .leading)
+                .lineLimit(1)
+
+            // Bar
+            GeometryReader { geo in
+                let barWidth = geo.size.width * CGFloat(count) / CGFloat(tagMaxCount)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(accentColor.opacity(isTop3 ? 0.9 : 0.5))
+                    .frame(width: max(barWidth, 4), height: geo.size.height)
+            }
+            .frame(height: isTop3 ? 16 : 12)
+        }
+        .frame(height: 20)
     }
 
     // MARK: - Daily Color Bar

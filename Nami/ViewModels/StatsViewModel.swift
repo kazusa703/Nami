@@ -851,7 +851,7 @@ class StatsViewModel {
                 tagCounts[t, default: 0] += 1
             }
         }
-        let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(5).map { ($0.key, $0.value) }
+        let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(20).map { ($0.key, $0.value) }
 
         // ポジティブ/ネガティブ率（上位50%/下位50%のタグ付きエントリの比率）
         let midNorm = 0.5
