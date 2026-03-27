@@ -898,24 +898,92 @@ struct MonthlyReportCardView: View {
                 .font(.system(.caption2, design: .rounded))
                 .foregroundStyle(.white.opacity(0.5))
 
-            // Thin horizontal strip: each day = small colored segment
-            HStack(spacing: 1) {
-                ForEach(0 ..< data.dailyScores.count, id: \.self) { index in
-                    if let score = data.dailyScores[index] {
-                        let intScore = Int((score * Double(data.maxScore - data.minScore) + Double(data.minScore)).rounded())
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(themeColors.color(for: intScore, minScore: data.minScore, maxScore: data.maxScore))
-                            .frame(height: 16)
-                    } else {
-                        RoundedRectangle(cornerRadius: 1.5)
-                            .fill(.white.opacity(0.08))
-                            .frame(height: 16)
+            // Week-aligned grid (7 columns: Mon-Sun)
+            let weekdayLabels = ["月", "火", "水", "木", "金", "土", "日"]
+
+            VStack(spacing: 3) {
+                // Weekday header
+                HStack(spacing: 3) {
+                    ForEach(weekdayLabels, id: \.self) { label in
+                        Text(label)
+                            .font(.system(size: 8, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.4))
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                // Day cells in week rows
+                let weeks = buildWeekRows()
+                ForEach(0 ..< weeks.count, id: \.self) { weekIdx in
+                    HStack(spacing: 3) {
+                        ForEach(0 ..< 7, id: \.self) { dayIdx in
+                            let cell = weeks[weekIdx][dayIdx]
+                            if let dayNumber = cell.dayNumber {
+                                let scoreIndex = dayNumber - 1
+                                if scoreIndex < data.dailyScores.count, let score = data.dailyScores[scoreIndex] {
+                                    let intScore = Int((score * Double(data.maxScore - data.minScore) + Double(data.minScore)).rounded())
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(themeColors.color(for: intScore, minScore: data.minScore, maxScore: data.maxScore))
+                                        .frame(height: 20)
+                                        .overlay(
+                                            Text("\(dayNumber)")
+                                                .font(.system(size: 7, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.white.opacity(0.8))
+                                        )
+                                } else {
+                                    // No entry for this day
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(.white.opacity(0.08))
+                                        .frame(height: 20)
+                                        .overlay(
+                                            Text("\(dayNumber)")
+                                                .font(.system(size: 7, design: .rounded))
+                                                .foregroundStyle(.white.opacity(0.2))
+                                        )
+                                }
+                            } else {
+                                // Empty cell (padding)
+                                Color.clear.frame(height: 20)
+                            }
+                        }
                     }
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Build week rows for the month grid (Monday-start)
+    private func buildWeekRows() -> [[DayCell]] {
+        // Parse month/year from monthLabel (format: "2026年3月")
+        let calendar = Calendar(identifier: .iso8601)
+        let daysInMonth = data.dailyScores.count
+
+        // Determine first day of month's weekday (1=Sun...7=Sat → convert to Mon=0)
+        // Use the report data's month - approximate from monthLabel
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "ja_JP")
+        dateFormatter.dateFormat = "yyyy年M月"
+        let monthDate = dateFormatter.date(from: data.monthLabel) ?? .now
+        let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: monthDate)) ?? .now
+
+        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
+        // Convert to Monday=0 index
+        let leadingBlanks = (firstWeekday + 5) % 7
+
+        var allCells: [DayCell] = Array(repeating: DayCell(dayNumber: nil), count: leadingBlanks)
+        for d in 1 ... daysInMonth {
+            allCells.append(DayCell(dayNumber: d))
+        }
+        while allCells.count % 7 != 0 {
+            allCells.append(DayCell(dayNumber: nil))
+        }
+
+        return stride(from: 0, to: allCells.count, by: 7).map { Array(allCells[$0 ..< $0 + 7]) }
+    }
+
+    private struct DayCell {
+        let dayNumber: Int?
     }
 
     // MARK: - Footer
