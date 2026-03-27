@@ -9,17 +9,15 @@ import PhotosUI
 import SwiftData
 import SwiftUI
 
-/// 記録シートのタブ（タグ → メモ → エネルギー の3タブ）
+/// 記録シートのタブ（タグ → メモ の2タブ）
 enum RecordingTab: String, CaseIterable {
     case tags = "タグ"
     case memo = "メモ"
-    case energy = "エネルギー"
 
     var iconName: String {
         switch self {
         case .tags: return "tag"
         case .memo: return "pencil"
-        case .energy: return "battery.50percent"
         }
     }
 }
@@ -46,7 +44,6 @@ struct RecordingSheet: View {
     @State private var selectedTab: RecordingTab = .tags
     @State private var memoText = ""
     @State private var selectedTags: Set<String> = []
-    @State private var selectedEnergyLevel: Int? = nil
     @State private var capturedPhoto: UIImage?
     @State private var showCamera = false
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -56,15 +53,11 @@ struct RecordingSheet: View {
     // Sheet always opens at full height
     @State private var showRecordingHelp = false
     @State private var showOnboardingTip = false
+    /// Onboarding step: 0=tag tip, 1=memo tip, 2=done
+    @State private var onboardingGuideStep = 0
 
     /// メモの最大文字数
     private let maxLength = 100
-
-    /// クイックメモテンプレート
-    private let templates = [
-        "仕事がんばった", "リラックスした", "疲れた",
-        "楽しかった", "不安だった", "感謝",
-    ]
 
     var body: some View {
         NavigationStack {
@@ -72,48 +65,13 @@ struct RecordingSheet: View {
                 // スコア表示
                 scoreHeader
 
-                // オンボーディング説明吹き出し
-                if isOnboarding && showOnboardingTip {
-                    VStack(spacing: 0) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(themeColors.accent)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(localized: "このまま右上の ✓ で保存できます"))
-                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                                    .foregroundStyle(.primary)
-                                Text(String(localized: "メモやタグは任意。付けると分析が深まります"))
-                                    .font(.system(.caption, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(.regularMaterial)
-                                .shadow(color: themeColors.accent.opacity(0.15), radius: 8, y: 4)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(themeColors.accent.opacity(0.3), lineWidth: 1)
-                        )
-                    }
-                    .padding(.horizontal, 20)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    .onTapGesture {
-                        withAnimation(.easeOut(duration: 0.2)) { showOnboardingTip = false }
-                    }
-                }
-
                 // タブセレクタ
                 tabSelector
 
-                // タブコンテンツ（タグ → メモ → エネルギー）
+                // タブコンテンツ（タグ → メモ）
                 TabView(selection: $selectedTab) {
                     tagsTab.tag(RecordingTab.tags)
                     memoTab.tag(RecordingTab.memo)
-                    energyTab.tag(RecordingTab.energy)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
             }
@@ -143,7 +101,7 @@ struct RecordingSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                         Button {
-                            onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags), selectedEnergyLevel)
+                            onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags), nil)
                         } label: {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 28))
@@ -158,6 +116,134 @@ struct RecordingSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        // Full-screen onboarding overlay (covers everything including toolbar)
+        .overlay {
+            if isOnboarding && showOnboardingTip && onboardingGuideStep < 3 {
+                ZStack {
+                    // Dim background
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 24) {
+                        if onboardingGuideStep == 0 {
+                            // Step 1: Tag explanation
+                            VStack(spacing: 20) {
+                                Image(systemName: "tag.fill")
+                                    .font(.system(size: 48))
+                                    .foregroundStyle(themeColors.accent)
+
+                                Text(String(localized: "当てはまるタグをタップ"))
+                                    .font(.system(.title2, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.white)
+
+                                VStack(spacing: 10) {
+                                    Text(String(localized: "いくつでも選べます"))
+                                        .font(.system(.title3, design: .rounded, weight: .medium))
+                                        .foregroundStyle(.white)
+                                    Text(String(localized: "タグを付けると統計タブの分析が\nより正確になります"))
+                                        .font(.system(.body, design: .rounded))
+                                        .foregroundStyle(.white.opacity(0.7))
+                                        .multilineTextAlignment(.center)
+                                    Text(String(localized: "何も選ばなくても大丈夫です"))
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .foregroundStyle(.white.opacity(0.5))
+                                }
+
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        onboardingGuideStep = 1
+                                        selectedTab = .memo
+                                    }
+                                } label: {
+                                    Text(String(localized: "次へ"))
+                                        .font(.system(.headline, design: .rounded, weight: .semibold))
+                                        .foregroundStyle(themeColors.accent)
+                                        .padding(.horizontal, 32)
+                                        .padding(.vertical, 12)
+                                        .background(Capsule().fill(.white))
+                                }
+                            }
+                        } else if onboardingGuideStep == 1 {
+                            // Step 2: Memo explanation
+                            VStack(spacing: 20) {
+                                Image(systemName: "pencil.line")
+                                    .font(.system(size: 48))
+                                    .foregroundStyle(.white)
+
+                                Text(String(localized: "メモを残す"))
+                                    .font(.system(.title2, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.white)
+
+                                VStack(spacing: 10) {
+                                    Text(String(localized: "任意"))
+                                        .font(.system(.title3, design: .rounded, weight: .medium))
+                                        .foregroundStyle(.orange)
+                                    Text(String(localized: "統計には反映されませんが\n何があったか後から見返せます"))
+                                        .font(.system(.body, design: .rounded))
+                                        .foregroundStyle(.white.opacity(0.7))
+                                        .multilineTextAlignment(.center)
+                                }
+
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        onboardingGuideStep = 2
+                                    }
+                                } label: {
+                                    Text(String(localized: "次へ"))
+                                        .font(.system(.headline, design: .rounded, weight: .semibold))
+                                        .foregroundStyle(themeColors.accent)
+                                        .padding(.horizontal, 32)
+                                        .padding(.vertical, 12)
+                                        .background(Capsule().fill(.white))
+                                }
+                            }
+                        } else {
+                            // Step 3: Check button guide with arrow
+                            VStack(spacing: 20) {
+                                // Arrow pointing to top-right
+                                HStack {
+                                    Spacer()
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "arrow.up.right")
+                                            .font(.system(size: 36, weight: .bold))
+                                            .foregroundStyle(themeColors.accent)
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 48))
+                                            .foregroundStyle(.white)
+                                    }
+                                    .padding(.trailing, 40)
+                                }
+
+                                Text(String(localized: "右上の ✓ をタップして保存"))
+                                    .font(.system(.title2, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.white)
+
+                                Text(String(localized: "タグやメモを追加してもしなくても\nここから保存できます"))
+                                    .font(.system(.body, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.7))
+                                    .multilineTextAlignment(.center)
+
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        onboardingGuideStep = 3
+                                    }
+                                } label: {
+                                    Text(String(localized: "OK"))
+                                        .font(.system(.headline, design: .rounded, weight: .semibold))
+                                        .foregroundStyle(themeColors.accent)
+                                        .padding(.horizontal, 32)
+                                        .padding(.vertical, 12)
+                                        .background(Capsule().fill(.white))
+                                }
+                            }
+                        }
+                    }
+                    .padding(32)
+                }
+                .transition(.opacity)
+                .animation(.easeInOut(duration: 0.3), value: onboardingGuideStep)
+            }
+        }
         .onAppear {
             // 編集モード時は初期値を設定
             if isEditing {
@@ -274,29 +360,6 @@ struct RecordingSheet: View {
     private var memoTab: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // テンプレートチップ
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(templates, id: \.self) { template in
-                            Button {
-                                insertTemplate(template)
-                            } label: {
-                                Text(template)
-                                    .font(.system(.caption, design: .rounded))
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule()
-                                            .fill(themeColors.accent.opacity(0.1))
-                                    )
-                                    .foregroundStyle(themeColors.accent)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-
                 // メモ入力フィールド
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("今の気持ちをひとこと...", text: $memoText, axis: .vertical)
@@ -447,109 +510,16 @@ struct RecordingSheet: View {
         }
     }
 
-    // MARK: - エネルギータブ
-
-    private var energyTab: some View {
-        VStack(spacing: 24) {
-            Spacer()
-
-            Text(String(localized: "今のエネルギーレベルは？"))
-                .font(.system(.headline, design: .rounded))
-                .foregroundStyle(.secondary)
-
-            HStack(spacing: 24) {
-                ForEach(1 ... 3, id: \.self) { level in
-                    let isSelected = selectedEnergyLevel == level
-                    Button {
-                        withAnimation(.spring(response: 0.3)) {
-                            if selectedEnergyLevel == level {
-                                selectedEnergyLevel = nil
-                            } else {
-                                selectedEnergyLevel = level
-                            }
-                        }
-                        HapticManager.lightFeedback()
-                    } label: {
-                        VStack(spacing: 8) {
-                            Image(systemName: energyIcon(for: level))
-                                .font(.system(size: 40))
-                                .foregroundStyle(isSelected ? energyColor(for: level) : .secondary.opacity(0.3))
-                            Text(energyLabel(for: level))
-                                .font(.system(.subheadline, design: .rounded, weight: .medium))
-                                .foregroundStyle(isSelected ? energyColor(for: level) : .secondary.opacity(0.5))
-                        }
-                        .frame(width: 90, height: 90)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(isSelected ? energyColor(for: level).opacity(0.1) : Color(.systemGray6))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(isSelected ? energyColor(for: level).opacity(0.5) : .clear, lineWidth: 2)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            Text(String(localized: "任意 — スキップしてもOK"))
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(.tertiary)
-
-            Spacer()
-            Spacer()
-        }
-    }
-
-    /// Energy level icon name
-    private func energyIcon(for level: Int) -> String {
-        switch level {
-        case 1: return "battery.25percent"
-        case 2: return "battery.50percent"
-        case 3: return "battery.100percent"
-        default: return "battery.50percent"
-        }
-    }
-
-    /// Energy level label
-    private func energyLabel(for level: Int) -> String {
-        switch level {
-        case 1: return String(localized: "低い")
-        case 2: return String(localized: "普通")
-        case 3: return String(localized: "高い")
-        default: return ""
-        }
-    }
-
-    /// Energy level color
-    private func energyColor(for level: Int) -> Color {
-        switch level {
-        case 1: return .orange
-        case 2: return .blue
-        case 3: return .green
-        default: return .secondary
-        }
-    }
+    // (Energy tab removed - energy data collected via HealthKit automatically)
 
     // MARK: - ヘルパー
 
     /// テンプレートをテキストフィールドに挿入する
-    private func insertTemplate(_ template: String) {
-        if memoText.isEmpty {
-            memoText = template
-        } else {
-            let newText = memoText + " " + template
-            memoText = String(newText.prefix(maxLength))
-        }
-        HapticManager.lightFeedback()
-    }
-
     /// 指定タブにデータがあるかチェック
     private func hasData(for tab: RecordingTab) -> Bool {
         switch tab {
         case .tags: return !selectedTags.isEmpty
         case .memo: return !memoText.isEmpty || capturedPhoto != nil || (recorder.recordedURL != nil && recorder.state != .idle)
-        case .energy: return selectedEnergyLevel != nil
         }
     }
 

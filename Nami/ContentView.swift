@@ -47,8 +47,10 @@ struct ContentView: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @AppStorage(AppConstants.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
     @State private var selectedTab: AppTab = .record
-    /// 訪問済みタブ（初回アクセス時にのみビューを生成し、@Queryの無駄な実行を防ぐ）
+    /// 訪問済みタブ（初回アクセス時にのみビューを生成し、@Queryの無駆な実行を防ぐ）
     @State private var loadedTabs: Set<AppTab> = [.record]
+    /// Track if this is first launch after onboarding (to open graph tab)
+    @AppStorage("hasShownPostOnboarding") private var hasShownPostOnboarding = false
     /// 全画面チャート表示モード（nilなら非表示）
     @State private var fullscreenChartMode: GraphMode? = nil
     @State private var fullscreenDateMode: DateSelectionMode = .week
@@ -68,9 +70,6 @@ struct ContentView: View {
                         .ignoresSafeArea()
 
                     VStack(spacing: 0) {
-                        // 上部タブバー
-                        topTabBar(colors: colors)
-
                         // タブコンテンツ（訪問済みタブのみ生成）
                         ZStack {
                             MainView()
@@ -103,7 +102,8 @@ struct ContentView: View {
                         }
                         .frame(maxHeight: .infinity)
 
-                        // Ad-free app
+                        // 下部タブバー
+                        topTabBar(colors: colors)
                     }
                     // 明示的に現在のジオメトリサイズに制約（横幅キャッシュ問題を防止）
                     .frame(width: geometry.size.width, height: geometry.size.height)
@@ -150,6 +150,17 @@ struct ContentView: View {
             }
         } else {
             OnboardingView()
+                .onChange(of: hasCompletedOnboarding) { _, completed in
+                    if completed, !hasShownPostOnboarding {
+                        hasShownPostOnboarding = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            withAnimation {
+                                loadedTabs.insert(.graph)
+                                selectedTab = .graph
+                            }
+                        }
+                    }
+                }
         }
     }
 

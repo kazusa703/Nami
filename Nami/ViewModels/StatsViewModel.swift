@@ -11,12 +11,14 @@ import SwiftData
 
 /// 時間帯の分類
 enum TimeOfDay: Int, CaseIterable, Identifiable {
-    case morning = 0   // 朝 5:00-10:59
+    case morning = 0 // 朝 5:00-10:59
     case afternoon = 1 // 昼 11:00-16:59
-    case evening = 2   // 夕 17:00-20:59
-    case night = 3     // 夜 21:00-4:59
+    case evening = 2 // 夕 17:00-20:59
+    case night = 3 // 夜 21:00-4:59
 
-    var id: Int { rawValue }
+    var id: Int {
+        rawValue
+    }
 
     /// 表示名
     var label: String {
@@ -51,9 +53,9 @@ enum TimeOfDay: Int, CaseIterable, Identifiable {
     /// 時刻から時間帯を判定する
     static func from(hour: Int) -> TimeOfDay {
         switch hour {
-        case 5..<11: return .morning
-        case 11..<17: return .afternoon
-        case 17..<21: return .evening
+        case 5 ..< 11: return .morning
+        case 11 ..< 17: return .afternoon
+        case 17 ..< 21: return .evening
         default: return .night // 21-23, 0-4
         }
     }
@@ -78,7 +80,6 @@ struct WeeklyReview {
     let summary: String
     let previousWeekAverage: Double?
 }
-
 
 // MARK: - プレミアム分析の構造体
 
@@ -157,7 +158,6 @@ struct RecoveryEvent {
 /// 統計データを計算するViewModel
 @Observable
 class StatsViewModel {
-
     // MARK: - 週間平均
 
     /// 今週の平均スコアを計算する（正規化ベース → 現在のレンジにスケール）
@@ -279,7 +279,9 @@ class StatsViewModel {
     /// 異なるmaxScoreのエントリは現在のレンジにスケーリングして集計する
     func scoreDistribution(entries: [MoodEntry], minScore: Int = 1, maxScore: Int = 10) -> [Int: Int] {
         var distribution: [Int: Int] = [:]
-        for i in minScore...maxScore { distribution[i] = 0 }
+        for i in minScore ... maxScore {
+            distribution[i] = 0
+        }
         for entry in entries {
             let scaled = (entry.maxScore == maxScore && entry.scoreRangeMin == minScore)
                 ? entry.score
@@ -357,7 +359,7 @@ class StatsViewModel {
         var maxStreak = 1
         var currentRun = 1
 
-        for i in 1..<sortedDays.count {
+        for i in 1 ..< sortedDays.count {
             let diff = calendar.dateComponents([.day], from: sortedDays[i - 1], to: sortedDays[i]).day ?? 0
             if diff == 1 {
                 currentRun += 1
@@ -372,7 +374,7 @@ class StatsViewModel {
     // MARK: - 週間リズムデータ（ムードリズム用）
 
     /// 月〜日の平均スコアを配列で返す（波線チャート用）
-    func weeklyRhythmData(entries: [MoodEntry], currentMax: Int = 10, currentMin: Int = 1) -> [(label: String, index: Int, average: Double)] {
+    func weeklyRhythmData(entries: [MoodEntry], currentMax: Int = 10, currentMin _: Int = 1) -> [(label: String, index: Int, average: Double)] {
         let averages = weekdayAverages(entries: entries, currentMax: currentMax)
         let weekdayOrder = [2, 3, 4, 5, 6, 7, 1]
         let weekdayLabels = [String(localized: "月曜"), String(localized: "火曜"), String(localized: "水曜"), String(localized: "木曜"), String(localized: "金曜"), String(localized: "土曜"), String(localized: "日曜")]
@@ -498,8 +500,8 @@ class StatsViewModel {
         var pairs: [String: Int] = [:]
         for entry in entries {
             let tags = entry.tags.sorted()
-            for i in 0..<tags.count {
-                for j in (i + 1)..<tags.count {
+            for i in 0 ..< tags.count {
+                for j in (i + 1) ..< tags.count {
                     let key = "\(tags[i])|\(tags[j])"
                     pairs[key, default: 0] += 1
                 }
@@ -518,7 +520,8 @@ class StatsViewModel {
     func tagImpactData(tag: String, entries: [MoodEntry], currentMax: Int, currentMin: Int = 1)
         -> (withAvg: Double, withoutAvg: Double, delta: Double,
             withDays: Int, withoutDays: Int,
-            withDist: [Int: Int], withoutDist: [Int: Int])? {
+            withDist: [Int: Int], withoutDist: [Int: Int])?
+    {
         let calendar = Calendar.current
         var dayEntries: [Date: [MoodEntry]] = [:]
         for entry in entries {
@@ -547,7 +550,7 @@ class StatsViewModel {
         let withAvg = (withNorms.reduce(0, +) / Double(withNorms.count)) * Double(currentMax - currentMin) + Double(currentMin)
         let withoutAvg = (withoutNorms.reduce(0, +) / Double(withoutNorms.count)) * Double(currentMax - currentMin) + Double(currentMin)
 
-        // エントリレベルの分布（チャート用）
+        /// エントリレベルの分布（チャート用）
         func buildDist(_ list: [MoodEntry]) -> [Int: Int] {
             var dist: [Int: Int] = [:]
             for e in list {
@@ -577,7 +580,8 @@ class StatsViewModel {
 
     /// 記録回数とスコアの関係（複数回記録した日 vs 1回の日）
     func recordCountVsScore(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1)
-        -> (multiAvg: Double, singleAvg: Double, multiDays: Int, singleDays: Int)? {
+        -> (multiAvg: Double, singleAvg: Double, multiDays: Int, singleDays: Int)?
+    {
         let calendar = Calendar.current
         var dayEntries: [Date: [MoodEntry]] = [:]
         for entry in entries {
@@ -601,7 +605,8 @@ class StatsViewModel {
 
     /// タグ使用とスコアの関係（タグありエントリ vs タグなしエントリ）
     func tagUsageVsScore(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1)
-        -> (taggedAvg: Double, untaggedAvg: Double, taggedCount: Int, untaggedCount: Int)? {
+        -> (taggedAvg: Double, untaggedAvg: Double, taggedCount: Int, untaggedCount: Int)?
+    {
         let tagged = entries.filter { !$0.tags.isEmpty }
         let untagged = entries.filter { $0.tags.isEmpty }
         guard tagged.count >= 5, untagged.count >= 5 else { return nil }
@@ -617,10 +622,12 @@ class StatsViewModel {
         var tagCounts: [String: Int] = [:]
 
         for entry in entries {
-            for tag in entry.tags { tagCounts[tag, default: 0] += 1 }
+            for tag in entry.tags {
+                tagCounts[tag, default: 0] += 1
+            }
             let sorted = entry.tags.sorted()
-            for i in 0..<sorted.count {
-                for j in (i + 1)..<sorted.count {
+            for i in 0 ..< sorted.count {
+                for j in (i + 1) ..< sorted.count {
                     pairs["\(sorted[i])|\(sorted[j])", default: 0] += 1
                 }
             }
@@ -666,7 +673,9 @@ class StatsViewModel {
         // Top 3 タグ
         var tagCounts: [String: Int] = [:]
         for e in weekEntries {
-            for t in e.tags { tagCounts[t, default: 0] += 1 }
+            for t in e.tags {
+                tagCounts[t, default: 0] += 1
+            }
         }
         let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(3).map { ($0.key, $0.value) }
 
@@ -747,15 +756,14 @@ class StatsViewModel {
         }
     }
 
-
     // MARK: - プレミアム分析 A: 逆インサイト
 
     /// 上位/下位25%スコアの日に共通するタグ・不在タグを抽出
-    func reverseInsights(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1)
+    func reverseInsights(entries: [MoodEntry], currentMax _: Int, currentMin _: Int = 1)
         -> (highTags: [(tag: String, rate: Int)],
             highAbsentTags: [(tag: String, rate: Int)],
-            lowTags: [(tag: String, rate: Int)]) {
-
+            lowTags: [(tag: String, rate: Int)])
+    {
         let taggedEntries = entries.filter { !$0.tags.isEmpty }
         guard taggedEntries.count >= 30 else { return ([], [], []) }
 
@@ -767,14 +775,18 @@ class StatsViewModel {
         // 全タグの出現回数
         var totalTagCounts: [String: Int] = [:]
         for e in taggedEntries {
-            for t in e.tags { totalTagCounts[t, default: 0] += 1 }
+            for t in e.tags {
+                totalTagCounts[t, default: 0] += 1
+            }
         }
         let allTags = Set(totalTagCounts.keys)
 
         func tagRates(in subset: [MoodEntry]) -> [String: Int] {
             var counts: [String: Int] = [:]
             for e in subset {
-                for t in e.tags { counts[t, default: 0] += 1 }
+                for t in e.tags {
+                    counts[t, default: 0] += 1
+                }
             }
             return counts.mapValues { Int(Double($0) / Double(subset.count) * 100) }
         }
@@ -834,7 +846,11 @@ class StatsViewModel {
 
         // Top タグ
         var tagCounts: [String: Int] = [:]
-        for e in monthEntries { for t in e.tags { tagCounts[t, default: 0] += 1 } }
+        for e in monthEntries {
+            for t in e.tags {
+                tagCounts[t, default: 0] += 1
+            }
+        }
         let topTags = tagCounts.sorted { $0.value > $1.value }.prefix(5).map { ($0.key, $0.value) }
 
         // ポジティブ/ネガティブ率（上位50%/下位50%のタグ付きエントリの比率）
@@ -847,7 +863,9 @@ class StatsViewModel {
 
         // アクティブ日数
         var daySet = Set<Date>()
-        for e in monthEntries { daySet.insert(calendar.startOfDay(for: e.createdAt)) }
+        for e in monthEntries {
+            daySet.insert(calendar.startOfDay(for: e.createdAt))
+        }
 
         // 最も好調な曜日
         var weekdayScores: [Int: [Double]] = [:]
@@ -857,7 +875,7 @@ class StatsViewModel {
         }
         let cal = Calendar.current
         let weekdayNames = [""] + cal.shortWeekdaySymbols
-        let bestWD = weekdayScores.max { (a, b) in
+        let bestWD = weekdayScores.max { a, b in
             let aAvg = a.value.reduce(0, +) / Double(a.value.count)
             let bAvg = b.value.reduce(0, +) / Double(b.value.count)
             return aAvg < bAvg
@@ -889,7 +907,7 @@ class StatsViewModel {
     // MARK: - プレミアム分析 C: タグ連鎖パターン
 
     /// 日N→日N+1のタグ遷移パターンを集計（3回以上発生のみ）
-    func tagChainPatterns(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [TagChain] {
+    func tagChainPatterns(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [TagChain] {
         let calendar = Calendar.current
         let sorted = entries.sorted { $0.createdAt < $1.createdAt }
 
@@ -920,7 +938,7 @@ class StatsViewModel {
 
         // ペア集計
         var pairData: [String: (count: Int, scoreChanges: [Double])] = [:]
-        for i in 0..<(dayData.count - 1) {
+        for i in 0 ..< (dayData.count - 1) {
             let today = dayData[i]
             let tomorrow = dayData[i + 1]
             let diff = calendar.dateComponents([.day], from: today.date, to: tomorrow.date).day ?? 0
@@ -956,7 +974,7 @@ class StatsViewModel {
     // MARK: - プレミアム分析 D: タグ残響効果
 
     /// タグ使用後+0〜+3日のスコア変動を追跡（サンプル5件以上のタグのみ）
-    func tagEchoEffect(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [TagEcho] {
+    func tagEchoEffect(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [TagEcho] {
         let calendar = Calendar.current
         let sorted = entries.sorted { $0.createdAt < $1.createdAt }
 
@@ -993,7 +1011,7 @@ class StatsViewModel {
                 if tagDayEffects[tag] == nil {
                     tagDayEffects[tag] = [[], [], [], []]
                 }
-                for offset in 0...3 {
+                for offset in 0 ... 3 {
                     guard let targetDay = calendar.date(byAdding: .day, value: offset, to: day),
                           let score = dayScores[targetDay] else { continue }
                     tagDayEffects[tag]?[offset].append(score - overallAvg)
@@ -1013,7 +1031,7 @@ class StatsViewModel {
 
             // 回復日数: 差分が±0.3（正規化）以内に収まった最初の日
             var recoveryDay = 4.0
-            for i in 1...3 {
+            for i in 1 ... 3 {
                 if abs(dayAvgs[i]) <= 0.3 / Double(currentMax - 1) {
                     recoveryDay = Double(i)
                     break
@@ -1074,7 +1092,7 @@ class StatsViewModel {
     // MARK: - プレミアム分析 F: 回復トリガー特定
 
     /// 不調期→回復日のパターンからトリガーとなるタグを特定
-    func recoveryTriggers(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [RecoveryTrigger] {
+    func recoveryTriggers(entries: [MoodEntry], currentMax: Int, currentMin _: Int = 1) -> [RecoveryTrigger] {
         let calendar = Calendar.current
         let sorted = entries.sorted { $0.createdAt < $1.createdAt }
 
@@ -1117,11 +1135,11 @@ class StatsViewModel {
         var recoveryEvents: [(recoveryDate: Date, tags: Set<String>, boost: Double)] = []
         var lowStreakCount = 0
 
-        for i in 0..<dayData.count {
+        for i in 0 ..< dayData.count {
             if dayData[i].normAvg <= lowThreshold {
                 lowStreakCount += 1
             } else {
-                if lowStreakCount >= 2 && dayData[i].normAvg >= overallAvg {
+                if lowStreakCount >= 2, dayData[i].normAvg >= overallAvg {
                     let boost = (dayData[i].normAvg - overallAvg) * Double(currentMax - 1)
                     recoveryEvents.append((dayData[i].date, dayData[i].tags, boost))
                 }
@@ -1178,8 +1196,8 @@ class StatsViewModel {
             guard entry.tags.count >= 2 else { continue }
             let scaled = entry.normalizedScore * Double(currentMax - currentMin) + Double(currentMin)
             let sortedTags = entry.tags.sorted()
-            for i in 0..<sortedTags.count {
-                for j in (i + 1)..<sortedTags.count {
+            for i in 0 ..< sortedTags.count {
+                for j in (i + 1) ..< sortedTags.count {
                     let key = "\(sortedTags[i])|\(sortedTags[j])"
                     pairScores[key, default: []].append(scaled)
                 }
@@ -1308,7 +1326,7 @@ class StatsViewModel {
     func memoKeywordAnalysis(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [(keyword: String, avgScore: Double, count: Int)] {
         let stopWords: Set<String> = [
             "は", "が", "の", "を", "に", "で", "と", "も", "か", "な", "だ", "し", "て", "た",
-            "する", "ある", "いる", "れる", "ない", "です", "ます", "こと", "もの", "ため", "よう"
+            "する", "ある", "いる", "れる", "ない", "です", "ます", "こと", "もの", "ため", "よう",
         ]
 
         // Collect keywords per entry
@@ -1319,9 +1337,9 @@ class StatsViewModel {
             guard let memo = entry.memo, !memo.isEmpty else { continue }
             tokenizer.string = memo
             var entryKeywords = Set<String>()
-            tokenizer.enumerateTokens(in: memo.startIndex..<memo.endIndex) { range, _ in
+            tokenizer.enumerateTokens(in: memo.startIndex ..< memo.endIndex) { range, _ in
                 let word = String(memo[range]).lowercased()
-                if word.count >= 2 && !stopWords.contains(word) {
+                if word.count >= 2, !stopWords.contains(word) {
                     entryKeywords.insert(word)
                 }
                 return true
@@ -1396,7 +1414,7 @@ class StatsViewModel {
     // MARK: - 閾値ブレーク分析
 
     /// 個人平均を上回る/下回る連続日数のブレークを検出する
-    func thresholdBreaks(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [(type: String, days: Int, startDate: Date)] {
+    func thresholdBreaks(entries: [MoodEntry], currentMax _: Int, currentMin _: Int = 1) -> [(type: String, days: Int, startDate: Date)] {
         guard !entries.isEmpty else { return [] }
 
         let calendar = Calendar.current
@@ -1496,7 +1514,7 @@ class StatsViewModel {
     func locationMoodAnalysis(entries: [MoodEntry], currentMax: Int, currentMin: Int = 1) -> [(location: String, avgScore: Double, count: Int)] {
         let locationTags: Set<String> = [
             "自宅", "職場/学校", "外出先", "移動中",
-            "Home", "Work/School", "Outside", "Commuting"
+            "Home", "Work/School", "Outside", "Commuting",
         ]
 
         var grouped: [String: [MoodEntry]] = [:]
@@ -1545,7 +1563,7 @@ class StatsViewModel {
         var lowStart: Int? = nil
         var lowDays = 0
 
-        for i in 0..<dailyData.count {
+        for i in 0 ..< dailyData.count {
             let isLow = dailyData[i].avgNormalized < lowThreshold
 
             if isLow {
@@ -1560,7 +1578,7 @@ class StatsViewModel {
                 if let start = lowStart, lowDays >= 2 {
                     let isRecovery = dailyData[i].avgNormalized >= overallAvg
                     if isRecovery {
-                        let lowScores = (start..<i).map { dailyData[$0].avgNormalized }
+                        let lowScores = (start ..< i).map { dailyData[$0].avgNormalized }
                         let avgLow = lowScores.reduce(0.0, +) / Double(lowScores.count)
                         let event = RecoveryEvent(
                             lowPeriodStart: dailyData[start].date,
@@ -1579,6 +1597,216 @@ class StatsViewModel {
         }
 
         return results.sorted { $0.recoveryDate > $1.recoveryDate }
+    }
+
+    // MARK: - ワークアウト種類×気分分析
+
+    struct WorkoutMoodResult {
+        let workoutType: String
+        let averageScore: Double
+        let nextDayAverageScore: Double?
+        let count: Int
+    }
+
+    /// Analyze mood by workout type (same day + next day effect)
+    func workoutMoodAnalysis(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> [WorkoutMoodResult] {
+        let calendar = Calendar.current
+        let metricsByDate = Dictionary(uniqueKeysWithValues: metrics.map { (calendar.startOfDay(for: $0.date), $0) })
+        let entriesByDate = Dictionary(grouping: entries) { calendar.startOfDay(for: $0.createdAt) }
+
+        var workoutScores: [String: [(sameDay: Double, nextDay: Double?)]] = [:]
+
+        for (date, metric) in metricsByDate {
+            guard let type = metric.workoutType, metric.workoutMinutes ?? 0 > 10 else { continue }
+            guard let dayEntries = entriesByDate[date], !dayEntries.isEmpty else { continue }
+
+            let sameDayAvg = dayEntries.map(\.normalizedScore).reduce(0, +) / Double(dayEntries.count)
+            let nextDay = calendar.date(byAdding: .day, value: 1, to: date)!
+            let nextDayEntries = entriesByDate[nextDay]
+            let nextDayAvg = nextDayEntries.map { es in
+                es.map(\.normalizedScore).reduce(0, +) / Double(es.count)
+            }
+
+            workoutScores[type, default: []].append((sameDayAvg, nextDayAvg))
+        }
+
+        return workoutScores.compactMap { type, scores in
+            guard scores.count >= 3 else { return nil }
+            let avgSame = scores.map(\.sameDay).reduce(0, +) / Double(scores.count) * Double(currentMax - currentMin) + Double(currentMin)
+            let nextDayScores = scores.compactMap(\.nextDay)
+            let avgNext = nextDayScores.count >= 3 ? nextDayScores.reduce(0, +) / Double(nextDayScores.count) * Double(currentMax - currentMin) + Double(currentMin) : nil
+            return WorkoutMoodResult(workoutType: type, averageScore: avgSame, nextDayAverageScore: avgNext, count: scores.count)
+        }.sorted { $0.averageScore > $1.averageScore }
+    }
+
+    // MARK: - イヤホン使用時間×気分分析
+
+    struct HeadphoneMoodResult {
+        let bucket: String // "0-1h", "1-3h", "3-5h", "5h+"
+        let averageScore: Double
+        let count: Int
+    }
+
+    /// Analyze mood by headphone usage duration buckets
+    func headphoneMoodAnalysis(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> [HeadphoneMoodResult] {
+        let calendar = Calendar.current
+        let entriesByDate = Dictionary(grouping: entries) { calendar.startOfDay(for: $0.createdAt) }
+
+        var buckets: [String: [Double]] = [
+            "0-1h": [], "1-3h": [], "3-5h": [], "5h+": [],
+        ]
+
+        for metric in metrics {
+            guard let minutes = metric.headphoneMinutes else { continue }
+            let date = calendar.startOfDay(for: metric.date)
+            guard let dayEntries = entriesByDate[date], !dayEntries.isEmpty else { continue }
+            let avg = dayEntries.map(\.normalizedScore).reduce(0, +) / Double(dayEntries.count)
+
+            let hours = minutes / 60.0
+            let bucket: String
+            switch hours {
+            case ..<1: bucket = "0-1h"
+            case ..<3: bucket = "1-3h"
+            case ..<5: bucket = "3-5h"
+            default: bucket = "5h+"
+            }
+            buckets[bucket, default: []].append(avg)
+        }
+
+        let order = ["0-1h", "1-3h", "3-5h", "5h+"]
+        return order.compactMap { key in
+            guard let scores = buckets[key], scores.count >= 2 else { return nil }
+            let avg = scores.reduce(0, +) / Double(scores.count) * Double(currentMax - currentMin) + Double(currentMin)
+            return HeadphoneMoodResult(bucket: key, averageScore: avg, count: scores.count)
+        }
+    }
+
+    // MARK: - 運動時間×気分分析（閾値発見）
+
+    struct ExerciseThresholdResult {
+        let thresholdMinutes: Int
+        let aboveAverage: Double
+        let belowAverage: Double
+        let aboveCount: Int
+        let belowCount: Int
+        let delta: Double // above - below
+    }
+
+    /// Find the exercise threshold where mood significantly improves
+    func exerciseThresholdAnalysis(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> ExerciseThresholdResult? {
+        let calendar = Calendar.current
+        let entriesByDate = Dictionary(grouping: entries) { calendar.startOfDay(for: $0.createdAt) }
+
+        var paired: [(minutes: Double, score: Double)] = []
+        for metric in metrics {
+            guard let minutes = metric.exerciseMinutes else { continue }
+            let date = calendar.startOfDay(for: metric.date)
+            guard let dayEntries = entriesByDate[date], !dayEntries.isEmpty else { continue }
+            let avg = dayEntries.map(\.normalizedScore).reduce(0, +) / Double(dayEntries.count)
+            paired.append((minutes, avg))
+        }
+
+        guard paired.count >= 10 else { return nil }
+
+        // Try thresholds at 15, 30, 45, 60 minutes - find best split
+        var bestResult: ExerciseThresholdResult?
+        var bestDelta = 0.0
+
+        for threshold in [15, 30, 45, 60] {
+            let above = paired.filter { $0.minutes >= Double(threshold) }
+            let below = paired.filter { $0.minutes < Double(threshold) }
+            guard above.count >= 3, below.count >= 3 else { continue }
+
+            let aboveAvg = above.map(\.score).reduce(0, +) / Double(above.count)
+            let belowAvg = below.map(\.score).reduce(0, +) / Double(below.count)
+            let delta = (aboveAvg - belowAvg) * Double(currentMax - currentMin)
+
+            if delta > bestDelta {
+                bestDelta = delta
+                bestResult = ExerciseThresholdResult(
+                    thresholdMinutes: threshold,
+                    aboveAverage: aboveAvg * Double(currentMax - currentMin) + Double(currentMin),
+                    belowAverage: belowAvg * Double(currentMax - currentMin) + Double(currentMin),
+                    aboveCount: above.count,
+                    belowCount: below.count,
+                    delta: delta
+                )
+            }
+        }
+
+        return bestResult
+    }
+
+    // MARK: - HRV×気分分析（ストレス乖離検出）
+
+    struct HRVMoodResult {
+        let averageHRV: Double
+        let lowHRVScore: Double // HRV below median → mood
+        let highHRVScore: Double // HRV above median → mood
+        let divergenceDetected: Bool // HRV says stressed but mood says fine
+        let divergenceCount: Int
+        let totalCount: Int
+    }
+
+    /// Analyze HRV vs mood, detect divergence (objective stress vs subjective mood)
+    func hrvMoodAnalysis(
+        entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1
+    ) -> HRVMoodResult? {
+        let calendar = Calendar.current
+        let entriesByDate = Dictionary(grouping: entries) { calendar.startOfDay(for: $0.createdAt) }
+
+        var paired: [(hrv: Double, score: Double)] = []
+        for metric in metrics {
+            guard let hrv = metric.hrvSDNN else { continue }
+            let date = calendar.startOfDay(for: metric.date)
+            guard let dayEntries = entriesByDate[date], !dayEntries.isEmpty else { continue }
+            let avg = dayEntries.map(\.normalizedScore).reduce(0, +) / Double(dayEntries.count)
+            paired.append((hrv, avg))
+        }
+
+        guard paired.count >= 7 else { return nil }
+
+        let avgHRV = paired.map(\.hrv).reduce(0, +) / Double(paired.count)
+        let medianHRV = paired.map(\.hrv).sorted()[paired.count / 2]
+
+        let lowHRV = paired.filter { $0.hrv < medianHRV }
+        let highHRV = paired.filter { $0.hrv >= medianHRV }
+
+        guard lowHRV.count >= 3, highHRV.count >= 3 else { return nil }
+
+        let lowAvg = lowHRV.map(\.score).reduce(0, +) / Double(lowHRV.count)
+        let highAvg = highHRV.map(\.score).reduce(0, +) / Double(highHRV.count)
+
+        // Divergence: HRV is low (stressed) but mood is high (top 40%)
+        let overallScoreMedian = paired.map(\.score).sorted()[paired.count / 2]
+        let divergent = paired.filter { $0.hrv < medianHRV * 0.8 && $0.score > overallScoreMedian * 1.1 }
+
+        return HRVMoodResult(
+            averageHRV: avgHRV,
+            lowHRVScore: lowAvg * Double(currentMax - currentMin) + Double(currentMin),
+            highHRVScore: highAvg * Double(currentMax - currentMin) + Double(currentMin),
+            divergenceDetected: divergent.count >= 2,
+            divergenceCount: divergent.count,
+            totalCount: paired.count
+        )
     }
 
     // MARK: - ヘルパー

@@ -2066,6 +2066,134 @@ enum InsightEngine {
         return results
     }
 
+    // MARK: - Workout × Mood Insights
+
+    /// Generate insights from workout type analysis
+    static func workoutMoodInsights(
+        results: [StatsViewModel.WorkoutMoodResult],
+        currentMax _: Int,
+        currentMin _: Int = 1
+    ) -> [InsightCard] {
+        guard results.count >= 2 else { return [] }
+        var cards: [InsightCard] = []
+
+        // Best workout for mood
+        if let best = results.first {
+            let scoreText = String(format: "%.1f", best.averageScore)
+            var body = String(localized: "\(best.workoutType)をした日の気分スコアは平均\(scoreText)。")
+            if let nextDay = best.nextDayAverageScore {
+                let nextText = String(format: "%.1f", nextDay)
+                body += String(localized: "翌日も\(nextText)と好調が続きます。")
+            }
+            cards.append(InsightCard(
+                id: "workout_best_\(best.workoutType)",
+                icon: "figure.run",
+                tone: .positive,
+                title: String(localized: "\(best.workoutType)が気分に効く"),
+                body: body,
+                priority: 0.87
+            ))
+        }
+
+        // Worst workout (or least effective)
+        if let worst = results.last, results.count >= 3 {
+            if let best = results.first, best.averageScore - worst.averageScore > 0.5 {
+                let delta = String(format: "%.1f", best.averageScore - worst.averageScore)
+                cards.append(InsightCard(
+                    id: "workout_compare",
+                    icon: "figure.mixed.cardio",
+                    tone: .discovery,
+                    title: String(localized: "運動の種類で差が出る"),
+                    body: String(localized: "\(best.workoutType)は\(worst.workoutType)より気分スコアが\(delta)高い傾向。あなたに合った運動があるようです。"),
+                    priority: 0.85
+                ))
+            }
+        }
+
+        return cards
+    }
+
+    // MARK: - Headphone × Mood Insights
+
+    static func headphoneDurationInsights(
+        results: [StatsViewModel.HeadphoneMoodResult]
+    ) -> [InsightCard] {
+        guard results.count >= 2 else { return [] }
+
+        // Find the bucket with best and worst scores
+        let sorted = results.sorted { $0.averageScore > $1.averageScore }
+        guard let best = sorted.first, let worst = sorted.last else { return [] }
+        let delta = best.averageScore - worst.averageScore
+        guard delta > 0.5 else { return [] }
+
+        let deltaText = String(format: "%.1f", delta)
+        return [InsightCard(
+            id: "headphone_duration",
+            icon: "headphones",
+            tone: worst.bucket == "5h+" ? .caution : .discovery,
+            title: String(localized: "イヤホンと気分の関係"),
+            body: String(localized: "イヤホン\(best.bucket)の日が最も気分が良く、\(worst.bucket)の日は\(deltaText)低い傾向。耳を休める時間が気分に影響しているかもしれません。"),
+            priority: 0.83
+        )]
+    }
+
+    // MARK: - Exercise Threshold Insight
+
+    static func exerciseThresholdInsight(
+        result: StatsViewModel.ExerciseThresholdResult?
+    ) -> [InsightCard] {
+        guard let r = result, r.delta > 0.5 else { return [] }
+
+        let aboveText = String(format: "%.1f", r.aboveAverage)
+        let belowText = String(format: "%.1f", r.belowAverage)
+        return [InsightCard(
+            id: "exercise_threshold_\(r.thresholdMinutes)",
+            icon: "figure.run",
+            tone: .positive,
+            title: String(localized: "\(r.thresholdMinutes)分が運動の分岐点"),
+            body: String(localized: "運動\(r.thresholdMinutes)分以上の日は平均\(aboveText)、未満の日は\(belowText)。あなたにとっての「効く運動量」は\(r.thresholdMinutes)分以上のようです。"),
+            priority: 0.86
+        )]
+    }
+
+    // MARK: - HRV × Mood Insight
+
+    static func hrvMoodInsight(
+        result: StatsViewModel.HRVMoodResult?
+    ) -> [InsightCard] {
+        guard let r = result else { return [] }
+        var cards: [InsightCard] = []
+
+        // Basic HRV correlation
+        let delta = r.highHRVScore - r.lowHRVScore
+        if abs(delta) > 0.5 {
+            let highText = String(format: "%.1f", r.highHRVScore)
+            let lowText = String(format: "%.1f", r.lowHRVScore)
+            cards.append(InsightCard(
+                id: "hrv_correlation",
+                icon: "waveform.path.ecg",
+                tone: delta > 0 ? .positive : .caution,
+                title: String(localized: "自律神経と気分"),
+                body: String(localized: "HRVが高い（リラックス状態）の日はスコア\(highText)、低い日は\(lowText)。自律神経の状態が気分に反映されています。"),
+                priority: 0.84
+            ))
+        }
+
+        // Divergence detection (most valuable insight)
+        if r.divergenceDetected {
+            cards.append(InsightCard(
+                id: "hrv_divergence",
+                icon: "exclamationmark.triangle.fill",
+                tone: .caution,
+                title: String(localized: "無理してるサイン"),
+                body: String(localized: "体はストレスを感じている（HRV低い）のに気分は高い日が\(r.divergenceCount)日ありました。無意識に頑張りすぎているかもしれません。"),
+                priority: 0.92
+            ))
+        }
+
+        return cards
+    }
+
     // MARK: - ヘルパー
 
     private static func avg(_ values: [Double]) -> Double {

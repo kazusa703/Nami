@@ -100,8 +100,25 @@ struct OnboardingView: View {
                 }
             }
 
-            if currentStep < totalSteps - 1 {
-                // Next button
+            if currentStep == 2 {
+                // Step 3 (first record): only back button, no next
+                // User taps a score → RecordingSheet appears → then auto-advances
+                HStack(spacing: 12) {
+                    Button {
+                        HapticManager.lightFeedback()
+                        withAnimation { currentStep -= 1 }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(.headline, design: .rounded, weight: .semibold))
+                            .foregroundStyle(colors.accent)
+                            .frame(width: 52, height: 52)
+                            .background(colors.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 24)
+            } else if currentStep < totalSteps - 1 {
+                // Other steps: back + next
                 HStack(spacing: 12) {
                     if currentStep > 0 {
                         Button {
@@ -118,15 +135,9 @@ struct OnboardingView: View {
 
                     Button {
                         HapticManager.lightFeedback()
-                        // On step 2 (first record), save the entry before moving on
-                        if currentStep == 2, let score = firstRecordScore {
-                            saveFirstRecord(score: score)
-                        }
                         withAnimation { currentStep += 1 }
                     } label: {
-                        Text(currentStep == 2
-                            ? (firstRecordScore != nil ? String(localized: "記録して次へ") : String(localized: "スキップして次へ"))
-                            : String(localized: "次へ"))
+                        Text(String(localized: "次へ"))
                             .font(.system(.headline, design: .rounded, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
@@ -327,40 +338,73 @@ struct OnboardingView: View {
                         .font(.system(.title, design: .rounded, weight: .bold))
                 }
 
-                // Tooltip A: Large speech bubble with arrow
+                // Tooltip: Large speech bubble with all info
                 if showTooltip {
                     VStack(spacing: 0) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "hand.tap.fill")
-                                .font(.title2)
-                                .foregroundStyle(colors.accent)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(localized: "数字をタップしてみましょう"))
-                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
-                                    .foregroundStyle(.primary)
-                                Text(String(localized: "今の気分に近い数字を選んでください"))
+                        VStack(spacing: 12) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "hand.tap.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundStyle(colors.accent)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(String(localized: "数字をタップしてみましょう"))
+                                        .font(.system(.body, design: .rounded, weight: .bold))
+                                        .foregroundStyle(.primary)
+                                    Text(String(localized: "今の気分に近い数字を選んでください"))
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Divider()
+
+                            HStack(spacing: 16) {
+                                HStack(spacing: 4) {
+                                    Text("1")
+                                        .font(.system(.headline, design: .rounded, weight: .bold))
+                                        .foregroundStyle(.red)
+                                    Text(String(localized: "= とても低い"))
+                                        .font(.system(.caption, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                HStack(spacing: 4) {
+                                    Text("10")
+                                        .font(.system(.headline, design: .rounded, weight: .bold))
+                                        .foregroundStyle(.green)
+                                    Text(String(localized: "= とても高い"))
+                                        .font(.system(.caption, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                                Text(String(localized: "このまま右上の ✓ でも保存できます"))
                                     .font(.system(.caption, design: .rounded))
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(16)
+                        .padding(20)
                         .background(
-                            RoundedRectangle(cornerRadius: 16)
+                            RoundedRectangle(cornerRadius: 20)
                                 .fill(.regularMaterial)
-                                .shadow(color: colors.accent.opacity(0.15), radius: 8, y: 4)
+                                .shadow(color: colors.accent.opacity(0.2), radius: 12, y: 6)
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(colors.accent.opacity(0.3), lineWidth: 1)
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(colors.accent.opacity(0.3), lineWidth: 1.5)
                         )
 
                         // Arrow pointing down
                         Triangle()
                             .fill(Color(.secondarySystemBackground))
-                            .frame(width: 16, height: 8)
+                            .frame(width: 18, height: 10)
                     }
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, 24)
                 }
 
                 // Score display
@@ -405,47 +449,11 @@ struct OnboardingView: View {
                 }
                 .padding(.horizontal, 24)
 
-                // Tooltip B: Subtle bottom hint
-                if showTooltip {
-                    HStack(spacing: 6) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(colors.accent.opacity(0.6))
-                        Text(String(localized: "1 = とても低い　10 = とても高い"))
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule()
-                            .fill(colors.accent.opacity(0.06))
-                    )
-                    .transition(.opacity)
-                } else {
+                // Scale hint (only when tooltip dismissed)
+                if !showTooltip {
                     Text(String(localized: "1 = とても低い　10 = とても高い"))
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(.tertiary)
-                }
-
-                // Tooltip C: Floating note
-                if showTooltip {
-                    HStack(spacing: 8) {
-                        Image(systemName: "lightbulb.fill")
-                            .font(.caption)
-                            .foregroundStyle(.yellow)
-                        Text(String(localized: "記録した後にメモやタグも追加できます"))
-                            .font(.system(.caption2, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(.ultraThinMaterial)
-                            .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-                    )
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
 
                 Spacer()
@@ -471,10 +479,18 @@ struct OnboardingView: View {
                             tags: tags,
                             energyLevel: energyLevel
                         )
+                        // Auto-advance to next step after saving
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation { currentStep += 1 }
+                        }
                     },
                     onSkip: {
-                        // Just close the sheet, score is already selected
+                        // Save score only, then advance
+                        saveFirstRecord(score: score)
                         showRecordingSheet = false
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation { currentStep += 1 }
+                        }
                     }
                 )
             }

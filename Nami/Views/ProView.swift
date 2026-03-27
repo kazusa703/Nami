@@ -111,18 +111,14 @@ struct ProView: View {
             .padding(.vertical, 16)
         } else {
             VStack(spacing: 12) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 56))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.orange, .pink],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                Image(systemName: "water.waves")
+                    .font(.system(size: 64))
+                    .foregroundStyle(colors.accent.gradient)
+                    .symbolEffect(.variableColor.iterative, options: .repeating)
 
                 Text("Nami Premium")
                     .font(.system(.title, design: .rounded, weight: .bold))
+                    .foregroundStyle(colors.accent)
 
                 Text(String(localized: "すべての機能を解放"))
                     .font(.system(.subheadline, design: .rounded))
@@ -137,16 +133,24 @@ struct ProView: View {
     @ViewBuilder
     private func featureListSection(colors: ThemeColors) -> some View {
         let features: [(icon: String, text: String, free: Bool)] = [
+            // 無料機能
             ("pencil.circle", String(localized: "気分記録・基本チャート"), true),
+            ("tag", String(localized: "タグ付け（デフォルトタグ）"), true),
             ("calendar.badge.clock", String(localized: "直近30日の履歴"), true),
+            // PRO機能
             ("clock.arrow.circlepath", String(localized: "全履歴の無制限アクセス"), false),
             ("tag.fill", String(localized: "無制限のカスタムタグ作成"), false),
-            ("lightbulb.fill", String(localized: "パーソナルインサイト"), false),
+            ("lightbulb.fill", String(localized: "パーソナルインサイト（進化型）"), false),
             ("brain.head.profile", String(localized: "AIスコア予測"), false),
             ("arrow.triangle.branch", String(localized: "タグ遷移マップ"), false),
-            ("chart.bar.doc.horizontal", String(localized: "高度な分析"), false),
-            ("doc.text.fill", String(localized: "月間レポートカード"), false),
-            ("heart.fill", String(localized: "HealthKit相関分析"), false),
+            ("chart.bar.doc.horizontal", String(localized: "高度な分析（回復パターン・安定度等）"), false),
+            ("doc.text.fill", String(localized: "月間レポートカード・SNSシェア"), false),
+            ("heart.fill", String(localized: "HealthKit相関分析（睡眠・歩数・心拍・HRV）"), false),
+            ("headphones", String(localized: "イヤホン使用時間×気分分析"), false),
+            ("cloud.sun.fill", String(localized: "天気×気分の自動分析"), false),
+            ("moon.zzz.fill", String(localized: "Nemuri連携（詳細睡眠分析）"), false),
+            ("doc.richtext", String(localized: "メモキーワード分析"), false),
+            ("crown.fill", String(localized: "月1回の特別インサイト"), false),
         ]
 
         VStack(spacing: 0) {
@@ -154,7 +158,7 @@ struct ProView: View {
                 HStack(spacing: 14) {
                     Image(systemName: feature.icon)
                         .font(.system(size: 16))
-                        .foregroundStyle(feature.free ? .green : (premiumManager.isPremium ? colors.accent : .orange))
+                        .foregroundStyle(feature.free ? .green : (premiumManager.isPremium ? colors.accent : colors.accent.opacity(0.8)))
                         .frame(width: 28)
 
                     Text(feature.text)
@@ -176,10 +180,10 @@ struct ProView: View {
                     } else {
                         Text("PRO")
                             .font(.system(.caption2, design: .rounded, weight: .bold))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(colors.accent)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Capsule().fill(.orange.opacity(0.1)))
+                            .background(Capsule().fill(colors.accent.opacity(0.1)))
                     }
                 }
                 .padding(.vertical, 12)
@@ -243,7 +247,7 @@ struct ProView: View {
                                 .font(.system(.caption2, design: .rounded, weight: .bold))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
-                                .background(Capsule().fill(.orange))
+                                .background(Capsule().fill(colors.accent))
                                 .foregroundStyle(.white)
                         }
                     }

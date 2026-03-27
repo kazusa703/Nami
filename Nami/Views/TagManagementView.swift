@@ -22,6 +22,8 @@ struct TagManagementView: View {
     @State private var showAddCategorySheet = false
     /// 並び替えモード
     @State private var isReordering = false
+    /// 削除確認対象のタグ
+    @State private var tagToDelete: EmotionTag?
 
     /// カスタムタグの数
     private var customTagCount: Int {
@@ -50,9 +52,13 @@ struct TagManagementView: View {
                     Section {
                         ForEach(group.tags, id: \.id) { tag in
                             tagRow(tag: tag, colors: colors)
-                        }
-                        .onDelete { indexSet in
-                            deleteCustomTags(in: group.tags, at: indexSet)
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        tagToDelete = tag
+                                    } label: {
+                                        Label(String(localized: "削除"), systemImage: "trash")
+                                    }
+                                }
                         }
                         .onMove { source, destination in
                             moveCustomTags(in: group.category, from: source, to: destination)
@@ -132,6 +138,28 @@ struct TagManagementView: View {
                 addCustomCategory(name: name, icon: icon)
             }
         }
+        .alert(
+            String(localized: "タグを削除"),
+            isPresented: Binding(
+                get: { tagToDelete != nil },
+                set: { if !$0 { tagToDelete = nil } }
+            )
+        ) {
+            Button(String(localized: "削除"), role: .destructive) {
+                if let tag = tagToDelete {
+                    modelContext.delete(tag)
+                    HapticManager.lightFeedback()
+                    tagToDelete = nil
+                }
+            }
+            Button(String(localized: "キャンセル"), role: .cancel) {
+                tagToDelete = nil
+            }
+        } message: {
+            if let tag = tagToDelete {
+                Text(String(localized: "「\(tag.name)」を削除しますか？過去の記録からもこのタグが外れます。"))
+            }
+        }
     }
 
     /// Tag row
@@ -156,7 +184,6 @@ struct TagManagementView: View {
                     .background(Capsule().fill(Color(.systemGray5)))
             }
         }
-        .deleteDisabled(tag.isDefault)
         .moveDisabled(tag.isDefault)
     }
 

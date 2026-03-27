@@ -177,8 +177,13 @@ struct StatsView: View {
     /// キャッシュ：プレミアムインサイトカード
     @State private var cachedPremiumInsights: [InsightCard] = []
     /// HealthKit相関データ
-    @State private var healthCorrelations: (steps: Double?, sleep: Double?, heartRate: Double?) = (nil, nil, nil)
+    @State private var healthCorrelations: (steps: Double?, sleep: Double?, heartRate: Double?, headphone: Double?, hrv: Double?, exercise: Double?) = (nil, nil, nil, nil, nil, nil)
     @State private var isLoadingHealthData = false
+    /// Cached workout/headphone/exercise/HRV analysis results
+    @State private var cachedWorkoutResults: [StatsViewModel.WorkoutMoodResult] = []
+    @State private var cachedHeadphoneResults: [StatsViewModel.HeadphoneMoodResult] = []
+    @State private var cachedExerciseThreshold: StatsViewModel.ExerciseThresholdResult?
+    @State private var cachedHRVResult: StatsViewModel.HRVMoodResult?
     /// 解説・目次シート表示フラグ
     @State private var showGuideSheet = false
     /// セクションジャンプ用のScrollViewProxy
@@ -1763,29 +1768,107 @@ struct StatsView: View {
                     }
                 } else {
                     VStack(spacing: 10) {
-                        // Steps correlation
-                        correlationRow(
-                            icon: "figure.walk",
-                            label: String(localized: "歩数"),
-                            correlation: healthCorrelations.steps,
-                            colors: colors
-                        )
+                        // Basic correlations
+                        correlationRow(icon: "figure.walk", label: String(localized: "歩数"), correlation: healthCorrelations.steps, colors: colors)
+                        correlationRow(icon: "bed.double.fill", label: String(localized: "睡眠時間"), correlation: healthCorrelations.sleep, colors: colors)
+                        correlationRow(icon: "heart.fill", label: String(localized: "安静時心拍数"), correlation: healthCorrelations.heartRate, colors: colors)
+                        correlationRow(icon: "headphones", label: String(localized: "イヤホン使用"), correlation: healthCorrelations.headphone, colors: colors)
+                        correlationRow(icon: "waveform.path.ecg", label: String(localized: "HRV（自律神経）"), correlation: healthCorrelations.hrv, colors: colors)
+                        correlationRow(icon: "figure.run", label: String(localized: "運動時間"), correlation: healthCorrelations.exercise, colors: colors)
+                    }
 
-                        // Sleep correlation
-                        correlationRow(
-                            icon: "bed.double.fill",
-                            label: String(localized: "睡眠時間"),
-                            correlation: healthCorrelations.sleep,
-                            colors: colors
-                        )
+                    // Workout type breakdown
+                    if !cachedWorkoutResults.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(String(localized: "運動の種類別"))
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                                .foregroundStyle(colors.accent)
+                            ForEach(cachedWorkoutResults.prefix(4), id: \.workoutType) { result in
+                                HStack(spacing: 10) {
+                                    Text(result.workoutType)
+                                        .font(.system(.subheadline, design: .rounded))
+                                    Spacer()
+                                    Text(String(format: "%.1f", result.averageScore))
+                                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                        .foregroundStyle(colors.accent)
+                                    if let next = result.nextDayAverageScore {
+                                        Text(String(localized: "→翌日\(String(format: "%.1f", next))"))
+                                            .font(.system(.caption2, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(RoundedRectangle(cornerRadius: 8).fill(.ultraThinMaterial))
+                            }
+                        }
+                    }
 
-                        // Heart rate correlation
-                        correlationRow(
-                            icon: "heart.fill",
-                            label: String(localized: "安静時心拍数"),
-                            correlation: healthCorrelations.heartRate,
-                            colors: colors
-                        )
+                    // Headphone duration buckets
+                    if !cachedHeadphoneResults.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(String(localized: "イヤホン使用時間別"))
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                                .foregroundStyle(colors.accent)
+                            HStack(spacing: 6) {
+                                ForEach(cachedHeadphoneResults, id: \.bucket) { result in
+                                    VStack(spacing: 4) {
+                                        Text(String(format: "%.1f", result.averageScore))
+                                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                            .foregroundStyle(colors.accent)
+                                        Text(result.bucket)
+                                            .font(.system(.caption2, design: .rounded))
+                                            .foregroundStyle(.secondary)
+                                        Text("\(result.count)" + String(localized: "日"))
+                                            .font(.system(.caption2, design: .rounded))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(RoundedRectangle(cornerRadius: 8).fill(.ultraThinMaterial))
+                                }
+                            }
+                        }
+                    }
+
+                    // Exercise threshold
+                    if let threshold = cachedExerciseThreshold {
+                        HStack(spacing: 12) {
+                            Image(systemName: "figure.run")
+                                .font(.title3)
+                                .foregroundStyle(colors.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "あなたの運動の分岐点: \(threshold.thresholdMinutes)分"))
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                Text(String(localized: "\(threshold.thresholdMinutes)分以上: \(String(format: "%.1f", threshold.aboveAverage)) / 未満: \(String(format: "%.1f", threshold.belowAverage))"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+                    }
+
+                    // HRV divergence alert
+                    if let hrv = cachedHRVResult {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "waveform.path.ecg")
+                                    .font(.title3)
+                                    .foregroundStyle(hrv.divergenceDetected ? .orange : colors.accent)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(String(localized: "HRV高い日: \(String(format: "%.1f", hrv.highHRVScore)) / 低い日: \(String(format: "%.1f", hrv.lowHRVScore))"))
+                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                    if hrv.divergenceDetected {
+                                        Text(String(localized: "体はストレスを感じているのに気分が高い日が\(hrv.divergenceCount)日。無理してるサインかも"))
+                                            .font(.system(.caption, design: .rounded))
+                                            .foregroundStyle(.orange)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
                     }
 
                     Text(String(localized: "過去30日間のデータに基づく相関分析"))
@@ -1876,25 +1959,29 @@ struct StatsView: View {
             .filter { $0.createdAt >= startDate }
             .map { (calendar.startOfDay(for: $0.createdAt), $0.normalizedScore) }
 
-        // Compute correlations
-        let stepValues: [(date: Date, value: Double)] = metrics.compactMap { m in
-            guard let s = m.steps else { return nil }
-            return (m.date, s)
-        }
-        let sleepValues: [(date: Date, value: Double)] = metrics.compactMap { m in
-            guard let s = m.sleepHours else { return nil }
-            return (m.date, s)
-        }
-        let hrValues: [(date: Date, value: Double)] = metrics.compactMap { m in
-            guard let hr = m.restingHeartRate else { return nil }
-            return (m.date, hr)
+        /// Compute all 7 correlations
+        func values(for keyPath: KeyPath<DailyHealthMetric, Double?>) -> [(date: Date, value: Double)] {
+            metrics.compactMap { m in
+                guard let v = m[keyPath: keyPath] else { return nil }
+                return (m.date, v)
+            }
         }
 
         healthCorrelations = (
-            steps: HealthKitManager.correlation(moodScores: moodByDate, healthValues: stepValues),
-            sleep: HealthKitManager.correlation(moodScores: moodByDate, healthValues: sleepValues),
-            heartRate: HealthKitManager.correlation(moodScores: moodByDate, healthValues: hrValues)
+            steps: HealthKitManager.correlation(moodScores: moodByDate, healthValues: values(for: \.steps)),
+            sleep: HealthKitManager.correlation(moodScores: moodByDate, healthValues: values(for: \.sleepHours)),
+            heartRate: HealthKitManager.correlation(moodScores: moodByDate, healthValues: values(for: \.restingHeartRate)),
+            headphone: HealthKitManager.correlation(moodScores: moodByDate, healthValues: values(for: \.headphoneMinutes)),
+            hrv: HealthKitManager.correlation(moodScores: moodByDate, healthValues: values(for: \.hrvSDNN)),
+            exercise: HealthKitManager.correlation(moodScores: moodByDate, healthValues: values(for: \.exerciseMinutes))
         )
+
+        // Compute detailed analyses
+        let recentEntries = entries.filter { $0.createdAt >= startDate }
+        cachedWorkoutResults = statsVM.workoutMoodAnalysis(entries: recentEntries, metrics: metrics, currentMax: currentMaxScore, currentMin: currentMinScore)
+        cachedHeadphoneResults = statsVM.headphoneMoodAnalysis(entries: recentEntries, metrics: metrics, currentMax: currentMaxScore, currentMin: currentMinScore)
+        cachedExerciseThreshold = statsVM.exerciseThresholdAnalysis(entries: recentEntries, metrics: metrics, currentMax: currentMaxScore, currentMin: currentMinScore)
+        cachedHRVResult = statsVM.hrvMoodAnalysis(entries: recentEntries, metrics: metrics, currentMax: currentMaxScore, currentMin: currentMinScore)
     }
 
     // MARK: - タグ分析セクション

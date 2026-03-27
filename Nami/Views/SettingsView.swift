@@ -351,13 +351,8 @@ struct SettingsView: View {
 
     // MARK: - タグセクション
 
-    @ViewBuilder
     private func tagSection(colors: ThemeColors) -> some View {
-        let customTags = allTags.filter { !$0.isDefault }
-        let customCount = customTags.count
-
-        return Section {
-            // Compact: management link with tag count
+        Section {
             NavigationLink {
                 TagManagementView()
             } label: {
@@ -369,6 +364,7 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(String(localized: "タグを管理"))
                             .font(.system(.body, design: .rounded))
+                        let customCount = allTags.filter { !$0.isDefault }.count
                         Text(String(localized: "\(allTags.count)個のタグ（カスタム\(customCount)個）"))
                             .font(.system(.caption2, design: .rounded))
                             .foregroundStyle(.secondary)
@@ -377,71 +373,8 @@ struct SettingsView: View {
                     Spacer()
                 }
             }
-
-            // Inline quick add (compact single row)
-            HStack(spacing: 8) {
-                Image(systemName: "plus.circle.fill")
-                    .foregroundStyle(colors.accent)
-
-                TextField(String(localized: "新しいタグを追加..."), text: $quickTagName)
-                    .font(.system(.subheadline, design: .rounded))
-                    .submitLabel(.done)
-                    .onSubmit { addQuickTag(colors: colors) }
-
-                Menu {
-                    ForEach([EmotionTagCategory.positive, .negative, .factor, .location, .activity, .social, .custom]) { cat in
-                        Button {
-                            quickTagCategory = cat
-                        } label: {
-                            Label(cat.displayName, systemImage: cat.icon)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: quickTagCategory.icon)
-                            .font(.caption2)
-                        Text(quickTagCategory.displayName)
-                            .font(.system(.caption2, design: .rounded, weight: .medium))
-                    }
-                    .foregroundStyle(colors.accent)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(colors.accent.opacity(0.1)))
-                }
-
-                if !quickTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button {
-                        addQuickTag(colors: colors)
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(colors.accent)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            // Error message
-            if let error = tagAddError {
-                Text(error)
-                    .font(.system(.caption, design: .rounded))
-                    .foregroundStyle(.red)
-                    .task {
-                        try? await Task.sleep(for: .seconds(3))
-                        tagAddError = nil
-                    }
-            }
         } header: {
-            HStack {
-                Text(String(localized: "タグ"))
-                Spacer()
-                if !premiumManager.isPremium {
-                    let remaining = premiumManager.remainingCustomTags(currentCount: customCount)
-                    Text(String(localized: "カスタム: \(customCount)/\(premiumManager.freeCustomTagLimit)"))
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(remaining > 0 ? Color.secondary : Color.orange)
-                }
-            }
+            Text(String(localized: "タグ"))
         }
     }
 
