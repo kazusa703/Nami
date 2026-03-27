@@ -184,6 +184,9 @@ struct StatsView: View {
     @State private var cachedHeadphoneResults: [StatsViewModel.HeadphoneMoodResult] = []
     @State private var cachedExerciseThreshold: StatsViewModel.ExerciseThresholdResult?
     @State private var cachedHRVResult: StatsViewModel.HRVMoodResult?
+    /// Monthly discovery report
+    @State private var monthlyGoldCard: InsightCard?
+    @State private var monthlyDiscoveries: [InsightEngine.CorrelationDiscovery] = []
     /// 解説・目次シート表示フラグ
     @State private var showGuideSheet = false
     /// セクションジャンプ用のScrollViewProxy
@@ -492,6 +495,18 @@ struct StatsView: View {
         // Mark as viewed for evolving text
         InsightEngine.markInsightsAsViewed(insights)
         cachedPremiumInsights = InsightEngine.generatePremium(from: entries, currentMax: currentMaxScore, currentMin: currentMinScore)
+
+        // Monthly discovery report (gold card + correlations)
+        let metricsArray = Array(healthKitManager.cachedMetrics.values)
+        let report = InsightEngine.monthlyDiscoveryReport(
+            from: entries,
+            metrics: metricsArray,
+            currentMax: currentMaxScore,
+            currentMin: currentMinScore,
+            isPremium: premiumManager.isPremium
+        )
+        monthlyGoldCard = report.gold
+        monthlyDiscoveries = report.discoveries
     }
 
     // MARK: - セクション管理（グループ化レイアウト）
@@ -743,12 +758,88 @@ struct StatsView: View {
     private func insightCarousel(colors: ThemeColors) -> some View {
         let insights = cachedInsights
 
-        if !insights.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Monthly Discovery Report (gold card + correlations)
+            if monthlyGoldCard != nil || !monthlyDiscoveries.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "crown.fill")
+                            .foregroundStyle(.yellow)
+                        Text(String(localized: "今月の発見"))
+                            .font(.system(.headline, design: .rounded))
+                        Spacer()
+                        if !premiumManager.isPremium && monthlyDiscoveries.count <= 1 {
+                            Text("PRO")
+                                .font(.system(.caption2, design: .rounded, weight: .bold))
+                                .foregroundStyle(colors.accent)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(colors.accent.opacity(0.1)))
+                        }
+                    }
+                    .padding(.horizontal, 4)
+
+                    // Gold card
+                    if let gold = monthlyGoldCard {
+                        insightCardView(card: gold, colors: colors)
+                    }
+
+                    // Correlation discoveries
+                    ForEach(monthlyDiscoveries) { discovery in
+                        HStack(spacing: 12) {
+                            Image(systemName: discovery.icon)
+                                .font(.body)
+                                .foregroundStyle(colors.accent)
+                                .frame(width: 28)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 4) {
+                                    Text(discovery.dimensionA)
+                                        .font(.system(.caption, design: .rounded, weight: .bold))
+                                    Image(systemName: "arrow.left.arrow.right")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Text(discovery.dimensionB)
+                                        .font(.system(.caption, design: .rounded, weight: .bold))
+                                }
+                                Text(discovery.direction)
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .padding(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.ultraThinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(.yellow.opacity(0.2), lineWidth: 1)
+                                )
+                        )
+                    }
+
+                    // PRO upsell if free user sees only 1
+                    if !premiumManager.isPremium {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lock.fill")
+                                .font(.caption2)
+                                .foregroundStyle(colors.accent)
+                            Text(String(localized: "PROで最大5つの関連性を発見"))
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(colors.accent)
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                }
+            }
+
+            // Regular insights
+            if !insights.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "lightbulb.fill")
                         .foregroundStyle(.yellow)
-                    Text("インサイト")
+                    Text(String(localized: "インサイト"))
                         .font(.system(.headline, design: .rounded))
                 }
                 .padding(.horizontal, 4)

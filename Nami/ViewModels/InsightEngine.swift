@@ -1600,6 +1600,207 @@ enum InsightEngine {
         )
     }
 
+    // MARK: - Monthly Personal Discovery Report
+
+    /// A single correlation discovery between two data dimensions
+    struct CorrelationDiscovery: Identifiable {
+        let id: String
+        let dimensionA: String // e.g. "睡眠時間"
+        let dimensionB: String // e.g. "仕事タグ"
+        let direction: String // e.g. "睡眠が長い日ほど仕事タグが多い"
+        let strength: Double // 0.0-1.0 correlation strength
+        let icon: String // SF Symbol
+    }
+
+    /// Monthly Personal Discovery Report: gold card + 3-5 unique correlations
+    /// Free: gold card + 1 correlation. PRO: gold card + up to 5 correlations.
+    static func monthlyDiscoveryReport(
+        from entries: [MoodEntry],
+        metrics: [DailyHealthMetric],
+        currentMax: Int,
+        currentMin: Int = 1,
+        isPremium: Bool
+    ) -> (gold: InsightCard?, discoveries: [CorrelationDiscovery]) {
+        let gold = monthlyGoldInsight(from: entries, currentMax: currentMax, currentMin: currentMin)
+
+        // Check if we already generated discoveries this month
+        let calendar = Calendar.current
+        let monthKey = "\(calendar.component(.year, from: .now))-\(calendar.component(.month, from: .now))"
+        let lastDiscoveryMonth = UserDefaults.standard.string(forKey: "discoveryReportLastMonth")
+
+        // Generate discoveries only once per month
+        guard entries.count >= 30 else { return (gold, []) }
+
+        var allDiscoveries: [CorrelationDiscovery] = []
+
+        let entriesByDate = Dictionary(grouping: entries) { calendar.startOfDay(for: $0.createdAt) }
+        let metricsByDate = Dictionary(uniqueKeysWithValues: metrics.map { (calendar.startOfDay(for: $0.date), $0) })
+
+        // 1. Tag × Tag correlations (which tags appear together on high-score days)
+        let highThreshold = avg(entries.map(\.normalizedScore)) + 0.1
+        let highEntries = entries.filter { $0.normalizedScore >= highThreshold && $0.tags.count >= 2 }
+        let lowEntries = entries.filter { $0.normalizedScore < highThreshold - 0.1 && $0.tags.count >= 2 }
+
+        if highEntries.count >= 5, lowEntries.count >= 5 {
+            var highPairs: [String: Int] = [:]
+            for entry in highEntries {
+                let sorted = entry.tags.sorted()
+                for i in 0 ..< sorted.count {
+                    for j in (i + 1) ..< sorted.count {
+                        highPairs["\(sorted[i])|\(sorted[j])", default: 0] += 1
+                    }
+                }
+            }
+            if let topPair = highPairs.max(by: { $0.value < $1.value }), topPair.value >= 3 {
+                let parts = topPair.key.split(separator: "|").map(String.init)
+                if parts.count == 2 {
+                    allDiscoveries.append(CorrelationDiscovery(
+                        id: "tag_pair_\(monthKey)",
+                        dimensionA: parts[0],
+                        dimensionB: parts[1],
+                        direction: String(localized: "好調な日に「\(parts[0])」と「\(parts[1])」が一緒に現れやすい"),
+                        strength: min(Double(topPair.value) / 10.0, 1.0),
+                        icon: "tag.fill"
+                    ))
+                }
+            }
+        }
+
+        // 2. Weather × Tag correlation
+        let weatherEntries = entries.filter { $0.weatherCondition != nil }
+        if weatherEntries.count >= 10 {
+            var weatherTagCounts: [String: [String: Int]] = [:]
+            for entry in weatherEntries {
+                guard let weather = entry.weatherCondition else { continue }
+                for tag in entry.tags {
+                    weatherTagCounts[weather, default: [:]][tag, default: 0] += 1
+                }
+            }
+            // Find weather-tag pair with highest frequency
+            var bestWeather = ""
+            var bestTag = ""
+            var bestCount = 0
+            for (weather, tags) in weatherTagCounts {
+                for (tag, count) in tags where count > bestCount {
+                    bestCount = count
+                    bestWeather = weather
+                    bestTag = tag
+                }
+            }
+            if bestCount >= 3 {
+                allDiscoveries.append(CorrelationDiscovery(
+                    id: "weather_tag_\(monthKey)",
+                    dimensionA: bestWeather,
+                    dimensionB: bestTag,
+                    direction: String(localized: "\(bestWeather)の日に「\(bestTag)」タグが多い傾向"),
+                    strength: min(Double(bestCount) / 15.0, 0.9),
+                    icon: "cloud.sun.fill"
+                ))
+            }
+        }
+
+        // 3. Sleep × Mood direction
+        if !metrics.isEmpty {
+            let sleepMood: [(sleep: Double, score: Double)] = metrics.compactMap { m in
+                guard let sleep = m.sleepHours else { return nil }
+                let date = calendar.startOfDay(for: m.date)
+                guard let dayEntries = entriesByDate[date], !dayEntries.isEmpty else { return nil }
+                let avg = dayEntries.map(\.normalizedScore).reduce(0, +) / Double(dayEntries.count)
+                return (sleep, avg)
+            }
+            if sleepMood.count >= 7 {
+                let longSleep = sleepMood.filter { $0.sleep >= 7 }
+                let shortSleep = sleepMood.filter { $0.sleep < 6 }
+                if longSleep.count >= 3, shortSleep.count >= 3 {
+                    let longAvg = avg(longSleep.map(\.score))
+                    let shortAvg = avg(shortSleep.map(\.score))
+                    let delta = longAvg - shortAvg
+                    if abs(delta) > 0.05 {
+                        allDiscoveries.append(CorrelationDiscovery(
+                            id: "sleep_mood_\(monthKey)",
+                            dimensionA: String(localized: "睡眠時間"),
+                            dimensionB: String(localized: "気分スコア"),
+                            direction: delta > 0
+                                ? String(localized: "7時間以上眠った日は気分が高い傾向")
+                                : String(localized: "長く眠った日ほど気分が低い（睡眠の質が問題？）"),
+                            strength: min(abs(delta) * 5, 0.95),
+                            icon: "bed.double.fill"
+                        ))
+                    }
+                }
+            }
+        }
+
+        // 4. Recording time × Score pattern
+        let lateEntries = entries.filter {
+            let hour = calendar.component(.hour, from: $0.createdAt)
+            return hour >= 22 || hour < 4
+        }
+        let earlyEntries = entries.filter {
+            let hour = calendar.component(.hour, from: $0.createdAt)
+            return hour >= 6 && hour < 12
+        }
+        if lateEntries.count >= 5, earlyEntries.count >= 5 {
+            let lateAvg = avg(lateEntries.map(\.normalizedScore))
+            let earlyAvg = avg(earlyEntries.map(\.normalizedScore))
+            let delta = earlyAvg - lateAvg
+            if abs(delta) > 0.05 {
+                allDiscoveries.append(CorrelationDiscovery(
+                    id: "time_score_\(monthKey)",
+                    dimensionA: String(localized: "記録する時間帯"),
+                    dimensionB: String(localized: "気分スコア"),
+                    direction: delta > 0
+                        ? String(localized: "朝に記録する日ほどスコアが高い")
+                        : String(localized: "深夜に記録する日ほどスコアが高い"),
+                    strength: min(abs(delta) * 4, 0.85),
+                    icon: "clock.fill"
+                ))
+            }
+        }
+
+        // 5. Headphone × Tag
+        if !metrics.isEmpty {
+            let headphoneDays = metrics.compactMap { m -> (date: Date, minutes: Double)? in
+                guard let hp = m.headphoneMinutes, hp > 60 else { return nil }
+                return (calendar.startOfDay(for: m.date), hp)
+            }
+            if headphoneDays.count >= 5 {
+                var headphoneTags: [String: Int] = [:]
+                for day in headphoneDays {
+                    if let dayEntries = entriesByDate[day.date] {
+                        for entry in dayEntries {
+                            for tag in entry.tags {
+                                headphoneTags[tag, default: 0] += 1
+                            }
+                        }
+                    }
+                }
+                if let topTag = headphoneTags.max(by: { $0.value < $1.value }), topTag.value >= 3 {
+                    allDiscoveries.append(CorrelationDiscovery(
+                        id: "headphone_tag_\(monthKey)",
+                        dimensionA: String(localized: "イヤホン長時間使用"),
+                        dimensionB: topTag.key,
+                        direction: String(localized: "イヤホンを1時間以上使った日は「\(topTag.key)」タグが多い"),
+                        strength: min(Double(topTag.value) / 10.0, 0.8),
+                        icon: "headphones"
+                    ))
+                }
+            }
+        }
+
+        // Sort by strength and limit
+        let sorted = allDiscoveries.sorted { $0.strength > $1.strength }
+        let limit = isPremium ? 5 : 1
+        let result = Array(sorted.prefix(limit))
+
+        // Mark as shown this month
+        if lastDiscoveryMonth != monthKey, !result.isEmpty {
+            UserDefaults.standard.set(monthKey, forKey: "discoveryReportLastMonth")
+        }
+
+        return (gold, result)
+    }
+
     // MARK: - 13. Tag × HealthKit Cross Analysis
 
     /// Cross-analyze tags with HealthKit data for deep insights
