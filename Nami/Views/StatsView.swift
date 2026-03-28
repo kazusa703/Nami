@@ -191,6 +191,8 @@ struct StatsView: View {
     @State private var showGuideSheet = false
     /// 全インサイトリスト表示フラグ
     @State private var showAllInsights = false
+    /// 月間まとめ画面表示フラグ
+    @State private var showMonthlyReport = false
     /// セクションジャンプ用のScrollViewProxy
     @State private var scrollProxy: ScrollViewProxy?
     /// Collapsible category group expansion state (all collapsed by default)
@@ -307,6 +309,9 @@ struct StatsView: View {
                 NavigationStack {
                     ProView()
                 }
+            }
+            .sheet(isPresented: $showMonthlyReport) {
+                MonthlyReportView()
             }
             .sheet(isPresented: $showGuideSheet) {
                 statsGuideSheet
@@ -2019,9 +2024,23 @@ struct StatsView: View {
 
     private func calendarHeatmapSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("月間カレンダー")
-                .font(.system(.headline, design: .rounded))
-                .padding(.horizontal, 4)
+            HStack {
+                Text("月間カレンダー")
+                    .font(.system(.headline, design: .rounded))
+                Spacer()
+                Button {
+                    showMonthlyReport = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(String(localized: "月間まとめ"))
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .foregroundStyle(colors.accent)
+                }
+            }
+            .padding(.horizontal, 4)
 
             MonthlyHeatmapView(
                 entries: entries,
