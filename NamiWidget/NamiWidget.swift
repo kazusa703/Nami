@@ -5,9 +5,9 @@
 //  ウィジェットのTimelineProvider & Widget定義
 //
 
-import WidgetKit
-import SwiftUI
 import SwiftData
+import SwiftUI
+import WidgetKit
 
 // MARK: - ウィジェットデータ
 
@@ -60,7 +60,7 @@ struct DailyMood {
 
 struct NamiTimelineProvider: TimelineProvider {
     /// プレースホルダー表示用
-    func placeholder(in context: Context) -> MoodWidgetEntry {
+    func placeholder(in _: Context) -> MoodWidgetEntry {
         MoodWidgetEntry(
             date: .now,
             dailyData: Self.sampleDaily(),
@@ -94,7 +94,7 @@ struct NamiTimelineProvider: TimelineProvider {
     }
 
     /// タイムライン生成（定期更新）
-    func getTimeline(in context: Context, completion: @escaping (Timeline<MoodWidgetEntry>) -> Void) {
+    func getTimeline(in _: Context, completion: @escaping (Timeline<MoodWidgetEntry>) -> Void) {
         let entry = fetchEntry()
         // 30分後に次の更新
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now
@@ -144,31 +144,31 @@ struct NamiTimelineProvider: TimelineProvider {
         allDescriptor.fetchLimit = 365
         let allEntries = (try? context.fetch(allDescriptor)) ?? []
 
-        // 日別データ（直近7日）
-        let dailyData = buildDailyData(entries: recentEntries, calendar: calendar)
+        // 日別データ（直近7日、スケーリング済み）
+        let dailyData = buildDailyData(entries: recentEntries, calendar: calendar, targetMax: maxScore, targetMin: minScore)
 
-        // 最新スコア
+        // 最新スコア（現在のレンジにスケーリング）
         let latest = recentEntries.last
-        let latestScore = latest?.score
+        let latestScore: Int? = latest.map { Int($0.scaledScore(to: maxScore, targetMin: minScore).rounded()) }
         let latestDate = latest?.createdAt
 
-        // 週間平均
+        // 週間平均（スケーリング済み）
         let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: .now) ?? .now
         let weekEntries = recentEntries.filter { $0.createdAt >= sevenDaysAgo }
         let weeklyAverage: Double? = weekEntries.isEmpty ? nil
-            : Double(weekEntries.map(\.score).reduce(0, +)) / Double(weekEntries.count)
+            : weekEntries.map { $0.scaledScore(to: maxScore, targetMin: minScore) }.reduce(0, +) / Double(weekEntries.count)
 
-        // 先週の平均（トレンド計算用）
+        // 先週の平均（トレンド計算用、スケーリング済み）
         let fourteenDaysAgo = calendar.date(byAdding: .day, value: -14, to: .now) ?? .now
         let lastWeekEntries = recentEntries.filter { $0.createdAt >= fourteenDaysAgo && $0.createdAt < sevenDaysAgo }
         let lastWeekAvg: Double? = lastWeekEntries.isEmpty ? nil
-            : Double(lastWeekEntries.map(\.score).reduce(0, +)) / Double(lastWeekEntries.count)
+            : lastWeekEntries.map { $0.scaledScore(to: maxScore, targetMin: minScore) }.reduce(0, +) / Double(lastWeekEntries.count)
         let weeklyTrend: Double? = (weeklyAverage != nil && lastWeekAvg != nil)
             ? weeklyAverage! - lastWeekAvg! : nil
 
-        // 月間平均
+        // 月間平均（スケーリング済み）
         let monthlyAverage: Double? = recentEntries.isEmpty ? nil
-            : Double(recentEntries.map(\.score).reduce(0, +)) / Double(recentEntries.count)
+            : recentEntries.map { $0.scaledScore(to: maxScore, targetMin: minScore) }.reduce(0, +) / Double(recentEntries.count)
 
         // ストリーク計算
         let currentStreak = calculateStreak(entries: allEntries, calendar: calendar)
@@ -176,14 +176,15 @@ struct NamiTimelineProvider: TimelineProvider {
         // 今日の記録件数
         let todayCount = recentEntries.filter { calendar.isDateInToday($0.createdAt) }.count
 
-        // Pick a random past record (at least 7 days old)
+        // Pick a random past record (at least 7 days old, scaled to current range)
         let pastCandidates = allEntries.filter {
             calendar.dateComponents([.day], from: $0.createdAt, to: .now).day ?? 0 >= 7
         }
         let randomPast: PastRecord? = pastCandidates.randomElement().map { entry in
             let daysAgo = calendar.dateComponents([.day], from: entry.createdAt, to: .now).day ?? 0
+            let scaled = Int(entry.scaledScore(to: maxScore, targetMin: minScore).rounded())
             return PastRecord(
-                score: entry.score,
+                score: scaled,
                 date: entry.createdAt,
                 memo: entry.memo,
                 tags: Array(entry.tags.prefix(2)),
@@ -208,10 +209,10 @@ struct NamiTimelineProvider: TimelineProvider {
         )
     }
 
-    /// 直近7日の日別データを構築
-    private func buildDailyData(entries: [MoodEntry], calendar: Calendar) -> [DailyMood] {
+    /// 直近7日の日別データを構築（スケーリング済み）
+    private func buildDailyData(entries: [MoodEntry], calendar: Calendar, targetMax: Int, targetMin: Int) -> [DailyMood] {
         var result: [DailyMood] = []
-        for dayOffset in (0..<7).reversed() {
+        for dayOffset in (0 ..< 7).reversed() {
             guard let targetDate = calendar.date(byAdding: .day, value: -dayOffset, to: .now) else { continue }
             let dayStart = calendar.startOfDay(for: targetDate)
             let dayEntries = entries.filter { calendar.isDate($0.createdAt, inSameDayAs: dayStart) }
@@ -219,7 +220,7 @@ struct NamiTimelineProvider: TimelineProvider {
             if dayEntries.isEmpty {
                 result.append(DailyMood(date: dayStart, averageScore: 0, entryCount: 0))
             } else {
-                let avg = Double(dayEntries.map(\.score).reduce(0, +)) / Double(dayEntries.count)
+                let avg = dayEntries.map { $0.scaledScore(to: targetMax, targetMin: targetMin) }.reduce(0, +) / Double(dayEntries.count)
                 result.append(DailyMood(date: dayStart, averageScore: avg, entryCount: dayEntries.count))
             }
         }
@@ -277,7 +278,7 @@ struct NamiTimelineProvider: TimelineProvider {
     static func sampleDaily() -> [DailyMood] {
         let calendar = Calendar.current
         let scores: [Double] = [5, 6, 4, 7, 8, 6, 7]
-        return (0..<7).map { i in
+        return (0 ..< 7).map { i in
             let date = calendar.date(byAdding: .day, value: -(6 - i), to: .now) ?? .now
             return DailyMood(date: calendar.startOfDay(for: date), averageScore: scores[i], entryCount: i % 2 == 0 ? 2 : 1)
         }
