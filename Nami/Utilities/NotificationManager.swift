@@ -37,6 +37,7 @@ enum NotificationManager {
         content.title = String(localized: "今日の気分は？")
         content.body = String(localized: "今の気分を記録して、自分の波を振り返りましょう。")
         content.sound = .default
+        content.categoryIdentifier = "MOOD_REMINDER"
 
         // 毎日繰り返すトリガー
         var dateComponents = DateComponents()

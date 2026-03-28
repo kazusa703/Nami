@@ -22,7 +22,26 @@ class NamiAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenter
 
     func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        registerNotificationCategories()
         return true
+    }
+
+    /// Register notification categories with actions for rich notification
+    private func registerNotificationCategories() {
+        let openAction = UNNotificationAction(
+            identifier: "OPEN_APP",
+            title: String(localized: "アプリで記録する"),
+            options: .foreground
+        )
+
+        let moodCategory = UNNotificationCategory(
+            identifier: "MOOD_REMINDER",
+            actions: [openAction],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        UNUserNotificationCenter.current().setNotificationCategories([moodCategory])
     }
 
     func application(_: UIApplication, supportedInterfaceOrientationsFor _: UIWindow?) -> UIInterfaceOrientationMask {
@@ -133,6 +152,9 @@ struct NamiApp: App {
                     // Import pending widget records from UserDefaults queue
                     Self.importPendingWidgetRecords(context: sharedModelContainer.mainContext)
 
+                    // Import pending notification records (rich notification extension)
+                    Self.importPendingNotificationRecords(context: sharedModelContainer.mainContext)
+
                     // WatchConnectivityの初期化
                     WatchConnectivityManager.shared.modelContainer = sharedModelContainer
                     WatchConnectivityManager.shared.activate()
@@ -201,6 +223,42 @@ struct NamiApp: App {
 
         // Clear the queue after successful import
         defaults.pendingWidgetRecords = []
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    // MARK: - Notification Record Import
+
+    /// Import mood records queued by the rich notification extension
+    private static func importPendingNotificationRecords(context: ModelContext) {
+        let defaults = AppConstants.sharedUserDefaults
+        guard var pending = defaults.array(forKey: "pendingNotificationRecords") as? [[String: Any]],
+              !pending.isEmpty else { return }
+
+        for record in pending {
+            guard let score = record["score"] as? Int,
+                  let maxScore = record["maxScore"] as? Int,
+                  let scoreRangeMin = record["scoreRangeMin"] as? Int,
+                  let createdAtEpoch = record["createdAt"] as? Double
+            else { continue }
+
+            let source = record["source"] as? String ?? "notification"
+            let createdAt = Date(timeIntervalSince1970: createdAtEpoch)
+
+            let entry = MoodEntry(
+                score: score,
+                maxScore: maxScore,
+                scoreRangeMin: scoreRangeMin,
+                source: source,
+                createdAt: createdAt
+            )
+            if let idString = record["id"] as? String, let uuid = UUID(uuidString: idString) {
+                entry.id = uuid
+            }
+            context.insert(entry)
+        }
+
+        try? context.save()
+        defaults.removeObject(forKey: "pendingNotificationRecords")
         WidgetCenter.shared.reloadAllTimelines()
     }
 
