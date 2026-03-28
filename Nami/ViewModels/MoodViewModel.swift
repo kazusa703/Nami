@@ -58,10 +58,16 @@ class MoodViewModel {
         NotificationManager.cancelWinback()
 
         // Write mood data for Nemuri (bidirectional sync)
+        let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
+        let weekDescriptor = FetchDescriptor<MoodEntry>(
+            predicate: #Predicate { $0.createdAt >= weekStart }
+        )
+        let weekEntries = (try? context.fetch(weekDescriptor)) ?? []
+        let weeklyAvg = weekEntries.isEmpty ? Double(score) : weekEntries.map { Double($0.score) }.reduce(0, +) / Double(weekEntries.count)
         NamiDataWriter.writeMoodData(
             latestEntry: entry,
-            weeklyAvg: Double(score),
-            weeklyCount: 1
+            weeklyAvg: weeklyAvg,
+            weeklyCount: weekEntries.count
         )
 
         // Fetch weather asynchronously after entry creation

@@ -7,6 +7,9 @@
 //
 
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "com.imai.Nami", category: "NemuriIntegration")
 
 // MARK: - Sleep Record Model
 
@@ -122,12 +125,19 @@ enum NemuriDataReader {
 
         do {
             let data = try Data(contentsOf: fileURL)
+            // Try ISO 8601 first (expected format), fall back to deferredToDate
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            let store = try decoder.decode(NemuriSleepDataStore.self, from: data)
+            if let store = try? decoder.decode(NemuriSleepDataStore.self, from: data) {
+                return store.records.sorted { $0.createdAt > $1.createdAt }
+            }
+            // Fallback: Nemuri may have written with default (deferredToDate) encoding
+            let fallbackDecoder = JSONDecoder()
+            let store = try fallbackDecoder.decode(NemuriSleepDataStore.self, from: data)
+            logger.info("Decoded Nemuri data using deferredToDate fallback")
             return store.records.sorted { $0.createdAt > $1.createdAt }
         } catch {
-            print("Failed to read Nemuri data: \(error)")
+            logger.error("Failed to read Nemuri data: \(error.localizedDescription)")
             return []
         }
     }
@@ -214,7 +224,7 @@ enum NamiDataWriter {
             let data = try encoder.encode(summary)
             try data.write(to: fileURL, options: .atomic)
         } catch {
-            print("Failed to write Nami mood data: \(error)")
+            logger.error("Failed to write Nami mood data: \(error.localizedDescription)")
         }
 
         // Write UserDefaults for quick access
