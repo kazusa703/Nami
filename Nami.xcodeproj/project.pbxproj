@@ -12,6 +12,9 @@
 		AC5F42202F39E7F100F0008A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F421F2F39E7F100F0008A /* WidgetKit.framework */; };
 		AC5F42222F39E7F100F0008A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F42212F39E7F100F0008A /* SwiftUI.framework */; };
 		AC5F547B2F3D458400F0008A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC5F42212F39E7F100F0008A /* SwiftUI.framework */; };
+		ACC924822F77F58700E2B271 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ACC924812F77F58700E2B271 /* UserNotifications.framework */; };
+		ACC924842F77F58700E2B271 /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ACC924832F77F58700E2B271 /* UserNotificationsUI.framework */; };
+		ACC9248E2F77F58700E2B271 /* NamiNotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ACC924802F77F58700E2B271 /* NamiNotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +39,13 @@
 			remoteGlobalIDString = AC5F41BB2F39D66D00F0008A;
 			remoteInfo = Nami;
 		};
+		ACC9248C2F77F58700E2B271 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AC5F41B42F39D66D00F0008A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ACC9247F2F77F58700E2B271;
+			remoteInfo = NamiNotificationContent;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -45,6 +55,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				ACC9248E2F77F58700E2B271 /* NamiNotificationContent.appex in Embed Foundation Extensions */,
 				2D09B70F67D4D73B8311CEE3 /* NamiWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -62,6 +73,9 @@
 		AC5F42212F39E7F100F0008A /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		AC5F423D2F39E80000F0008A /* NamiWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NamiWidgetExtension.entitlements; sourceTree = "<group>"; };
 		AC5F54792F3D458400F0008A /* NamiWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NamiWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ACC924802F77F58700E2B271 /* NamiNotificationContent.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NamiNotificationContent.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		ACC924812F77F58700E2B271 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
+		ACC924832F77F58700E2B271 /* UserNotificationsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotificationsUI.framework; path = System/Library/Frameworks/UserNotificationsUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -78,6 +92,13 @@
 				Info.plist,
 			);
 			target = AC5F54782F3D458400F0008A /* NamiWatch */;
+		};
+		ACC924912F77F58700E2B271 /* Exceptions for "NamiNotificationContent" folder in "NamiNotificationContent" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = ACC9247F2F77F58700E2B271 /* NamiNotificationContent */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -111,6 +132,14 @@
 				AC5F54892F3D458700F0008A /* Exceptions for "NamiWatch" folder in "NamiWatch" target */,
 			);
 			path = NamiWatch;
+			sourceTree = "<group>";
+		};
+		ACC924852F77F58700E2B271 /* NamiNotificationContent */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				ACC924912F77F58700E2B271 /* Exceptions for "NamiNotificationContent" folder in "NamiNotificationContent" target */,
+			);
+			path = NamiNotificationContent;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -155,6 +184,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ACC9247D2F77F58700E2B271 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ACC924842F77F58700E2B271 /* UserNotificationsUI.framework in Frameworks */,
+				ACC924822F77F58700E2B271 /* UserNotifications.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -167,6 +205,7 @@
 				AC5F41D82F39D67000F0008A /* NamiUITests */,
 				AC5F42232F39E7F100F0008A /* NamiWidget */,
 				AC5F547C2F3D458400F0008A /* NamiWatch */,
+				ACC924852F77F58700E2B271 /* NamiNotificationContent */,
 				AC5F421E2F39E7F100F0008A /* Frameworks */,
 				AC5F41BD2F39D66D00F0008A /* Products */,
 			);
@@ -180,6 +219,7 @@
 				AC5F41D52F39D67000F0008A /* NamiUITests.xctest */,
 				AC5F421D2F39E7F100F0008A /* NamiWidgetExtension.appex */,
 				AC5F54792F3D458400F0008A /* NamiWatch.app */,
+				ACC924802F77F58700E2B271 /* NamiNotificationContent.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -190,6 +230,8 @@
 				AC5F421F2F39E7F100F0008A /* WidgetKit.framework */,
 				AC5F42212F39E7F100F0008A /* SwiftUI.framework */,
 				31FBE724B8E421F97648B388 /* WatchConnectivity.framework */,
+				ACC924812F77F58700E2B271 /* UserNotifications.framework */,
+				ACC924832F77F58700E2B271 /* UserNotificationsUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -210,6 +252,7 @@
 			);
 			dependencies = (
 				B93941EBAD1149CC82004494 /* PBXTargetDependency */,
+				ACC9248D2F77F58700E2B271 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				AC5F41BE2F39D66D00F0008A /* Nami */,
@@ -301,6 +344,28 @@
 			productReference = AC5F54792F3D458400F0008A /* NamiWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
+		ACC9247F2F77F58700E2B271 /* NamiNotificationContent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ACC924922F77F58700E2B271 /* Build configuration list for PBXNativeTarget "NamiNotificationContent" */;
+			buildPhases = (
+				ACC9247C2F77F58700E2B271 /* Sources */,
+				ACC9247D2F77F58700E2B271 /* Frameworks */,
+				ACC9247E2F77F58700E2B271 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				ACC924852F77F58700E2B271 /* NamiNotificationContent */,
+			);
+			name = NamiNotificationContent;
+			packageProductDependencies = (
+			);
+			productName = NamiNotificationContent;
+			productReference = ACC924802F77F58700E2B271 /* NamiNotificationContent.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -328,6 +393,9 @@
 					AC5F54782F3D458400F0008A = {
 						CreatedOnToolsVersion = 26.3;
 					};
+					ACC9247F2F77F58700E2B271 = {
+						CreatedOnToolsVersion = 26.3;
+					};
 				};
 			};
 			buildConfigurationList = AC5F41B72F39D66D00F0008A /* Build configuration list for PBXProject "Nami" */;
@@ -352,6 +420,7 @@
 				AC5F41D42F39D67000F0008A /* NamiUITests */,
 				AC5F421C2F39E7F100F0008A /* NamiWidgetExtension */,
 				AC5F54782F3D458400F0008A /* NamiWatch */,
+				ACC9247F2F77F58700E2B271 /* NamiNotificationContent */,
 			);
 		};
 /* End PBXProject section */
@@ -386,6 +455,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		AC5F54772F3D458400F0008A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ACC9247E2F77F58700E2B271 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -430,6 +506,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ACC9247C2F77F58700E2B271 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -442,6 +525,11 @@
 			isa = PBXTargetDependency;
 			target = AC5F41BB2F39D66D00F0008A /* Nami */;
 			targetProxy = AC5F41D62F39D67000F0008A /* PBXContainerItemProxy */;
+		};
+		ACC9248D2F77F58700E2B271 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = ACC9247F2F77F58700E2B271 /* NamiNotificationContent */;
+			targetProxy = ACC9248C2F77F58700E2B271 /* PBXContainerItemProxy */;
 		};
 		B93941EBAD1149CC82004494 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -871,6 +959,64 @@
 			};
 			name = Release;
 		};
+		ACC9248F2F77F58700E2B271 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NamiNotificationContent/NamiNotificationContent.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = WM7939G226;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NamiNotificationContent/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NamiNotificationContent;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.imai.Nami.NamiNotificationContent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		ACC924902F77F58700E2B271 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NamiNotificationContent/NamiNotificationContent.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = WM7939G226;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NamiNotificationContent/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NamiNotificationContent;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.imai.Nami.NamiNotificationContent;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -928,13 +1074,16 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		ACC924922F77F58700E2B271 /* Build configuration list for PBXNativeTarget "NamiNotificationContent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				ACC9248F2F77F58700E2B271 /* Debug */,
+				ACC924902F77F58700E2B271 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AC5F41B42F39D66D00F0008A /* Project object */;
 }

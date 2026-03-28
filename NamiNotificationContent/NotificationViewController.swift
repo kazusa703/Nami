@@ -13,11 +13,11 @@ import WidgetKit
 
 class NotificationViewController: UIViewController, UNNotificationContentExtension {
     private var hostingController: UIHostingController<NotificationContentView>?
-    private let contentView = NotificationContentView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        let contentView = NotificationContentView()
         let hosting = UIHostingController(rootView: contentView)
         hosting.view.backgroundColor = .clear
         addChild(hosting)
@@ -83,7 +83,6 @@ struct NotificationContentView: View {
     var body: some View {
         VStack(spacing: 16) {
             if saved {
-                // Success state
                 VStack(spacing: 8) {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 44))
@@ -148,7 +147,7 @@ struct NotificationContentView: View {
         let score = Int(sliderValue.rounded())
         let defaults = UserDefaults(suiteName: appGroupID) ?? .standard
 
-        // Write to pending records queue (same mechanism as widget)
+        // Write to pending records queue
         let record: [String: Any] = [
             "score": score,
             "maxScore": maxScore,
