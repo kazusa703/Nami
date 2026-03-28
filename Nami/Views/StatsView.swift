@@ -193,6 +193,8 @@ struct StatsView: View {
     @State private var showAllInsights = false
     /// 月間まとめ画面表示フラグ
     @State private var showMonthlyReport = false
+    /// レポートアーカイブ表示フラグ
+    @State private var showReportArchive = false
     /// セクションジャンプ用のScrollViewProxy
     @State private var scrollProxy: ScrollViewProxy?
     /// Collapsible category group expansion state (all collapsed by default)
@@ -312,6 +314,11 @@ struct StatsView: View {
             }
             .sheet(isPresented: $showMonthlyReport) {
                 MonthlyReportView()
+            }
+            .sheet(isPresented: $showReportArchive) {
+                NavigationStack {
+                    ReportArchiveView()
+                }
             }
             .sheet(isPresented: $showGuideSheet) {
                 statsGuideSheet
@@ -2028,6 +2035,17 @@ struct StatsView: View {
                 Text("月間カレンダー")
                     .font(.system(.headline, design: .rounded))
                 Spacer()
+                Button {
+                    showReportArchive = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 10))
+                        Text(String(localized: "アーカイブ"))
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                    }
+                    .foregroundStyle(.secondary)
+                }
                 Button {
                     showMonthlyReport = true
                 } label: {

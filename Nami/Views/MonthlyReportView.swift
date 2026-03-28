@@ -16,6 +16,9 @@ struct MonthlyReportView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \MoodEntry.createdAt, order: .reverse) private var allEntries: [MoodEntry]
 
+    /// Optional initial month to display (nil = current month)
+    var initialMonth: Date? = nil
+
     @State private var statsVM = StatsViewModel()
     @State private var displayMonth: Date = .now
     @State private var showShareSheet = false
@@ -23,6 +26,7 @@ struct MonthlyReportView: View {
 
     @AppStorage(AppConstants.scoreRangeMaxKey) private var currentMaxScore: Int = 10
     @AppStorage(AppConstants.scoreRangeMinKey) private var currentMinScore: Int = 1
+    @AppStorage("hasUnreadMonthlyReport") private var hasUnreadMonthlyReport = false
 
     private let calendar = Calendar.current
 
@@ -114,6 +118,12 @@ struct MonthlyReportView: View {
                 if let image = shareImage {
                     ShareSheet(items: [image])
                 }
+            }
+            .onAppear {
+                if let initial = initialMonth {
+                    displayMonth = initial
+                }
+                hasUnreadMonthlyReport = false
             }
         }
     }

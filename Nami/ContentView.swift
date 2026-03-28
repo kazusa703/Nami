@@ -61,6 +61,7 @@ struct ContentView: View {
     @State private var showMonthlyReportBanner = false
     @State private var showMonthlyReport = false
     @AppStorage("lastSeenReportMonth") private var lastSeenReportMonth: String = ""
+    @AppStorage("hasUnreadMonthlyReport") private var hasUnreadMonthlyReport = false
 
     var body: some View {
         if hasCompletedOnboarding {
@@ -247,25 +248,25 @@ struct ContentView: View {
 
     /// Check if monthly report should be shown
     private func checkMonthlyReportAvailability() {
-        let calendar = Calendar.current
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM"
-
         let currentMonthKey = formatter.string(from: .now)
+
         guard lastSeenReportMonth != currentMonthKey else { return }
 
-        // Check if previous month has entries
-        let lastMonth = calendar.date(byAdding: .month, value: -1, to: .now) ?? .now
-        let lastMonthKey = formatter.string(from: lastMonth)
+        // Set unread flag for tab badge
+        hasUnreadMonthlyReport = true
 
-        // Use AppStorage to check if we already showed for this month
-        // We show banner only if current month key != last seen
-        // and there's likely data (we can't query @Query here, so just show it)
-        guard lastSeenReportMonth != currentMonthKey else { return }
-
+        // Show banner with delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             withAnimation {
                 showMonthlyReportBanner = true
+            }
+            // Auto-dismiss after 5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                withAnimation(.spring(response: 0.4)) {
+                    showMonthlyReportBanner = false
+                }
             }
         }
     }
@@ -274,6 +275,7 @@ struct ContentView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM"
         lastSeenReportMonth = formatter.string(from: .now)
+        hasUnreadMonthlyReport = false
     }
 
     /// Check for pending deep link from notification tap
@@ -359,12 +361,15 @@ struct ContentView: View {
     /// Build the icon view, adding a badge dot for unpurchased PRO tab
     @ViewBuilder
     private func proTabIconView(tab: AppTab, icon: String, size: CGFloat, isSelected: Bool) -> some View {
-        if tab == .pro && !premiumManager.isPremium {
+        let showBadge = (tab == .pro && !premiumManager.isPremium) || (tab == .stats && hasUnreadMonthlyReport)
+        let badgeColor: Color = tab == .pro ? .orange : themeManager.colors.accent
+
+        if showBadge {
             Image(systemName: icon)
                 .font(.system(size: size, weight: isSelected ? .semibold : .regular))
                 .overlay(alignment: .topTrailing) {
                     Circle()
-                        .fill(.orange)
+                        .fill(badgeColor)
                         .frame(width: 6, height: 6)
                         .offset(x: 3, y: -2)
                 }
