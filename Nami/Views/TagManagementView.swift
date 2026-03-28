@@ -23,6 +23,8 @@ struct TagManagementView: View {
     /// Spotlight coach mark for "+" button
     @AppStorage("hasSeenTagCreationSpotlight") private var hasSeenTagCreationSpotlight = false
     @State private var showPlusSpotlight = false
+    /// ProView sheet for premium upsell
+    @State private var showProView = false
     /// 並び替えモード
     @State private var isReordering = false
     /// 削除確認対象のタグ
@@ -88,9 +90,34 @@ struct TagManagementView: View {
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(.secondary)
                         } else {
-                            Text(String(localized: "カスタムタグの上限に達しました。プレミアムプランで無制限に。"))
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundStyle(.orange)
+                            Button {
+                                showProView = true
+                                HapticManager.lightFeedback()
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "sparkles")
+                                        .font(.caption)
+                                    Text(String(localized: "プレミアムで無制限に追加"))
+                                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                }
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [.orange, .pink],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
+                                        .shadow(color: .orange.opacity(0.25), radius: 8, y: 3)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                         }
                     }
                 }
@@ -130,6 +157,11 @@ struct TagManagementView: View {
                             .font(.system(.body, design: .rounded))
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $showProView) {
+            NavigationStack {
+                ProView()
             }
         }
         .sheet(isPresented: $showAddSheet) {

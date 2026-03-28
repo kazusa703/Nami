@@ -171,7 +171,7 @@ struct StatsView: View {
     /// 月間サマリーの表示月
     @State private var summaryMonth: Date = .now
     /// プレミアム購入シート表示
-    @State private var showPremiumSheet = false
+    @State private var showProView = false
     /// キャッシュ：インサイトカード（entries変更時のみ再計算）
     @State private var cachedInsights: [InsightCard] = []
     /// キャッシュ：プレミアムインサイトカード
@@ -303,8 +303,10 @@ struct StatsView: View {
                     statsVM: statsVM
                 )
             }
-            .sheet(isPresented: $showPremiumSheet) {
-                PremiumPurchaseSheet(premiumManager: premiumManager)
+            .sheet(isPresented: $showProView) {
+                NavigationStack {
+                    ProView()
+                }
             }
             .sheet(isPresented: $showGuideSheet) {
                 statsGuideSheet
@@ -3132,29 +3134,10 @@ struct StatsView: View {
                             )
                     }
                 } else {
-                    // Locked preview
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(String(localized: "明日のスコアをAIが予測します"))
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .blur(radius: 3)
-                        Button {
-                            showPremiumSheet = true
-                            HapticManager.lightFeedback()
-                        } label: {
-                            Text(String(localized: "プレミアムで解放"))
-                                .font(.system(.caption, design: .rounded, weight: .semibold))
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(.orange.opacity(0.2), lineWidth: 1)
+                    // Locked preview — direct ProView CTA
+                    proLockedCard(
+                        message: String(localized: "明日のスコアをAIが予測します"),
+                        colors: colors
                     )
                 }
             }
@@ -3188,28 +3171,9 @@ struct StatsView: View {
                 if premiumManager.isPremium {
                     TagFlowView(transitions: chains, colors: colors)
                 } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(String(localized: "タグの流れと遷移パターンを可視化します"))
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .blur(radius: 3)
-                        Button {
-                            showPremiumSheet = true
-                            HapticManager.lightFeedback()
-                        } label: {
-                            Text(String(localized: "プレミアムで解放"))
-                                .font(.system(.caption, design: .rounded, weight: .semibold))
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(.orange.opacity(0.2), lineWidth: 1)
+                    proLockedCard(
+                        message: String(localized: "タグの流れと遷移パターンを可視化します"),
+                        colors: colors
                     )
                 }
             }
@@ -3451,44 +3415,57 @@ struct StatsView: View {
         .padding(.horizontal, 4)
     }
 
-    /// ロック表示（無料ユーザー向け）
+    /// ロック表示（無料ユーザー向け — グラデーションマスク + CTAボタン）
     private func premiumLockedPreview(colors: ThemeColors) -> some View {
-        VStack(spacing: 16) {
-            // プレビューカード3枚（ぼかし付き）
-            lockedPreviewCard(
-                icon: "brain.head.profile",
-                title: "逆インサイト",
-                preview: "好調時に多いタグ、不在タグを分析...",
-                colors: colors
-            )
-            lockedPreviewCard(
-                icon: "arrow.triangle.branch",
-                title: "タグ連鎖パターン",
-                preview: "タグの遷移パターンを可視化...",
-                colors: colors
-            )
-            lockedPreviewCard(
-                icon: "waveform.path.ecg",
-                title: "残響効果",
-                preview: "タグの影響が何日続くか計測...",
-                colors: colors
+        VStack(spacing: 0) {
+            // Preview cards with gradient fade-out mask
+            VStack(spacing: 12) {
+                lockedPreviewCard(
+                    icon: "brain.head.profile",
+                    title: String(localized: "逆インサイト"),
+                    preview: String(localized: "好調時に多いタグ、不在タグを分析して改善ヒントを提案"),
+                    colors: colors
+                )
+                lockedPreviewCard(
+                    icon: "arrow.triangle.branch",
+                    title: String(localized: "タグ連鎖パターン"),
+                    preview: String(localized: "ストレス → 甘いもの → 体調不良 のような遷移を可視化"),
+                    colors: colors
+                )
+                lockedPreviewCard(
+                    icon: "waveform.path.ecg",
+                    title: String(localized: "残響効果"),
+                    preview: String(localized: "運動した翌日、2日後、3日後…の気分変化を追跡"),
+                    colors: colors
+                )
+            }
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .white, location: 0),
+                        .init(color: .white, location: 0.4),
+                        .init(color: .clear, location: 1.0),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
             )
 
-            // 購入ボタン
+            // CTA button overlapping the fade zone
             Button {
-                showPremiumSheet = true
+                showProView = true
                 HapticManager.lightFeedback()
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "lock.open.fill")
-                    Text("プレミアムで解放")
-                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                    Image(systemName: "sparkles")
+                    Text(String(localized: "プレミアムで全機能を解放"))
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .padding(.vertical, 16)
                 .background(
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 16)
                         .fill(
                             LinearGradient(
                                 colors: [.orange, .pink],
@@ -3496,13 +3473,15 @@ struct StatsView: View {
                                 endPoint: .trailing
                             )
                         )
+                        .shadow(color: .orange.opacity(0.3), radius: 12, y: 4)
                 )
             }
             .buttonStyle(.plain)
+            .padding(.top, -20) // Overlap with fade zone
         }
     }
 
-    /// ロックプレビューカード1枚
+    /// ロックプレビューカード1枚（blurなし、テキスト readable）
     private func lockedPreviewCard(icon: String, title: String, preview: String, colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -3519,7 +3498,6 @@ struct StatsView: View {
             Text(preview)
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(.secondary)
-                .blur(radius: 4)
         }
         .padding()
         .background(
@@ -3528,7 +3506,7 @@ struct StatsView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(.orange.opacity(0.2), lineWidth: 1)
+                .stroke(.orange.opacity(0.15), lineWidth: 1)
         )
     }
 
@@ -4155,64 +4133,39 @@ struct StatsView: View {
     // MARK: - Premium Info Sheet
 
     /// Simplified premium info sheet — directs user to PRO tab for full purchase flow
-    struct PremiumPurchaseSheet: View {
-        let premiumManager: PremiumManager
-        @Environment(\.dismiss) private var dismiss
-
-        var body: some View {
-            NavigationStack {
-                VStack(spacing: 24) {
-                    Spacer()
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 48))
-                        .foregroundStyle(.orange)
-
-                    Text(String(localized: "プレミアムで全機能を解放"))
-                        .font(.system(.title2, design: .rounded, weight: .bold))
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        premiumFeatureRow(icon: "brain.head.profile", text: String(localized: "逆インサイト・回復トリガー分析"))
-                        premiumFeatureRow(icon: "calendar.badge.clock", text: String(localized: "月間サマリーレポート"))
-                        premiumFeatureRow(icon: "arrow.triangle.branch", text: String(localized: "タグ連鎖・残響効果分析"))
-                        premiumFeatureRow(icon: "arrow.triangle.merge", text: String(localized: "タグシナジー・レッドゾーン検出"))
-                        premiumFeatureRow(icon: "eye.slash", text: String(localized: "広告の完全非表示"))
-                    }
-                    .padding()
-
-                    Text(String(localized: "PROタブで詳しく見る"))
-                        .font(.system(.headline, design: .rounded, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(LinearGradient(colors: [.orange, .pink], startPoint: .leading, endPoint: .trailing))
-                        )
-                        .onTapGesture {
-                            dismiss()
-                        }
-
-                    Spacer()
-                }
-                .padding()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(String(localized: "閉じる")) { dismiss() }
-                    }
-                }
-            }
-        }
-
-        private func premiumFeatureRow(icon: String, text: String) -> some View {
-            HStack(spacing: 10) {
-                Image(systemName: icon)
+    /// Compact locked card for individual PRO sections (prediction, tagFlow)
+    private func proLockedCard(message: String, colors _: ThemeColors) -> some View {
+        Button {
+            showProView = true
+            HapticManager.lightFeedback()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "lock.fill")
                     .font(.caption)
                     .foregroundStyle(.orange)
-                    .frame(width: 24)
-                Text(text)
-                    .font(.system(.subheadline, design: .rounded))
+                Text(message)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                Spacer()
+                Text(String(localized: "PRO"))
+                    .font(.system(.caption2, design: .rounded, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(LinearGradient(colors: [.orange, .pink], startPoint: .leading, endPoint: .trailing)))
             }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(.orange.opacity(0.15), lineWidth: 1)
+            )
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - アクティビティセクション
