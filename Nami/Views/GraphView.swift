@@ -76,17 +76,17 @@ struct DailyData: Identifiable {
         date
     }
 
+    /// Average score scaled to the given target range (handles cross-range data)
+    func scaledAverage(targetMax: Int, targetMin: Int) -> Double? {
+        guard !entries.isEmpty else { return nil }
+        let total = entries.map { $0.scaledScore(to: targetMax, targetMin: targetMin) }.reduce(0, +)
+        return total / Double(entries.count)
+    }
+
+    /// Legacy raw average (only use for count-based checks, not for plotting)
     var average: Double? {
         guard !entries.isEmpty else { return nil }
         return entries.map { Double($0.score) }.reduce(0, +) / Double(entries.count)
-    }
-
-    var minScore: Int? {
-        entries.map(\.score).min()
-    }
-
-    var maxScore: Int? {
-        entries.map(\.score).max()
     }
 
     var count: Int {
@@ -96,9 +96,7 @@ struct DailyData: Identifiable {
 
 struct PlotDay: Identifiable {
     let date: Date
-    let average: Double
-    let minScore: Int
-    let maxScore: Int
+    let average: Double // Already scaled to current user range
     let count: Int
     let segmentId: Int
     var id: Date {
@@ -106,22 +104,18 @@ struct PlotDay: Identifiable {
     }
 }
 
-func buildPlotDays(from daily: [DailyData]) -> [PlotDay] {
+func buildPlotDays(from daily: [DailyData], targetMax: Int, targetMin: Int) -> [PlotDay] {
     var result: [PlotDay] = []
     var segmentId = 0
     var lastHadData = false
     for day in daily {
-        if let avg = day.average {
+        if let avg = day.scaledAverage(targetMax: targetMax, targetMin: targetMin) {
             if !lastHadData {
                 segmentId += 1
             }
-            let minVal = day.minScore ?? Int(avg.rounded())
-            let maxVal = day.maxScore ?? Int(avg.rounded())
             result.append(PlotDay(
                 date: day.date,
                 average: avg,
-                minScore: minVal,
-                maxScore: maxVal,
                 count: day.count,
                 segmentId: segmentId
             ))
@@ -544,7 +538,7 @@ struct GraphView: View {
         let yDomain = yAxisDomain(min: currentMinScore, max: currentMaxScore)
 
         let daily = buildDailyData(entries: entries, mode: dateMode, targetDate: targetDate)
-        let plotDays = buildPlotDays(from: daily)
+        let plotDays = buildPlotDays(from: daily, targetMax: currentMaxScore, targetMin: currentMinScore)
         let segmentCounts = Dictionary(grouping: plotDays, by: \.segmentId).mapValues(\.count)
 
         NavigationStack {
@@ -977,7 +971,7 @@ struct GraphView: View {
             }
 
             ForEach(visibleEntries) { entry in
-                let score = Double(entry.score)
+                let score = entry.scaledScore(to: currentMaxScore, targetMin: currentMinScore)
                 if visibleEntries.count > 1 {
                     LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
                         .foregroundStyle(colors.graphLine)
@@ -988,7 +982,7 @@ struct GraphView: View {
                         .interpolationMethod(.monotone)
                 }
                 PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                    .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                    .foregroundStyle(colors.color(for: Int(score.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
                     .symbolSize(60)
             }
 
@@ -1064,12 +1058,6 @@ struct GraphView: View {
                 PointMark(x: .value("日", noon), y: .value("平均", p.average))
                     .foregroundStyle(colors.color(for: Int(p.average.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
                     .symbolSize(60)
-
-                if p.count > 1 && p.minScore != p.maxScore {
-                    RectangleMark(x: .value("日", noon), yStart: .value("最低", Double(p.minScore)), yEnd: .value("最高", Double(p.maxScore)), width: 4)
-                        .foregroundStyle(colors.graphLine.opacity(0.2))
-                        .cornerRadius(2)
-                }
             }
         }
         .chartPlotStyle { plotArea in
@@ -1164,7 +1152,7 @@ struct GraphView: View {
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 3]))
                 }
                 ForEach(dayEntries) { entry in
-                    let score = Double(entry.score)
+                    let score = entry.scaledScore(to: currentMaxScore, targetMin: currentMinScore)
                     if dayEntries.count > 1 {
                         LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
                             .foregroundStyle(colors.graphLine)
@@ -1175,7 +1163,7 @@ struct GraphView: View {
                             .interpolationMethod(.monotone)
                     }
                     PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                        .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                        .foregroundStyle(colors.color(for: Int(score.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
                         .symbolSize(60)
                 }
 
@@ -1210,10 +1198,11 @@ struct GraphView: View {
     // MARK: - View Components (Rows & States)
 
     private func dayEntryRow(entry: MoodEntry, colors: ThemeColors) -> some View {
-        HStack(spacing: 12) {
-            Text("\(entry.score)")
+        let scaled = Int(entry.scaledScore(to: currentMaxScore, targetMin: currentMinScore).rounded())
+        return HStack(spacing: 12) {
+            Text("\(scaled)")
                 .font(.system(.title3, design: .rounded, weight: .bold))
-                .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                .foregroundStyle(colors.color(for: scaled, minScore: currentMinScore, maxScore: currentMaxScore))
                 .frame(width: 40)
 
             VStack(alignment: .leading, spacing: 4) {
@@ -1304,10 +1293,11 @@ struct GraphView: View {
             }
 
             HStack(alignment: .top, spacing: 20) {
+                let scaled = Int(entry.scaledScore(to: currentMaxScore, targetMin: currentMinScore).rounded())
                 VStack(spacing: 4) {
-                    Text("\(entry.score)")
+                    Text("\(scaled)")
                         .font(.system(size: 44, weight: .bold, design: .rounded))
-                        .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                        .foregroundStyle(colors.color(for: scaled, minScore: currentMinScore, maxScore: currentMaxScore))
                     Text("スコア")
                         .font(.system(.caption, design: .rounded, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -1500,7 +1490,7 @@ struct FullscreenChartView: View {
             }
 
             ForEach(entries) { entry in
-                let score = Double(entry.score)
+                let score = entry.scaledScore(to: currentMaxScore, targetMin: currentMinScore)
                 if entries.count > 1 {
                     LineMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
                         .foregroundStyle(colors.graphLine)
@@ -1511,7 +1501,7 @@ struct FullscreenChartView: View {
                         .interpolationMethod(.monotone)
                 }
                 PointMark(x: .value("時刻", entry.createdAt), y: .value("スコア", score))
-                    .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                    .foregroundStyle(colors.color(for: Int(score.rounded()), minScore: currentMinScore, maxScore: currentMaxScore))
                     .symbolSize(50)
             }
 
@@ -1652,10 +1642,11 @@ struct FullscreenChartView: View {
     }
 
     private func fullscreenDetailCard(entry: MoodEntry, colors: ThemeColors) -> some View {
-        HStack(spacing: 16) {
-            Text("\(entry.score)")
+        let scaled = Int(entry.scaledScore(to: currentMaxScore, targetMin: currentMinScore).rounded())
+        return HStack(spacing: 16) {
+            Text("\(scaled)")
                 .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                .foregroundStyle(colors.color(for: entry.score, minScore: currentMinScore, maxScore: currentMaxScore))
+                .foregroundStyle(colors.color(for: scaled, minScore: currentMinScore, maxScore: currentMaxScore))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.createdAt, format: .dateTime.month(.defaultDigits).day(.defaultDigits).hour().minute())
