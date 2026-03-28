@@ -14,7 +14,9 @@ enum AppTheme: String, CaseIterable, Identifiable {
     case monoGold = "Mono Gold"
     case forest = "Forest"
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// テーマの表示名
     var displayName: String {
@@ -101,56 +103,56 @@ extension ThemeColors {
     static let ocean = ThemeColors(
         backgroundStartLight: Color(red: 0.90, green: 0.95, blue: 1.0),
         backgroundEndLight: Color(red: 0.80, green: 0.90, blue: 0.98),
-        backgroundStartDark: Color(red: 0.08, green: 0.12, blue: 0.20),
-        backgroundEndDark: Color(red: 0.05, green: 0.08, blue: 0.15),
-        accent: Color(red: 0.10, green: 0.30, blue: 0.65),
+        backgroundStartDark: Color(red: 0.03, green: 0.05, blue: 0.10), // OLED near-black
+        backgroundEndDark: Color(red: 0.01, green: 0.03, blue: 0.07), // OLED near-black
+        accent: Color(red: 0.20, green: 0.45, blue: 0.80), // Brighter for dark contrast
         accentLight: Color(red: 0.75, green: 0.85, blue: 0.95),
-        graphLine: Color(red: 0.15, green: 0.40, blue: 0.75),
-        graphFill: Color(red: 0.15, green: 0.40, blue: 0.75).opacity(0.15),
-        highScoreColor: Color(red: 0.10, green: 0.60, blue: 0.90),
-        lowScoreColor: Color(red: 0.35, green: 0.50, blue: 0.70)
+        graphLine: Color(red: 0.30, green: 0.55, blue: 0.90), // More vivid on black
+        graphFill: Color(red: 0.30, green: 0.55, blue: 0.90).opacity(0.20),
+        highScoreColor: Color(red: 0.20, green: 0.70, blue: 0.95), // Brighter high
+        lowScoreColor: Color(red: 0.45, green: 0.55, blue: 0.75) // More visible low
     )
 
     /// Lavender: ラベンダー・薄紫系、パープルアクセント
     static let lavender = ThemeColors(
         backgroundStartLight: Color(red: 0.94, green: 0.90, blue: 1.0),
         backgroundEndLight: Color(red: 0.88, green: 0.85, blue: 0.98),
-        backgroundStartDark: Color(red: 0.12, green: 0.08, blue: 0.20),
-        backgroundEndDark: Color(red: 0.08, green: 0.05, blue: 0.15),
-        accent: Color(red: 0.50, green: 0.25, blue: 0.70),
+        backgroundStartDark: Color(red: 0.05, green: 0.03, blue: 0.10), // OLED near-black
+        backgroundEndDark: Color(red: 0.03, green: 0.02, blue: 0.07), // OLED near-black
+        accent: Color(red: 0.60, green: 0.35, blue: 0.85), // Brighter for dark
         accentLight: Color(red: 0.88, green: 0.82, blue: 0.95),
-        graphLine: Color(red: 0.55, green: 0.30, blue: 0.75),
-        graphFill: Color(red: 0.55, green: 0.30, blue: 0.75).opacity(0.15),
-        highScoreColor: Color(red: 0.65, green: 0.40, blue: 0.90),
-        lowScoreColor: Color(red: 0.50, green: 0.40, blue: 0.65)
+        graphLine: Color(red: 0.65, green: 0.40, blue: 0.90), // More vivid
+        graphFill: Color(red: 0.65, green: 0.40, blue: 0.90).opacity(0.20),
+        highScoreColor: Color(red: 0.70, green: 0.45, blue: 0.95),
+        lowScoreColor: Color(red: 0.55, green: 0.45, blue: 0.70)
     )
 
     /// Mono Gold: 白黒ベース、ゴールドアクセント
     static let monoGold = ThemeColors(
         backgroundStartLight: Color(red: 0.97, green: 0.97, blue: 0.96),
         backgroundEndLight: Color(red: 0.93, green: 0.93, blue: 0.91),
-        backgroundStartDark: Color(red: 0.10, green: 0.10, blue: 0.10),
-        backgroundEndDark: Color(red: 0.06, green: 0.06, blue: 0.06),
-        accent: Color(red: 0.75, green: 0.60, blue: 0.20),
+        backgroundStartDark: Color(red: 0.04, green: 0.04, blue: 0.04), // OLED near-black
+        backgroundEndDark: Color(red: 0.02, green: 0.02, blue: 0.02), // OLED near-black
+        accent: Color(red: 0.85, green: 0.70, blue: 0.25), // Brighter gold for dark
         accentLight: Color(red: 0.95, green: 0.90, blue: 0.75),
-        graphLine: Color(red: 0.80, green: 0.65, blue: 0.25),
-        graphFill: Color(red: 0.80, green: 0.65, blue: 0.25).opacity(0.15),
-        highScoreColor: Color(red: 0.85, green: 0.70, blue: 0.15),
-        lowScoreColor: Color(red: 0.55, green: 0.50, blue: 0.40)
+        graphLine: Color(red: 0.90, green: 0.75, blue: 0.30), // More vivid
+        graphFill: Color(red: 0.90, green: 0.75, blue: 0.30).opacity(0.20),
+        highScoreColor: Color(red: 0.95, green: 0.80, blue: 0.20),
+        lowScoreColor: Color(red: 0.60, green: 0.55, blue: 0.45)
     )
 
     /// Forest: ソフトグリーン系、ダークグリーンアクセント
     static let forest = ThemeColors(
         backgroundStartLight: Color(red: 0.90, green: 0.97, blue: 0.92),
         backgroundEndLight: Color(red: 0.85, green: 0.94, blue: 0.88),
-        backgroundStartDark: Color(red: 0.06, green: 0.14, blue: 0.10),
-        backgroundEndDark: Color(red: 0.04, green: 0.10, blue: 0.07),
-        accent: Color(red: 0.15, green: 0.50, blue: 0.30),
+        backgroundStartDark: Color(red: 0.02, green: 0.06, blue: 0.04), // OLED near-black
+        backgroundEndDark: Color(red: 0.01, green: 0.04, blue: 0.02), // OLED near-black
+        accent: Color(red: 0.20, green: 0.60, blue: 0.40), // Brighter for dark
         accentLight: Color(red: 0.80, green: 0.92, blue: 0.85),
-        graphLine: Color(red: 0.20, green: 0.55, blue: 0.35),
-        graphFill: Color(red: 0.20, green: 0.55, blue: 0.35).opacity(0.15),
-        highScoreColor: Color(red: 0.20, green: 0.70, blue: 0.40),
-        lowScoreColor: Color(red: 0.40, green: 0.55, blue: 0.45)
+        graphLine: Color(red: 0.30, green: 0.70, blue: 0.45), // More vivid
+        graphFill: Color(red: 0.30, green: 0.70, blue: 0.45).opacity(0.20),
+        highScoreColor: Color(red: 0.25, green: 0.80, blue: 0.50),
+        lowScoreColor: Color(red: 0.45, green: 0.60, blue: 0.50)
     )
 }
 

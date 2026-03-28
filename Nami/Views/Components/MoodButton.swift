@@ -32,6 +32,19 @@ struct MoodButton: View {
         themeColors.color(for: score, minScore: minScore, maxScore: maxScore)
     }
 
+    /// Descriptive accessibility label (e.g. "スコア7、良い気分")
+    private var scoreAccessibilityLabel: String {
+        let range = maxScore - minScore
+        let position = Double(score - minScore) / Double(max(range, 1))
+        let mood: String
+        if position >= 0.8 { mood = String(localized: "とても良い気分") }
+        else if position >= 0.6 { mood = String(localized: "良い気分") }
+        else if position >= 0.4 { mood = String(localized: "普通") }
+        else if position >= 0.2 { mood = String(localized: "やや低い気分") }
+        else { mood = String(localized: "低い気分") }
+        return String(localized: "スコア\(score)、\(mood)")
+    }
+
     var body: some View {
         Button(action: action) {
             Text("\(score)")
@@ -48,8 +61,10 @@ struct MoodButton: View {
                 .foregroundStyle(scoreColor)
         }
         .buttonStyle(ScaleButtonStyle())
-        .accessibilityLabel(String(localized: "気分スコア \(score)"))
-        .accessibilityHint(String(localized: "タップして気分を\(score)として記録"))
+        .accessibilityLabel(scoreAccessibilityLabel)
+        .accessibilityValue(String(localized: "\(minScore)から\(maxScore)の範囲"))
+        .accessibilityHint(String(localized: "ダブルタップで記録"))
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -64,8 +79,8 @@ struct ScaleButtonStyle: ButtonStyle {
 
 #Preview {
     HStack {
-        ForEach(1...5, id: \.self) { score in
-            MoodButton(score: score, themeColors: .ocean) { }
+        ForEach(1 ... 5, id: \.self) { score in
+            MoodButton(score: score, themeColors: .ocean) {}
         }
     }
     .padding()

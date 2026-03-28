@@ -50,13 +50,14 @@ struct SliderScoreInput: View {
             VStack(spacing: 8) {
                 Slider(
                     value: $sliderValue,
-                    in: Double(minScore)...Double(maxScore),
+                    in: Double(minScore) ... Double(maxScore),
                     step: 1
                 )
                 .tint(hasInteracted
                     ? themeColors.color(for: currentScore, minScore: minScore, maxScore: maxScore)
-                    : Color.gray.opacity(0.4)
-                )
+                    : Color.gray.opacity(0.4))
+                .accessibilityLabel(String(localized: "気分スコア"))
+                .accessibilityValue(hasInteracted ? String(localized: "\(currentScore)") : String(localized: "未選択"))
 
                 // 範囲ラベル
                 HStack {

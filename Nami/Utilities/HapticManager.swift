@@ -14,18 +14,18 @@ enum HapticManager {
         UserDefaults.standard.object(forKey: "hapticEnabled") as? Bool ?? true
     }
 
-    /// 気分記録時のフィードバック（medium impact）
+    /// 気分記録時のフィードバック（soft — 控えめで上品な振動）
     static func recordFeedback() {
         guard isEnabled else { return }
-        let generator = UIImpactFeedbackGenerator(style: .medium)
+        let generator = UIImpactFeedbackGenerator(style: .soft)
         generator.impactOccurred()
     }
 
-    /// 軽いタップフィードバック
+    /// 軽いタップフィードバック（UI操作確認用）
     static func lightFeedback() {
         guard isEnabled else { return }
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
+        let generator = UIImpactFeedbackGenerator(style: .soft)
+        generator.impactOccurred(intensity: 0.5)
     }
 
     /// 成功時のフィードバック
