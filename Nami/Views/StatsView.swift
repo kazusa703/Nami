@@ -189,6 +189,8 @@ struct StatsView: View {
     @State private var monthlyDiscoveries: [InsightEngine.CorrelationDiscovery] = []
     /// 解説・目次シート表示フラグ
     @State private var showGuideSheet = false
+    /// 全インサイトリスト表示フラグ
+    @State private var showAllInsights = false
     /// セクションジャンプ用のScrollViewProxy
     @State private var scrollProxy: ScrollViewProxy?
     /// Collapsible category group expansion state (all collapsed by default)
@@ -763,112 +765,287 @@ struct StatsView: View {
         }
     }
 
-    // MARK: - インサイトカルーセル
+    // MARK: - インサイトセクション（ヒーローカード + アンロック予告）
 
     @ViewBuilder
     private func insightCarousel(colors: ThemeColors) -> some View {
         let insights = cachedInsights
+        let entryCount = entries.count
+        let threshold = InsightEngine.minimumTotalEntries // 20
 
         VStack(alignment: .leading, spacing: 16) {
             // Monthly Discovery Report (gold card + correlations)
             if monthlyGoldCard != nil || !monthlyDiscoveries.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "crown.fill")
-                            .foregroundStyle(.yellow)
-                        Text(String(localized: "今月の発見"))
-                            .font(.system(.headline, design: .rounded))
-                        Spacer()
-                        if !premiumManager.isPremium && monthlyDiscoveries.count <= 1 {
-                            Text("PRO")
-                                .font(.system(.caption2, design: .rounded, weight: .bold))
-                                .foregroundStyle(colors.accent)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(colors.accent.opacity(0.1)))
-                        }
-                    }
-                    .padding(.horizontal, 4)
-
-                    // Gold card
-                    if let gold = monthlyGoldCard {
-                        insightCardView(card: gold, colors: colors)
-                    }
-
-                    // Correlation discoveries
-                    ForEach(monthlyDiscoveries) { discovery in
-                        HStack(spacing: 12) {
-                            Image(systemName: discovery.icon)
-                                .font(.body)
-                                .foregroundStyle(colors.accent)
-                                .frame(width: 28)
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 4) {
-                                    Text(discovery.dimensionA)
-                                        .font(.system(.caption, design: .rounded, weight: .bold))
-                                    Image(systemName: "arrow.left.arrow.right")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                    Text(discovery.dimensionB)
-                                        .font(.system(.caption, design: .rounded, weight: .bold))
-                                }
-                                Text(discovery.direction)
-                                    .font(.system(.caption, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .padding(12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(.yellow.opacity(0.2), lineWidth: 1)
-                                )
-                        )
-                    }
-
-                    // PRO upsell if free user sees only 1
-                    if !premiumManager.isPremium {
-                        HStack(spacing: 6) {
-                            Image(systemName: "lock.fill")
-                                .font(.caption2)
-                                .foregroundStyle(colors.accent)
-                            Text(String(localized: "PROで最大5つの関連性を発見"))
-                                .font(.system(.caption2, design: .rounded))
-                                .foregroundStyle(colors.accent)
-                        }
-                        .padding(.horizontal, 4)
-                    }
-                }
+                monthlyDiscoverySection(colors: colors)
             }
 
-            // Regular insights
             if !insights.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: "lightbulb.fill")
-                        .foregroundStyle(.yellow)
-                    Text(String(localized: "インサイト"))
-                        .font(.system(.headline, design: .rounded))
-                }
-                .padding(.horizontal, 4)
+                // --- Hero Card: most important insight ---
+                let hero = insights[0]
+                insightHeroCard(card: hero, colors: colors)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(insights) { card in
-                            insightCardView(card: card, colors: colors)
+                // "See all insights" button (if more than 1)
+                if insights.count > 1 {
+                    Button {
+                        showAllInsights = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lightbulb.max.fill")
+                                .font(.caption)
+                            Text(String(localized: "他のインサイトを見る（\(insights.count - 1)件）"))
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
                         }
+                        .foregroundStyle(colors.accent)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(colors.accent.opacity(0.08))
+                        )
                     }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 2)
+                    .sheet(isPresented: $showAllInsights) {
+                        allInsightsSheet(insights: insights, colors: colors)
+                    }
                 }
+            } else if entryCount > 0 && entryCount < threshold {
+                // --- Unlock Preview: intermediate empty state ---
+                insightUnlockPreview(entryCount: entryCount, threshold: threshold, colors: colors)
             }
         }
     }
 
-    /// インサイトカード1枚のビュー
+    // MARK: - Monthly Discovery (preserved)
+
+    private func monthlyDiscoverySection(colors: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "crown.fill")
+                    .foregroundStyle(.yellow)
+                Text(String(localized: "今月の発見"))
+                    .font(.system(.headline, design: .rounded))
+                Spacer()
+                if !premiumManager.isPremium && monthlyDiscoveries.count <= 1 {
+                    Text("PRO")
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
+                        .foregroundStyle(colors.accent)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(colors.accent.opacity(0.1)))
+                }
+            }
+            .padding(.horizontal, 4)
+
+            if let gold = monthlyGoldCard {
+                insightCardView(card: gold, colors: colors)
+            }
+
+            ForEach(monthlyDiscoveries) { discovery in
+                HStack(spacing: 12) {
+                    Image(systemName: discovery.icon)
+                        .font(.body)
+                        .foregroundStyle(colors.accent)
+                        .frame(width: 28)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text(discovery.dimensionA)
+                                .font(.system(.caption, design: .rounded, weight: .bold))
+                            Image(systemName: "arrow.left.arrow.right")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(discovery.dimensionB)
+                                .font(.system(.caption, design: .rounded, weight: .bold))
+                        }
+                        Text(discovery.direction)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(.yellow.opacity(0.2), lineWidth: 1)
+                        )
+                )
+            }
+
+            if !premiumManager.isPremium {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.caption2)
+                        .foregroundStyle(colors.accent)
+                    Text(String(localized: "PROで最大5つの関連性を発見"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(colors.accent)
+                }
+                .padding(.horizontal, 4)
+            }
+        }
+    }
+
+    // MARK: - Hero Card
+
+    private func insightHeroCard(card: InsightCard, colors _: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(card.tone.color.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: card.icon)
+                        .font(.system(.title3, design: .rounded))
+                        .foregroundStyle(card.tone.color)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(localized: "今日のインサイト"))
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Text(card.title)
+                        .font(.system(.headline, design: .rounded))
+                }
+            }
+
+            Text(card.body)
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(card.tone.color.opacity(0.25), lineWidth: 1.5)
+        )
+    }
+
+    // MARK: - All Insights Sheet
+
+    private func allInsightsSheet(insights: [InsightCard], colors: ThemeColors) -> some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(insights) { card in
+                        insightCardView(card: card, colors: colors)
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle(String(localized: "すべてのインサイト"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "閉じる")) { showAllInsights = false }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    // MARK: - Unlock Preview (Intermediate Empty State)
+
+    private func insightUnlockPreview(entryCount: Int, threshold: Int, colors: ThemeColors) -> some View {
+        let remaining = threshold - entryCount
+        let progress = Double(entryCount) / Double(threshold)
+
+        // Upcoming insight milestones
+        let milestones: [(count: Int, icon: String, title: String)] = [
+            (7, "calendar", String(localized: "曜日ごとの傾向")),
+            (10, "tag", String(localized: "タグの影響分析")),
+            (14, "chart.bar", String(localized: "スコア分布")),
+            (20, "lightbulb.fill", String(localized: "AIインサイト")),
+        ]
+
+        return VStack(spacing: 16) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.title3)
+                    .foregroundStyle(colors.accent)
+                Text(String(localized: "インサイトの準備中"))
+                    .font(.system(.headline, design: .rounded))
+            }
+
+            // Progress bar
+            VStack(spacing: 8) {
+                ProgressView(value: progress)
+                    .tint(colors.accent)
+
+                Text(String(localized: "あと\(remaining)日の記録で最初のインサイトが解放されます"))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            // Milestone list
+            VStack(spacing: 0) {
+                ForEach(milestones, id: \.count) { milestone in
+                    let isUnlocked = entryCount >= milestone.count
+                    let isNext = !isUnlocked && (milestones.first { entryCount < $0.count }?.count == milestone.count)
+
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(isUnlocked ? colors.accent : (isNext ? colors.accent.opacity(0.15) : Color(.systemGray5)))
+                                .frame(width: 32, height: 32)
+                            Image(systemName: isUnlocked ? "checkmark" : milestone.icon)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(isUnlocked ? .white : (isNext ? colors.accent : .secondary))
+                        }
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(milestone.title)
+                                .font(.system(.subheadline, design: .rounded, weight: isNext ? .bold : .regular))
+                                .foregroundStyle(isUnlocked ? .primary : (isNext ? .primary : .secondary))
+                            Text(String(localized: "\(milestone.count)件の記録で解放"))
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(.tertiary)
+                        }
+
+                        Spacer()
+
+                        if isUnlocked {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                                .font(.caption)
+                        } else if isNext {
+                            Text(String(localized: "あと\(milestone.count - entryCount)件"))
+                                .font(.system(.caption, design: .rounded, weight: .bold))
+                                .foregroundStyle(colors.accent)
+                        }
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 4)
+
+                    if milestone.count != milestones.last?.count {
+                        Divider().padding(.leading, 44)
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(colors.accent.opacity(0.15), lineWidth: 1)
+        )
+    }
+
+    /// インサイトカード1枚のビュー（リスト表示用、フル幅）
     private func insightCardView(card: InsightCard, colors _: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -884,11 +1061,10 @@ struct StatsView: View {
             Text(card.body)
                 .font(.system(.caption, design: .rounded))
                 .foregroundStyle(.secondary)
-                .lineLimit(4)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
-        .frame(width: 270, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
