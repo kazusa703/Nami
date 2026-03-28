@@ -524,6 +524,7 @@ struct GraphView: View {
     @State private var selectedEntry: MoodEntry?
     @State private var showDetail = false
     @State private var editingEntry: MoodEntry?
+    @State private var enrichingEntry: MoodEntry?
     @State private var entryToDelete: MoodEntry?
 
     @State private var rawSelectedDate: Date?
@@ -675,6 +676,26 @@ struct GraphView: View {
                         editingEntry = nil
                     },
                     onSkip: { editingEntry = nil }
+                )
+            }
+            .sheet(item: $enrichingEntry) { entry in
+                RecordingSheet(
+                    score: entry.score,
+                    maxScore: entry.maxScore,
+                    scoreRangeMin: entry.scoreRangeMin,
+                    themeColors: themeManager.colors,
+                    isEditing: true,
+                    initialMemo: entry.memo ?? "",
+                    initialTags: Set(entry.tags),
+                    onSave: { memo, photo, voiceMemoURL, tags, energyLevel in
+                        if !memo.isEmpty { entry.memo = String(memo.prefix(100)) }
+                        if let photo { entry.photoPath = MediaManager.savePhoto(photo) }
+                        if let voiceMemoURL { entry.voiceMemoPath = MediaManager.saveVoiceMemo(from: voiceMemoURL) }
+                        entry.tags = tags
+                        entry.energyLevel = energyLevel
+                        enrichingEntry = nil
+                    },
+                    onSkip: { enrichingEntry = nil }
                 )
             }
             .sheet(isPresented: $showGraphHelp) {
@@ -1227,6 +1248,26 @@ struct GraphView: View {
                                 .foregroundStyle(colors.accent)
                         }
                     }
+                } else if entry.needsDetails {
+                    // Placeholder for quick records without tags/memo
+                    Button {
+                        enrichingEntry = entry
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle")
+                                .font(.system(size: 10))
+                            Text(String(localized: "タグやメモを追加…"))
+                                .font(.system(.caption2, design: .rounded))
+                        }
+                        .foregroundStyle(colors.accent.opacity(0.6))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .strokeBorder(colors.accent.opacity(0.3), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             Spacer()

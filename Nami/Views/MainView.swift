@@ -28,18 +28,13 @@ struct MainView: View {
     @State private var showMainHelp = false
     /// Personalized greeting message (4-level fallback)
     @State private var greetingMessage: String = ""
+    /// Entry being edited from inbox
+    @State private var inboxEditingEntry: MoodEntry?
     @Query(sort: \MoodEntry.createdAt, order: .reverse) private var entries: [MoodEntry]
 
-    /// ウィジェットから記録されたエントリ
-    @Query(
-        filter: #Predicate<MoodEntry> { $0.source == "widget" },
-        sort: \MoodEntry.createdAt,
-        order: .reverse
-    ) private var widgetEntries: [MoodEntry]
-
-    /// 未補完のウィジェットエントリ（メモ・タグ・写真・ボイスメモが未追加）
-    private var unenrichedWidgetEntries: [MoodEntry] {
-        widgetEntries.filter { $0.needsEnrichment }
+    /// アプリ外記録で詳細未追加のエントリ（widget + notification）
+    private var quickRecordsNeedingDetails: [MoodEntry] {
+        entries.filter { $0.needsDetails }
     }
 
     /// 設定から読み取るスコアレンジID
@@ -69,9 +64,9 @@ struct MainView: View {
                 VStack(spacing: 0) {
                     let isCompact = verticalSizeClass == .compact
 
-                    // ウィジェット記録バナー
-                    if !unenrichedWidgetEntries.isEmpty {
-                        widgetEntryBanner(count: unenrichedWidgetEntries.count, colors: colors)
+                    // クイック記録の未整理バナー（widget + notification）
+                    if !quickRecordsNeedingDetails.isEmpty {
+                        quickRecordInbox(entries: quickRecordsNeedingDetails, colors: colors)
                     }
 
                     if isCompact {
@@ -251,40 +246,84 @@ struct MainView: View {
 
     // MARK: - ウィジェットエントリバナー
 
-    private func widgetEntryBanner(count: Int, colors _: ThemeColors) -> some View {
-        NavigationLink {
-            WidgetEntriesView()
+    // MARK: - Quick Record Inbox
+
+    private func quickRecordInbox(entries quickEntries: [MoodEntry], colors: ThemeColors) -> some View {
+        Button {
+            // Open the first entry for editing
+            inboxEditingEntry = quickEntries.first
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "square.grid.2x2")
-                    .font(.system(.body, design: .rounded, weight: .medium))
-                    .foregroundStyle(.orange)
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(colors.accent.opacity(0.12))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "tray.full.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(colors.accent)
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("ウィジェットから\(count)件の記録")
+                    Text(String(localized: "\(quickEntries.count)件の記録にタグ・メモを追加できます"))
                         .font(.system(.subheadline, design: .rounded, weight: .semibold))
                         .foregroundStyle(.primary)
-                    Text("タップしてメモやタグを追加")
+                    Text(String(localized: "タップして振り返りましょう"))
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text("\(quickEntries.count)")
+                    .font(.system(.caption, design: .rounded, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(colors.accent))
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 14)
                     .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(colors.accent.opacity(0.15), lineWidth: 1)
+                    )
             )
             .padding(.horizontal)
             .padding(.top, 8)
         }
         .buttonStyle(.plain)
+        .sheet(item: $inboxEditingEntry) { entry in
+            RecordingSheet(
+                score: entry.score,
+                maxScore: entry.maxScore,
+                scoreRangeMin: entry.scoreRangeMin,
+                themeColors: colors,
+                isEditing: true,
+                initialMemo: entry.memo ?? "",
+                initialTags: Set(entry.tags),
+                onSave: { memo, photo, voiceMemoURL, tags, energyLevel in
+                    if !memo.isEmpty { entry.memo = String(memo.prefix(100)) }
+                    if let photo { entry.photoPath = MediaManager.savePhoto(photo) }
+                    if let voiceMemoURL { entry.voiceMemoPath = MediaManager.saveVoiceMemo(from: voiceMemoURL) }
+                    entry.tags = tags
+                    entry.energyLevel = energyLevel
+                    inboxEditingEntry = nil
+                    // Open next entry if available
+                    let remaining = quickRecordsNeedingDetails.filter { $0.id != entry.id }
+                    if let next = remaining.first {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            inboxEditingEntry = next
+                        }
+                    }
+                },
+                onSkip: {
+                    inboxEditingEntry = nil
+                }
+            )
+        }
+        .animation(.spring(response: 0.4), value: quickEntries.count)
     }
 
     /// 初回起動時のヒント表示

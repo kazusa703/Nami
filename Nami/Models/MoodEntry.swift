@@ -13,21 +13,21 @@ import SwiftData
 @Model
 class MoodEntry {
     var id: UUID = UUID()
-    var score: Int = 5      // scoreRangeMin〜maxScore
-    var memo: String?       // 任意メモ（最大100文字）
-    var createdAt: Date = Date.now  // 記録日時
-    var maxScore: Int = 10  // 記録時のスコア範囲上限（デフォルト10、軽量マイグレーション対応）
+    var score: Int = 5 // scoreRangeMin〜maxScore
+    var memo: String? // 任意メモ（最大100文字）
+    var createdAt: Date = Date.now // 記録日時
+    var maxScore: Int = 10 // 記録時のスコア範囲上限（デフォルト10、軽量マイグレーション対応）
     var scoreRangeMin: Int = 1 // 記録時のスコア範囲下限（デフォルト1、軽量マイグレーション対応）
-    var photoPath: String?  // App Group内の写真相対パス
-    var voiceMemoPath: String?  // App Group内のボイスメモ相対パス
+    var photoPath: String? // App Group内の写真相対パス
+    var voiceMemoPath: String? // App Group内のボイスメモ相対パス
     var tags: [String] = [] // タグ名の配列（軽量マイグレーション対応）
     var source: String = "app" // 記録元: "app", "widget", "watch"（軽量マイグレーション対応）
-    var energyLevel: Int? = nil       // 1=低, 2=普通, 3=高, nil=スキップ
-    var weatherCondition: String? = nil // "sunny","cloudy","rainy","snowy","stormy","foggy"
-    var weatherTemperature: Double? = nil // 摂氏
+    var energyLevel: Int? // 1=低, 2=普通, 3=高, nil=スキップ
+    var weatherCondition: String? // "sunny","cloudy","rainy","snowy","stormy","foggy"
+    var weatherTemperature: Double? // 摂氏
 
     init(score: Int, maxScore: Int = 10, scoreRangeMin: Int = 1, memo: String? = nil, photoPath: String? = nil, voiceMemoPath: String? = nil, tags: [String] = [], source: String = "app", createdAt: Date = .now) {
-        self.id = UUID()
+        id = UUID()
         self.score = score
         self.maxScore = maxScore
         self.scoreRangeMin = scoreRangeMin
@@ -42,6 +42,11 @@ class MoodEntry {
     /// ウィジェットから記録され、メモ・タグ・写真・ボイスメモが未追加のエントリか
     var needsEnrichment: Bool {
         source == "widget" && memo == nil && tags.isEmpty && photoPath == nil && voiceMemoPath == nil
+    }
+
+    /// アプリ外（ウィジェット/通知）からの記録で、タグ・メモが未追加
+    var needsDetails: Bool {
+        (source == "widget" || source == "notification") && tags.isEmpty && (memo == nil || memo?.isEmpty == true)
     }
 
     /// 0.0〜1.0に正規化したスコア（異なるレンジ間の比較用）
