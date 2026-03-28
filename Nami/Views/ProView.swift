@@ -2,7 +2,7 @@
 //  ProView.swift
 //  Nami
 //
-//  Premium feature showcase + plan selection paywall screen
+//  Premium paywall — 3 highlights + plan selection + success animation
 //
 
 import StoreKit
@@ -12,72 +12,78 @@ struct ProView: View {
     @Environment(\.premiumManager) private var premiumManager
     @Environment(\.themeManager) private var themeManager
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedPlan: PremiumPlan = .yearly
-    @State private var showPurchaseSuccessAlert = false
     @State private var showProHelp = false
+    @State private var showSuccessAnimation = false
 
     var body: some View {
         let colors = themeManager.colors
 
-        ScrollView {
-            VStack(spacing: 24) {
-                // Header
-                headerSection(colors: colors)
+        ZStack {
+            // Main content
+            ScrollView {
+                VStack(spacing: 32) {
+                    // Header with wave animation
+                    headerSection(colors: colors)
 
-                // Feature list
-                featureListSection(colors: colors)
+                    if premiumManager.isPremium {
+                        // Already premium — show confirmation
+                        premiumActiveSection(colors: colors)
+                    } else {
+                        // 3 Highlights
+                        highlightsSection(colors: colors)
 
-                // Help button for PRO feature details
-                Button { showProHelp = true } label: {
-                    Label(String(localized: "PRO機能の詳細"), systemImage: "questionmark.circle")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(premiumManager.isPremium ? colors.accent : .secondary)
-                }
+                        // Plan selection
+                        planSelectionSection(colors: colors)
 
-                if !premiumManager.isPremium {
-                    // Plan selection
-                    planSelectionSection(colors: colors)
+                        // Purchase button
+                        purchaseButton(colors: colors)
 
-                    // Purchase button
-                    purchaseButton(colors: colors)
+                        // Restore + Error
+                        restoreSection()
+                    }
 
-                    // Restore button
-                    Button {
-                        Task { await premiumManager.restore() }
-                    } label: {
-                        Text(String(localized: "購入を復元"))
-                            .font(.system(.subheadline, design: .rounded))
+                    // Help link
+                    Button { showProHelp = true } label: {
+                        Label(String(localized: "PRO機能の詳細"), systemImage: "questionmark.circle")
+                            .font(.system(.caption, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
-                    .disabled(premiumManager.isRestoring || premiumManager.isPurchasing)
 
-                    // Error message
-                    if let error = premiumManager.errorMessage {
-                        Text(error)
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
+                    // Footer
+                    footerSection()
+
+                    Spacer(minLength: 20)
                 }
-
-                // Footer
-                footerSection()
-
-                Spacer(minLength: 20)
+                .padding(.horizontal, 24)
+                .padding(.top, 16)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
+
+            // Success animation overlay
+            if showSuccessAnimation {
+                successOverlay(colors: colors)
+                    .transition(.opacity)
+                    .zIndex(100)
+            }
         }
-        .alert(String(localized: "購入完了"), isPresented: $showPurchaseSuccessAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(String(localized: "プレミアムへのアップグレードありがとうございます！"))
-        }
+        .animation(.easeInOut(duration: 0.4), value: showSuccessAnimation)
         .onChange(of: premiumManager.showPurchaseSuccess) { _, newValue in
             if newValue {
-                showPurchaseSuccessAlert = true
                 premiumManager.showPurchaseSuccess = false
+                withAnimation {
+                    showSuccessAnimation = true
+                }
+                HapticManager.successFeedback()
+                // Auto-dismiss after 2.5 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    withAnimation {
+                        showSuccessAnimation = false
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        dismiss()
+                    }
+                }
             }
         }
         .sheet(isPresented: $showProHelp) {
@@ -103,10 +109,6 @@ struct ProView: View {
                         .font(.system(.headline, design: .rounded))
                         .foregroundStyle(colors.accent)
                 }
-
-                Text(String(localized: "すべての機能が解放されています"))
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(.secondary)
             }
             .padding(.vertical, 16)
         } else {
@@ -120,7 +122,7 @@ struct ProView: View {
                     .font(.system(.title, design: .rounded, weight: .bold))
                     .foregroundStyle(colors.accent)
 
-                Text(String(localized: "すべての機能を解放"))
+                Text(String(localized: "あなたの気分記録をもっと深く"))
                     .font(.system(.subheadline, design: .rounded))
                     .foregroundStyle(.secondary)
             }
@@ -128,68 +130,67 @@ struct ProView: View {
         }
     }
 
-    // MARK: - Feature List
+    // MARK: - Premium Active
 
-    @ViewBuilder
-    private func featureListSection(colors: ThemeColors) -> some View {
-        let features: [(icon: String, text: String, free: Bool)] = [
-            // 無料機能
-            ("pencil.circle", String(localized: "気分記録・基本チャート"), true),
-            ("tag", String(localized: "タグ付け（デフォルトタグ）"), true),
-            ("calendar.badge.clock", String(localized: "直近30日の履歴"), true),
-            // PRO機能
-            ("clock.arrow.circlepath", String(localized: "全履歴の無制限アクセス"), false),
-            ("tag.fill", String(localized: "無制限のカスタムタグ作成"), false),
-            ("lightbulb.fill", String(localized: "パーソナルインサイト（進化型）"), false),
-            ("brain.head.profile", String(localized: "AIスコア予測"), false),
-            ("arrow.triangle.branch", String(localized: "タグ遷移マップ"), false),
-            ("chart.bar.doc.horizontal", String(localized: "高度な分析（回復パターン・安定度等）"), false),
-            ("doc.text.fill", String(localized: "月間レポートカード・SNSシェア"), false),
-            ("heart.fill", String(localized: "HealthKit相関分析（睡眠・歩数・心拍・HRV）"), false),
-            ("headphones", String(localized: "イヤホン使用時間×気分分析"), false),
-            ("cloud.sun.fill", String(localized: "天気×気分の自動分析"), false),
-            ("moon.zzz.fill", String(localized: "Nemuri連携（詳細睡眠分析）"), false),
-            ("doc.richtext", String(localized: "メモキーワード分析"), false),
-            ("crown.fill", String(localized: "月1回の特別インサイト"), false),
-        ]
+    private func premiumActiveSection(colors: ThemeColors) -> some View {
+        VStack(spacing: 8) {
+            Text(String(localized: "すべての機能が解放されています"))
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundStyle(.secondary)
 
-        VStack(spacing: 0) {
-            ForEach(Array(features.enumerated()), id: \.offset) { _, feature in
-                HStack(spacing: 14) {
-                    Image(systemName: feature.icon)
-                        .font(.system(size: 16))
-                        .foregroundStyle(feature.free ? .green : (premiumManager.isPremium ? colors.accent : colors.accent.opacity(0.8)))
-                        .frame(width: 28)
+            Text(String(localized: "ご利用ありがとうございます"))
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(colors.accent.opacity(0.7))
+        }
+    }
 
-                    Text(feature.text)
-                        .font(.system(.subheadline, design: .rounded))
+    // MARK: - 3 Highlights
 
-                    Spacer()
+    private func highlightsSection(colors: ThemeColors) -> some View {
+        VStack(spacing: 16) {
+            highlightCard(
+                icon: "tag.fill",
+                title: String(localized: "無制限のカスタマイズ"),
+                description: String(localized: "タグ作り放題。あなただけの気分トラッキングを。"),
+                colors: colors
+            )
+            highlightCard(
+                icon: "sparkles",
+                title: String(localized: "深いAIインサイト"),
+                description: String(localized: "隠れた気分の波や、睡眠との相関をAIが解き明かします。"),
+                colors: colors
+            )
+            highlightCard(
+                icon: "leaf.fill",
+                title: String(localized: "美しく、ノイズレス"),
+                description: String(localized: "広告を非表示にして、より洗練された心地よい空間へ。"),
+                colors: colors
+            )
+        }
+    }
 
-                    if feature.free {
-                        Text(String(localized: "無料"))
-                            .font(.system(.caption2, design: .rounded, weight: .medium))
-                            .foregroundStyle(.green)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(.green.opacity(0.1)))
-                    } else if premiumManager.isPremium {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.green)
-                    } else {
-                        Text("PRO")
-                            .font(.system(.caption2, design: .rounded, weight: .bold))
-                            .foregroundStyle(colors.accent)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(colors.accent.opacity(0.1)))
-                    }
-                }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 16)
+    private func highlightCard(icon: String, title: String, description: String, colors: ThemeColors) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(colors.accent.opacity(0.12))
+                    .frame(width: 48, height: 48)
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundStyle(colors.accent)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(.headline, design: .rounded))
+                Text(description)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
@@ -200,7 +201,6 @@ struct ProView: View {
 
     private func planSelectionSection(colors: ThemeColors) -> some View {
         VStack(spacing: 12) {
-            // Yearly (recommended)
             planCard(
                 plan: .yearly,
                 product: premiumManager.yearlyProduct,
@@ -209,7 +209,6 @@ struct ProView: View {
                 colors: colors
             )
 
-            // Lifetime
             planCard(
                 plan: .lifetime,
                 product: premiumManager.lifetimeProduct,
@@ -312,7 +311,7 @@ struct ProView: View {
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
+            .padding(.vertical, 18)
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(
@@ -322,10 +321,36 @@ struct ProView: View {
                             endPoint: .trailing
                         )
                     )
+                    .shadow(color: .orange.opacity(0.3), radius: 12, y: 4)
             )
         }
         .disabled(premiumManager.isPurchasing || selectedProduct == nil)
-        .padding(.top, 8)
+    }
+
+    // MARK: - Restore
+
+    private func restoreSection() -> some View {
+        VStack(spacing: 8) {
+            Button {
+                Task { await premiumManager.restore() }
+            } label: {
+                if premiumManager.isRestoring {
+                    ProgressView()
+                } else {
+                    Text(String(localized: "購入を復元"))
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .disabled(premiumManager.isRestoring || premiumManager.isPurchasing)
+
+            if let error = premiumManager.errorMessage {
+                Text(error)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
+        }
     }
 
     // MARK: - Footer
@@ -348,6 +373,40 @@ struct ProView: View {
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - Success Animation Overlay
+
+    private func successOverlay(colors: ThemeColors) -> some View {
+        ZStack {
+            // Frosted glass background
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                // Animated checkmark
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 80))
+                    .foregroundStyle(colors.accent)
+                    .symbolEffect(.bounce, options: .nonRepeating)
+
+                VStack(spacing: 8) {
+                    Text("Nami Premium")
+                        .font(.system(.title2, design: .rounded, weight: .bold))
+                        .foregroundStyle(colors.accent)
+
+                    Text(String(localized: "ようこそ！"))
+                        .font(.system(.title3, design: .rounded, weight: .semibold))
+
+                    Text(String(localized: "すべての機能が解放されました"))
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .scaleEffect(showSuccessAnimation ? 1.0 : 0.5)
+            .animation(.spring(response: 0.5, dampingFraction: 0.6), value: showSuccessAnimation)
+        }
     }
 }
 
