@@ -5,8 +5,8 @@
 //  タグ選択ビュー（記録シートのタグタブ用）
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 /// タグ選択ビュー
 /// カテゴリ別にタグを表示し、タップで選択/解除する
@@ -17,7 +17,7 @@ struct TagSelectionView: View {
 
     /// カテゴリ別にグループ化したタグ
     private var groupedTags: [(category: EmotionTagCategory, tags: [EmotionTag])] {
-        let displayOrder: [EmotionTagCategory] = [.positive, .negative, .factor, .location, .activity, .social, .custom]
+        let displayOrder: [EmotionTagCategory] = [.positive, .negative, .morning, .mind, .factor, .diet, .exercise, .activity, .location, .social, .communication, .custom]
         return displayOrder.compactMap { category in
             let tags = allTags.filter { $0.category == category }
             return tags.isEmpty ? nil : (category, tags)

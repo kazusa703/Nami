@@ -32,7 +32,7 @@ struct TagManagementView: View {
 
     /// カテゴリ別にグループ化したタグ
     private var groupedTags: [(category: EmotionTagCategory, tags: [EmotionTag])] {
-        let displayOrder: [EmotionTagCategory] = [.positive, .negative, .factor, .location, .activity, .social, .custom]
+        let displayOrder: [EmotionTagCategory] = [.positive, .negative, .morning, .mind, .factor, .diet, .exercise, .activity, .location, .social, .communication, .custom]
         return displayOrder.compactMap { category in
             let tags = allTags.filter { $0.category == category }
             return tags.isEmpty ? nil : (category, tags)
@@ -503,9 +503,14 @@ struct AddTagSheet: View {
         case .positive: return String(localized: "良い気分の時に")
         case .negative: return String(localized: "つらい気分の時に")
         case .factor: return String(localized: "気分に影響する要因")
+        case .diet: return String(localized: "食事や飲み物の記録")
+        case .exercise: return String(localized: "運動やトレーニング")
         case .location: return String(localized: "今いる場所")
         case .activity: return String(localized: "今している活動")
         case .social: return String(localized: "一緒にいる人")
+        case .communication: return String(localized: "人とのやり取り")
+        case .mind: return String(localized: "頭の状態やパフォーマンス")
+        case .morning: return String(localized: "起きた時の体感")
         case .custom: return String(localized: "自由なカテゴリ")
         }
     }

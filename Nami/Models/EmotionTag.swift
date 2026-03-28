@@ -10,15 +10,22 @@ import SwiftData
 
 /// タグのカテゴリ
 enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
-    case positive = "positive"   // ポジティブ感情
-    case negative = "negative"   // ネガティブ感情
-    case factor = "factor"       // 要因・活動
-    case location = "location"   // 場所
-    case activity = "activity"   // 活動
-    case social = "social"       // 人
-    case custom = "custom"       // ユーザー作成
+    case positive // ポジティブ感情
+    case negative // ネガティブ感情
+    case factor // 要因
+    case diet // 食事・嗜好品
+    case exercise // 運動
+    case location // 場所
+    case activity // 活動
+    case social // 人
+    case communication // コミュニケーション
+    case mind // 頭のコンディション
+    case morning // 朝の体感
+    case custom // ユーザー作成
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     /// 表示名
     var displayName: String {
@@ -26,9 +33,14 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
         case .positive: return String(localized: "ポジティブ")
         case .negative: return String(localized: "ネガティブ")
         case .factor: return String(localized: "要因")
+        case .diet: return String(localized: "食事・嗜好品")
+        case .exercise: return String(localized: "運動")
         case .location: return String(localized: "場所")
         case .activity: return String(localized: "活動")
         case .social: return String(localized: "人")
+        case .communication: return String(localized: "コミュニケーション")
+        case .mind: return String(localized: "頭のコンディション")
+        case .morning: return String(localized: "朝の体感")
         case .custom: return String(localized: "カスタム")
         }
     }
@@ -39,9 +51,14 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
         case .positive: return "sun.max.fill"
         case .negative: return "cloud.rain.fill"
         case .factor: return "leaf.fill"
+        case .diet: return "fork.knife"
+        case .exercise: return "figure.run"
         case .location: return "mappin.and.ellipse"
         case .activity: return "figure.walk"
         case .social: return "person.2.fill"
+        case .communication: return "bubble.left.and.bubble.right.fill"
+        case .mind: return "brain.head.profile"
+        case .morning: return "sunrise.fill"
         case .custom: return "star.fill"
         }
     }
@@ -51,11 +68,16 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .positive: return 0
         case .negative: return 1
-        case .factor: return 2
-        case .location: return 3
-        case .activity: return 4
-        case .social: return 5
-        case .custom: return 6
+        case .morning: return 2
+        case .mind: return 3
+        case .factor: return 4
+        case .diet: return 5
+        case .exercise: return 6
+        case .activity: return 7
+        case .location: return 8
+        case .social: return 9
+        case .communication: return 10
+        case .custom: return 11
         }
     }
 }
@@ -65,11 +87,11 @@ enum EmotionTagCategory: String, CaseIterable, Identifiable, Codable {
 @Model
 class EmotionTag {
     var id: UUID = UUID()
-    var name: String = ""           // タグ名（例: 嬉しい、疲れた）
-    var categoryRaw: String = "custom"  // カテゴリ（EmotionTagCategory.rawValue）
-    var icon: String = "tag.fill"   // SF Symbols アイコン名
-    var isDefault: Bool = false     // デフォルトタグかどうか
-    var sortOrder: Int = 0          // 表示順
+    var name: String = "" // タグ名（例: 嬉しい、疲れた）
+    var categoryRaw: String = "custom" // カテゴリ（EmotionTagCategory.rawValue）
+    var icon: String = "tag.fill" // SF Symbols アイコン名
+    var isDefault: Bool = false // デフォルトタグかどうか
+    var sortOrder: Int = 0 // 表示順
     var createdAt: Date = Date.now
 
     /// カテゴリのアクセサ
@@ -79,12 +101,12 @@ class EmotionTag {
     }
 
     init(name: String, category: EmotionTagCategory, icon: String = "tag.fill", isDefault: Bool = false, sortOrder: Int = 0) {
-        self.id = UUID()
+        id = UUID()
         self.name = name
-        self.categoryRaw = category.rawValue
+        categoryRaw = category.rawValue
         self.icon = icon
         self.isDefault = isDefault
         self.sortOrder = sortOrder
-        self.createdAt = .now
+        createdAt = .now
     }
 }

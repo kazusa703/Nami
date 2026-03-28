@@ -41,15 +41,37 @@ enum DefaultTags {
             ("イライラ", .negative, "flame.fill"),
             ("悲しい", .negative, "cloud.rain.fill"),
             ("ストレス", .negative, "tornado"),
+            // 朝の体感
+            ("スッキリ起床", .morning, "sunrise.fill"),
+            ("二度寝", .morning, "bed.double.fill"),
+            ("悪夢", .morning, "moon.haze.fill"),
+            ("寝足りない", .morning, "zzz"),
+            // 頭のコンディション
+            ("集中できた", .mind, "scope"),
+            ("キャパオーバー", .mind, "exclamationmark.brain"),
+            ("ぼーっとした", .mind, "cloud.fog.fill"),
+            ("アイデアが湧いた", .mind, "lightbulb.fill"),
+            ("マルチタスク", .mind, "square.stack.3d.up.fill"),
             // 要因
             ("仕事", .factor, "briefcase.fill"),
-            ("運動", .factor, "figure.run"),
             ("睡眠不足", .factor, "moon.zzz.fill"),
             ("人間関係", .factor, "person.2.fill"),
             ("リラックス", .factor, "cup.and.saucer.fill"),
             ("体調不良", .factor, "cross.case.fill"),
             ("生理/PMS", .factor, "drop.fill"),
             ("天気", .factor, "cloud.sun.fill"),
+            // 食事・嗜好品
+            ("カフェイン", .diet, "cup.and.heat.waves.fill"),
+            ("アルコール", .diet, "wineglass.fill"),
+            ("甘いもの", .diet, "birthday.cake.fill"),
+            ("食べ過ぎ", .diet, "fork.knife.circle.fill"),
+            ("自炊", .diet, "frying.pan.fill"),
+            ("お水たくさん飲んだ", .diet, "drop.circle.fill"),
+            // 運動
+            ("ランニング", .exercise, "figure.run"),
+            ("ウォーキング", .exercise, "figure.walk"),
+            ("筋トレ", .exercise, "dumbbell.fill"),
+            ("ヨガ/ストレッチ", .exercise, "figure.mind.and.body"),
         ]
 
         for (index, (name, category, icon)) in defaults.enumerated() {
@@ -84,7 +106,8 @@ enum DefaultTags {
         let v2Names = Set(["自宅", "職場/学校", "外出先", "移動中",
                            "読書", "料理", "散歩", "買い物",
                            "スマホ/SNS", "趣味/推し活",
-                           "一人", "家族", "友人", "同僚", "恋人/パートナー"])
+                           "一人", "家族", "友人", "同僚", "恋人/パートナー",
+                           "褒められた", "深い話をした", "喧嘩した", "気疲れした", "聞き役だった"])
         let existingNames = Set(allTags.map(\.name))
         if !v2Names.isDisjoint(with: existingNames) {
             // Some v2 tags already exist
@@ -113,6 +136,12 @@ enum DefaultTags {
             ("友人", .social, "person.2.fill"),
             ("同僚", .social, "person.3.fill"),
             ("恋人/パートナー", .social, "heart.text.square.fill"),
+            // コミュニケーション
+            ("褒められた", .communication, "hand.thumbsup.fill"),
+            ("深い話をした", .communication, "bubble.left.and.text.bubble.right.fill"),
+            ("喧嘩した", .communication, "bolt.horizontal.fill"),
+            ("気疲れした", .communication, "person.wave.2.fill"),
+            ("聞き役だった", .communication, "ear.fill"),
         ]
 
         for (index, (name, category, icon)) in v2Defaults.enumerated() {
@@ -186,5 +215,72 @@ enum DefaultTags {
         }
 
         UserDefaults.standard.set(true, forKey: seededV3Key)
+    }
+
+    // MARK: - V4 Migration (new categories: diet, exercise, communication, mind, morning)
+
+    private static let seededV4Key = "defaultTagsSeededV4"
+
+    /// Add diet, exercise, communication, mind, morning tags for existing users
+    @MainActor
+    static func seedV4IfNeeded(context: ModelContext) {
+        guard !UserDefaults.standard.bool(forKey: seededV4Key) else { return }
+
+        let descriptor = FetchDescriptor<EmotionTag>()
+        let allTags = (try? context.fetch(descriptor)) ?? []
+        let existingNames = Set(allTags.map(\.name))
+
+        // Move "運動" from .factor to .exercise category
+        if let exerciseTag = allTags.first(where: { $0.name == "運動" && $0.categoryRaw == "factor" }) {
+            exerciseTag.categoryRaw = "exercise"
+        }
+
+        let nextOrder = (allTags.map(\.sortOrder).max() ?? 0) + 1
+
+        let v4Defaults: [(String, EmotionTagCategory, String)] = [
+            // 朝の体感
+            ("スッキリ起床", .morning, "sunrise.fill"),
+            ("二度寝", .morning, "bed.double.fill"),
+            ("悪夢", .morning, "moon.haze.fill"),
+            ("寝足りない", .morning, "zzz"),
+            // 頭のコンディション
+            ("集中できた", .mind, "scope"),
+            ("キャパオーバー", .mind, "exclamationmark.brain"),
+            ("ぼーっとした", .mind, "cloud.fog.fill"),
+            ("アイデアが湧いた", .mind, "lightbulb.fill"),
+            ("マルチタスク", .mind, "square.stack.3d.up.fill"),
+            // 食事・嗜好品
+            ("カフェイン", .diet, "cup.and.heat.waves.fill"),
+            ("アルコール", .diet, "wineglass.fill"),
+            ("甘いもの", .diet, "birthday.cake.fill"),
+            ("食べ過ぎ", .diet, "fork.knife.circle.fill"),
+            ("自炊", .diet, "frying.pan.fill"),
+            ("お水たくさん飲んだ", .diet, "drop.circle.fill"),
+            // 運動
+            ("ランニング", .exercise, "figure.run"),
+            ("ウォーキング", .exercise, "figure.walk"),
+            ("筋トレ", .exercise, "dumbbell.fill"),
+            ("ヨガ/ストレッチ", .exercise, "figure.mind.and.body"),
+            // コミュニケーション
+            ("褒められた", .communication, "hand.thumbsup.fill"),
+            ("深い話をした", .communication, "bubble.left.and.text.bubble.right.fill"),
+            ("喧嘩した", .communication, "bolt.horizontal.fill"),
+            ("気疲れした", .communication, "person.wave.2.fill"),
+            ("聞き役だった", .communication, "ear.fill"),
+        ]
+
+        for (index, (name, category, icon)) in v4Defaults.enumerated() {
+            guard !existingNames.contains(name) else { continue }
+            let tag = EmotionTag(
+                name: name,
+                category: category,
+                icon: icon,
+                isDefault: true,
+                sortOrder: nextOrder + index
+            )
+            context.insert(tag)
+        }
+
+        UserDefaults.standard.set(true, forKey: seededV4Key)
     }
 }
