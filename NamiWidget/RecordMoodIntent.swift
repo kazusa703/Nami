@@ -46,6 +46,9 @@ struct RecordMoodIntent: AppIntent {
         pending.append(record)
         defaults.pendingWidgetRecords = pending
 
+        // Save timestamp for success feedback UI
+        defaults.set(Date.now.timeIntervalSince1970, forKey: "lastWidgetRecordTime")
+
         // ウィジェットのタイムラインを更新
         WidgetCenter.shared.reloadAllTimelines()
 

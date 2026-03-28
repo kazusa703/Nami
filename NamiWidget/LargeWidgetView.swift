@@ -21,7 +21,7 @@ struct LargeWidgetView: View {
             LinearGradient(
                 colors: [
                     colorScheme == .dark ? theme.backgroundStartDark : theme.backgroundStartLight,
-                    colorScheme == .dark ? theme.backgroundEndDark : theme.backgroundEndLight
+                    colorScheme == .dark ? theme.backgroundEndDark : theme.backgroundEndLight,
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -56,7 +56,7 @@ struct LargeWidgetView: View {
 
     private func headerSection(theme: WidgetTheme) -> some View {
         HStack {
-            Link(destination: URL(string: "nami://open")!) {
+            Link(destination: URL(string: "nami://record")!) {
                 HStack(spacing: 4) {
                     Image(systemName: "wave.3.right")
                         .font(.system(size: 11, weight: .semibold))
@@ -145,7 +145,7 @@ struct LargeWidgetView: View {
         }
     }
 
-    private func statCard(title: String, value: String, icon: String, iconColor: Color, theme: WidgetTheme) -> some View {
+    private func statCard(title: String, value: String, icon: String, iconColor: Color, theme _: WidgetTheme) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .font(.system(size: 12))
@@ -176,7 +176,7 @@ struct LargeWidgetView: View {
 
     private func dailyBarChart(theme: WidgetTheme) -> some View {
         HStack(alignment: .bottom, spacing: 6) {
-            ForEach(0..<7, id: \.self) { index in
+            ForEach(0 ..< 7, id: \.self) { index in
                 let daily = index < entry.dailyData.count ? entry.dailyData[index] : nil
 
                 VStack(spacing: 3) {
@@ -205,7 +205,7 @@ struct LargeWidgetView: View {
                                         LinearGradient(
                                             colors: [
                                                 theme.colorForScore(score, minScore: entry.minScore, maxScore: entry.maxScore),
-                                                theme.colorForScore(score, minScore: entry.minScore, maxScore: entry.maxScore).opacity(0.6)
+                                                theme.colorForScore(score, minScore: entry.minScore, maxScore: entry.maxScore).opacity(0.6),
                                             ],
                                             startPoint: .top,
                                             endPoint: .bottom
@@ -237,7 +237,7 @@ struct LargeWidgetView: View {
 
     private func pixelStrip(theme: WidgetTheme) -> some View {
         HStack(spacing: 4) {
-            ForEach(0..<7, id: \.self) { index in
+            ForEach(0 ..< 7, id: \.self) { index in
                 let daily = index < entry.dailyData.count ? entry.dailyData[index] : nil
                 let isToday = index == entry.dailyData.count - 1
 

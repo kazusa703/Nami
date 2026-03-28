@@ -21,7 +21,7 @@ struct SmallWidgetView: View {
             LinearGradient(
                 colors: [
                     colorScheme == .dark ? theme.backgroundStartDark : theme.backgroundStartLight,
-                    colorScheme == .dark ? theme.backgroundEndDark : theme.backgroundEndLight
+                    colorScheme == .dark ? theme.backgroundEndDark : theme.backgroundEndLight,
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -30,7 +30,7 @@ struct SmallWidgetView: View {
             VStack(spacing: 0) {
                 // ヘッダー: Nami + ストリーク
                 HStack {
-                    Link(destination: URL(string: "nami://open")!) {
+                    Link(destination: URL(string: "nami://record")!) {
                         HStack(spacing: 3) {
                             Image(systemName: "wave.3.right")
                                 .font(.system(size: 9, weight: .semibold))

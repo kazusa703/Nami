@@ -60,6 +60,8 @@ struct ContentView: View {
     /// Monthly report banner + sheet
     @State private var showMonthlyReportBanner = false
     @State private var showMonthlyReport = false
+    /// Deep link: widget tapped to open recording sheet
+    @State private var showDeepLinkRecordingSheet = false
     @AppStorage("lastSeenReportMonth") private var lastSeenReportMonth: String = ""
     @AppStorage("hasUnreadMonthlyReport") private var hasUnreadMonthlyReport = false
 
@@ -170,6 +172,12 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 checkPendingDeepLink()
             }
+            .onOpenURL { url in
+                handleDeepLink(url)
+            }
+            .sheet(isPresented: $showDeepLinkRecordingSheet) {
+                QuickRecordView()
+            }
         } else {
             OnboardingView()
                 .onChange(of: hasCompletedOnboarding) { _, completed in
@@ -276,6 +284,22 @@ struct ContentView: View {
         formatter.dateFormat = "yyyy-MM"
         lastSeenReportMonth = formatter.string(from: .now)
         hasUnreadMonthlyReport = false
+    }
+
+    /// Handle URL deep links from widgets
+    private func handleDeepLink(_ url: URL) {
+        switch url.host {
+        case "record":
+            selectedTab = .record
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                showDeepLinkRecordingSheet = true
+            }
+        case "monthlyReport":
+            markReportAsSeen()
+            showMonthlyReport = true
+        default:
+            break
+        }
     }
 
     /// Check for pending deep link from notification tap

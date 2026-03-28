@@ -21,7 +21,7 @@ struct MediumWidgetView: View {
             LinearGradient(
                 colors: [
                     colorScheme == .dark ? theme.backgroundStartDark : theme.backgroundStartLight,
-                    colorScheme == .dark ? theme.backgroundEndDark : theme.backgroundEndLight
+                    colorScheme == .dark ? theme.backgroundEndDark : theme.backgroundEndLight,
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -55,7 +55,7 @@ struct MediumWidgetView: View {
     private func leftPanel(theme: WidgetTheme) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // ヘッダー: Nami ロゴ
-            Link(destination: URL(string: "nami://open")!) {
+            Link(destination: URL(string: "nami://record")!) {
                 HStack(spacing: 3) {
                     Image(systemName: "wave.3.right")
                         .font(.system(size: 9, weight: .semibold))
@@ -212,7 +212,7 @@ struct MediumWidgetView: View {
 
     private func barChart(theme: WidgetTheme) -> some View {
         HStack(alignment: .bottom, spacing: 4) {
-            ForEach(0..<7, id: \.self) { index in
+            ForEach(0 ..< 7, id: \.self) { index in
                 let daily = index < entry.dailyData.count ? entry.dailyData[index] : nil
 
                 VStack(spacing: 2) {
