@@ -610,6 +610,27 @@ struct GraphView: View {
                                 )
                             }
                         }
+                        .overlay(alignment: .topTrailing) {
+                            // Expand button overlay on chart area
+                            if onShowFullscreen != nil {
+                                Button {
+                                    onShowFullscreen?(graphMode, dateMode, targetDate)
+                                    HapticManager.lightFeedback()
+                                } label: {
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(.primary.opacity(0.6))
+                                        .padding(8)
+                                        .background(
+                                            Circle()
+                                                .fill(.ultraThinMaterial)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.trailing, 24)
+                                .padding(.top, 16)
+                            }
+                        }
                         .layoutPriority(1)
 
                         if showDetail, let entry = selectedEntry {
@@ -1095,6 +1116,11 @@ struct GraphView: View {
         .chartOverlay { proxy in
             GeometryReader { geometry in
                 Rectangle().fill(.clear).contentShape(Rectangle())
+                    .onTapGesture(count: 2) {
+                        // Double-tap → fullscreen
+                        onShowFullscreen?(graphMode, dateMode, targetDate)
+                        HapticManager.recordFeedback()
+                    }
                     .onTapGesture { location in
                         guard let plotFrame = proxy.plotFrame else { return }
                         let xPos = location.x - geometry[plotFrame].origin.x

@@ -109,41 +109,37 @@ struct ContentView: View {
                     .frame(width: geometry.size.width, height: geometry.size.height)
                 }
             }
-            .id(contentRefreshID)
-            .fullScreenCover(isPresented: Binding(
-                get: { fullscreenChartMode != nil },
-                set: { if !$0 { fullscreenChartMode = nil } }
-            )) {
-                FullscreenChartView(
-                    graphMode: fullscreenChartMode ?? .line,
-                    dateMode: fullscreenDateMode,
-                    targetDate: fullscreenTargetDate,
-                    onDismiss: {
-                        fullscreenChartMode = nil
-                    }
-                )
-                .interactiveDismissDisabled()
-                .onAppear {
-                    // フルスクリーン表示中はランドスケープを許可
-                    NamiAppDelegate.allowLandscape = true
-                }
-                .onDisappear {
-                    // 1. ランドスケープを禁止に戻す
-                    NamiAppDelegate.allowLandscape = false
-                    // 2. ポートレートへの回転を強制リクエスト
-                    if let windowScene = UIApplication.shared.connectedScenes
-                        .first as? UIWindowScene
-                    {
-                        windowScene.requestGeometryUpdate(
-                            .iOS(interfaceOrientations: .portrait)
-                        )
-                    }
-                    // 3. IDを更新してコンテンツ全体を再描画し、レイアウトをリセット
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        contentRefreshID = UUID()
+            .overlay {
+                // Fullscreen chart as ZStack overlay (not .fullScreenCover — avoids rotation layout corruption)
+                if fullscreenChartMode != nil {
+                    FullscreenChartView(
+                        graphMode: fullscreenChartMode ?? .line,
+                        dateMode: fullscreenDateMode,
+                        targetDate: fullscreenTargetDate,
+                        onDismiss: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                fullscreenChartMode = nil
+                            }
+                            NamiAppDelegate.allowLandscape = false
+                            if let windowScene = UIApplication.shared.connectedScenes
+                                .first as? UIWindowScene
+                            {
+                                windowScene.requestGeometryUpdate(
+                                    .iOS(interfaceOrientations: .portrait)
+                                )
+                            }
+                        }
+                    )
+                    .ignoresSafeArea()
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .zIndex(100)
+                    .onAppear {
+                        NamiAppDelegate.allowLandscape = true
                     }
                 }
             }
+            .animation(.easeInOut(duration: 0.3), value: fullscreenChartMode != nil)
+            .id(contentRefreshID)
             .tint(colors.accent)
             .onChange(of: selectedTab) { _, newTab in
                 loadedTabs.insert(newTab)
