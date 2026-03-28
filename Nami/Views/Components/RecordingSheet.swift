@@ -50,9 +50,11 @@ struct RecordingSheet: View {
     @State private var recorder = VoiceRecorderManager()
     @FocusState private var isMemoFocused: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.modelContext) private var modelContext
     // Sheet always opens at full height
     @State private var showRecordingHelp = false
     @State private var showOnboardingTip = false
+    @State private var showAddTagSheet = false
     /// Onboarding step: 0=tag tip, 1=memo tip, 2=done
     @State private var onboardingGuideStep = 0
 
@@ -351,8 +353,30 @@ struct RecordingSheet: View {
     private var tagsTab: some View {
         TagSelectionView(
             selectedTags: $selectedTags,
-            themeColors: themeColors
+            themeColors: themeColors,
+            onCreateTag: { _ in
+                showAddTagSheet = true
+            }
         )
+        .sheet(isPresented: $showAddTagSheet) {
+            AddTagSheet(themeColors: themeColors) { name, category, icon in
+                // Save the new tag to SwiftData
+                let nextOrder = (try? modelContext.fetchCount(FetchDescriptor<EmotionTag>())) ?? 0
+                let tagIcon = icon ?? (category == .custom ? "star.fill" : category.icon)
+                let tag = EmotionTag(
+                    name: name,
+                    category: category,
+                    icon: tagIcon,
+                    isDefault: false,
+                    sortOrder: nextOrder
+                )
+                modelContext.insert(tag)
+                UserDefaults.standard.set(true, forKey: "hasCreatedCustomTag")
+                HapticManager.lightFeedback()
+                // Auto-select the newly created tag
+                selectedTags.insert(name)
+            }
+        }
     }
 
     // MARK: - メモタブ（写真・ボイス統合）

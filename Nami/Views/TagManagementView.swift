@@ -129,8 +129,8 @@ struct TagManagementView: View {
             }
         }
         .sheet(isPresented: $showAddSheet) {
-            AddTagSheet(themeColors: colors) { name, category in
-                addCustomTag(name: name, category: category)
+            AddTagSheet(themeColors: colors) { name, category, icon in
+                addCustomTag(name: name, category: category, icon: icon)
             }
         }
         .sheet(isPresented: $showAddCategorySheet) {
@@ -209,12 +209,13 @@ struct TagManagementView: View {
     }
 
     /// Add a custom tag
-    private func addCustomTag(name: String, category: EmotionTagCategory) {
+    private func addCustomTag(name: String, category: EmotionTagCategory, icon: String? = nil) {
         let nextOrder = (allTags.map(\.sortOrder).max() ?? 0) + 1
+        let tagIcon = icon ?? (category == .custom ? "star.fill" : category.icon)
         let tag = EmotionTag(
             name: name,
             category: category,
-            icon: category == .custom ? "star.fill" : category.icon,
+            icon: tagIcon,
             isDefault: false,
             sortOrder: nextOrder
         )
@@ -339,21 +340,25 @@ struct AddCategorySheet: View {
     }
 }
 
-// MARK: - Tag Add Sheet (with preview)
+// MARK: - Tag Add Sheet (with preview + icon picker)
 
-/// Enhanced tag add sheet with live preview
+/// Enhanced tag add sheet with live preview, full category list, and icon selection
 struct AddTagSheet: View {
     @Environment(\.dismiss) private var dismiss
     let themeColors: ThemeColors
-    let onAdd: (String, EmotionTagCategory) -> Void
+    let onAdd: (String, EmotionTagCategory, String?) -> Void
 
     @State private var tagName = ""
     @State private var selectedCategory: EmotionTagCategory = .custom
+    @State private var selectedIcon: String? = nil
+    @State private var showIconGrid = false
     @FocusState private var isNameFocused: Bool
     @Query private var existingTags: [EmotionTag]
 
-    /// All selectable categories
-    private let categories: [EmotionTagCategory] = [.positive, .negative, .factor, .location, .activity, .social, .custom]
+    /// All selectable categories (dynamically from enum, excluding custom which goes last)
+    private var categories: [EmotionTagCategory] {
+        EmotionTagCategory.allCases.sorted { $0.sortIndex < $1.sortIndex }
+    }
 
     /// Check for duplicate name
     private var isDuplicate: Bool {
@@ -368,8 +373,24 @@ struct AddTagSheet: View {
 
     /// Icon for the tag being created
     private var previewIcon: String {
-        selectedCategory == .custom ? "star.fill" : selectedCategory.icon
+        selectedIcon ?? selectedCategory.icon
     }
+
+    /// Curated icon options for tag creation
+    private let iconOptions: [String] = [
+        "star.fill", "heart.fill", "bolt.fill", "flame.fill",
+        "leaf.fill", "drop.fill", "moon.fill", "sun.max.fill",
+        "cloud.fill", "snowflake", "wind", "sparkles",
+        "music.note", "book.fill", "pencil", "paintbrush.fill",
+        "camera.fill", "gamecontroller.fill", "trophy.fill", "flag.fill",
+        "cup.and.saucer.fill", "fork.knife", "dumbbell.fill", "figure.run",
+        "brain", "lightbulb.fill", "scope", "eye.fill",
+        "hand.thumbsup.fill", "bubble.left.fill", "phone.fill", "envelope.fill",
+        "bag.fill", "cart.fill", "house.fill", "car.fill",
+        "pills.fill", "cross.case.fill", "bed.double.fill", "alarm.fill",
+        "iphone", "desktopcomputer", "headphones", "tv.fill",
+        "face.smiling", "person.fill", "dog.fill", "cat.fill",
+    ]
 
     var body: some View {
         NavigationStack {
@@ -417,11 +438,82 @@ struct AddTagSheet: View {
                         }
                     }
 
+                    // Icon selection
+                    Section {
+                        Button {
+                            withAnimation { showIconGrid.toggle() }
+                        } label: {
+                            HStack {
+                                Image(systemName: previewIcon)
+                                    .font(.title3)
+                                    .foregroundStyle(themeColors.accent)
+                                    .frame(width: 32)
+                                Text(selectedIcon == nil ? String(localized: "カテゴリのアイコン（自動）") : String(localized: "選択中のアイコン"))
+                                    .font(.system(.body, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: showIconGrid ? "chevron.up" : "chevron.down")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        if showIconGrid {
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 8), spacing: 10) {
+                                // "Auto" option
+                                Button {
+                                    selectedIcon = nil
+                                    HapticManager.lightFeedback()
+                                } label: {
+                                    Text("A")
+                                        .font(.system(.caption, weight: .bold))
+                                        .frame(width: 36, height: 36)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(selectedIcon == nil ? themeColors.accent.opacity(0.2) : Color.clear)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(selectedIcon == nil ? themeColors.accent : Color.clear, lineWidth: 2)
+                                        )
+                                        .foregroundStyle(selectedIcon == nil ? themeColors.accent : .secondary)
+                                }
+                                .buttonStyle(.plain)
+
+                                ForEach(iconOptions, id: \.self) { icon in
+                                    Button {
+                                        selectedIcon = icon
+                                        HapticManager.lightFeedback()
+                                    } label: {
+                                        Image(systemName: icon)
+                                            .font(.body)
+                                            .frame(width: 36, height: 36)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(selectedIcon == icon ? themeColors.accent.opacity(0.2) : Color.clear)
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(selectedIcon == icon ? themeColors.accent : Color.clear, lineWidth: 2)
+                                            )
+                                            .foregroundStyle(selectedIcon == icon ? themeColors.accent : .secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    } header: {
+                        Text(String(localized: "アイコン"))
+                    }
+
                     // Category selection
                     Section {
                         ForEach(categories) { category in
                             Button {
                                 selectedCategory = category
+                                // Reset icon to auto when category changes
+                                if selectedIcon == nil {} // keep auto
                             } label: {
                                 HStack(spacing: 10) {
                                     Image(systemName: category.icon)
@@ -457,7 +549,7 @@ struct AddTagSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "追加")) {
                         if !trimmedName.isEmpty && !isDuplicate {
-                            onAdd(trimmedName, selectedCategory)
+                            onAdd(trimmedName, selectedCategory, selectedIcon)
                             dismiss()
                         }
                     }
@@ -494,6 +586,7 @@ struct AddTagSheet: View {
             .foregroundStyle(trimmedName.isEmpty ? themeColors.accent.opacity(0.3) : themeColors.accent)
             .animation(.easeInOut(duration: 0.2), value: trimmedName)
             .animation(.easeInOut(duration: 0.2), value: selectedCategory)
+            .animation(.easeInOut(duration: 0.2), value: selectedIcon)
         }
     }
 

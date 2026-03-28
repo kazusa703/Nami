@@ -14,6 +14,8 @@ struct TagSelectionView: View {
     @Query(sort: \EmotionTag.sortOrder) private var allTags: [EmotionTag]
     @Binding var selectedTags: Set<String>
     let themeColors: ThemeColors
+    /// Callback when user wants to create a new tag (nil = hide button)
+    var onCreateTag: ((String) -> Void)? = nil
 
     /// カテゴリ別にグループ化したタグ
     private var groupedTags: [(category: EmotionTagCategory, tags: [EmotionTag])] {
@@ -46,6 +48,29 @@ struct TagSelectionView: View {
                             }
                         }
                     }
+                }
+
+                // "+ 新しいタグを作成" button
+                if let onCreateTag {
+                    Button {
+                        onCreateTag("")
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 14))
+                            Text(String(localized: "新しいタグを作成"))
+                                .font(.system(.caption, design: .rounded, weight: .semibold))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .strokeBorder(themeColors.accent.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                        )
+                        .foregroundStyle(themeColors.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 4)
                 }
             }
             .padding(.horizontal)
