@@ -33,9 +33,11 @@ enum DefaultTags {
             ("穏やか", .positive, "leaf.fill"),
             ("感謝", .positive, "heart.fill"),
             ("元気", .positive, "bolt.fill"),
+            ("スッキリ", .positive, "sparkles"),
             // ネガティブ
             ("不安", .negative, "exclamationmark.triangle.fill"),
-            ("疲れた", .negative, "battery.25percent"),
+            ("体の疲れ", .negative, "battery.25percent"),
+            ("心の疲れ", .negative, "brain"),
             ("イライラ", .negative, "flame.fill"),
             ("悲しい", .negative, "cloud.rain.fill"),
             ("ストレス", .negative, "tornado"),
@@ -45,6 +47,9 @@ enum DefaultTags {
             ("睡眠不足", .factor, "moon.zzz.fill"),
             ("人間関係", .factor, "person.2.fill"),
             ("リラックス", .factor, "cup.and.saucer.fill"),
+            ("体調不良", .factor, "cross.case.fill"),
+            ("生理/PMS", .factor, "drop.fill"),
+            ("天気", .factor, "cloud.sun.fill"),
         ]
 
         for (index, (name, category, icon)) in defaults.enumerated() {
@@ -78,7 +83,8 @@ enum DefaultTags {
         let allTags = (try? context.fetch(descriptor)) ?? []
         let v2Names = Set(["自宅", "職場/学校", "外出先", "移動中",
                            "読書", "料理", "散歩", "買い物",
-                           "一人", "家族", "友人", "同僚"])
+                           "スマホ/SNS", "趣味/推し活",
+                           "一人", "家族", "友人", "同僚", "恋人/パートナー"])
         let existingNames = Set(allTags.map(\.name))
         if !v2Names.isDisjoint(with: existingNames) {
             // Some v2 tags already exist
@@ -99,11 +105,14 @@ enum DefaultTags {
             ("料理", .activity, "fork.knife"),
             ("散歩", .activity, "figure.walk"),
             ("買い物", .activity, "bag.fill"),
+            ("スマホ/SNS", .activity, "iphone"),
+            ("趣味/推し活", .activity, "star.fill"),
             // 人
             ("一人", .social, "person.fill"),
             ("家族", .social, "house.and.flag.fill"),
             ("友人", .social, "person.2.fill"),
             ("同僚", .social, "person.3.fill"),
+            ("恋人/パートナー", .social, "heart.text.square.fill"),
         ]
 
         for (index, (name, category, icon)) in v2Defaults.enumerated() {
@@ -118,5 +127,64 @@ enum DefaultTags {
         }
 
         UserDefaults.standard.set(true, forKey: seededV2Key)
+    }
+
+    // MARK: - V3 Migration (expanded tags + rename)
+
+    /// UserDefaults key for v3 seeded flag
+    private static let seededV3Key = "defaultTagsSeededV3"
+
+    /// Seed v3 tags for existing users: rename "疲れた" → "体の疲れ", add new tags
+    @MainActor
+    static func seedV3IfNeeded(context: ModelContext) {
+        guard !UserDefaults.standard.bool(forKey: seededV3Key) else { return }
+
+        let descriptor = FetchDescriptor<EmotionTag>()
+        let allTags = (try? context.fetch(descriptor)) ?? []
+        let existingNames = Set(allTags.map(\.name))
+
+        // Rename "疲れた" → "体の疲れ" (preserve user's existing data association)
+        if let tiredTag = allTags.first(where: { $0.name == "疲れた" }) {
+            tiredTag.name = "体の疲れ"
+            // Also update existing MoodEntry tags referencing the old name
+            let entryDescriptor = FetchDescriptor<MoodEntry>()
+            if let entries = try? context.fetch(entryDescriptor) {
+                for entry in entries where entry.tags.contains("疲れた") {
+                    entry.tags = entry.tags.map { $0 == "疲れた" ? "体の疲れ" : $0 }
+                }
+            }
+        }
+
+        let nextOrder = (allTags.map(\.sortOrder).max() ?? 0) + 1
+
+        let v3Defaults: [(String, EmotionTagCategory, String)] = [
+            // Positive
+            ("スッキリ", .positive, "sparkles"),
+            // Negative
+            ("心の疲れ", .negative, "brain"),
+            // Factor
+            ("体調不良", .factor, "cross.case.fill"),
+            ("生理/PMS", .factor, "drop.fill"),
+            ("天気", .factor, "cloud.sun.fill"),
+            // Activity
+            ("スマホ/SNS", .activity, "iphone"),
+            ("趣味/推し活", .activity, "star.fill"),
+            // Social
+            ("恋人/パートナー", .social, "heart.text.square.fill"),
+        ]
+
+        for (index, (name, category, icon)) in v3Defaults.enumerated() {
+            guard !existingNames.contains(name) else { continue }
+            let tag = EmotionTag(
+                name: name,
+                category: category,
+                icon: icon,
+                isDefault: true,
+                sortOrder: nextOrder + index
+            )
+            context.insert(tag)
+        }
+
+        UserDefaults.standard.set(true, forKey: seededV3Key)
     }
 }

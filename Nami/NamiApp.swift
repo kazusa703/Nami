@@ -100,6 +100,7 @@ struct NamiApp: App {
                     // デフォルトタグの初期化
                     DefaultTags.seedIfNeeded(context: sharedModelContainer.mainContext)
                     DefaultTags.seedV2IfNeeded(context: sharedModelContainer.mainContext)
+                    DefaultTags.seedV3IfNeeded(context: sharedModelContainer.mainContext)
 
                     // Import pending widget records from UserDefaults queue
                     Self.importPendingWidgetRecords(context: sharedModelContainer.mainContext)
