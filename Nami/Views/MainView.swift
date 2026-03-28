@@ -26,6 +26,8 @@ struct MainView: View {
     @AppStorage("totalRecordCount") private var totalRecordCount: Int = 0
     @State private var showCoachTip: String? = nil
     @State private var showMainHelp = false
+    /// Personalized greeting message (4-level fallback)
+    @State private var greetingMessage: String = ""
     @Query(sort: \MoodEntry.createdAt, order: .reverse) private var entries: [MoodEntry]
 
     /// ウィジェットから記録されたエントリ
@@ -124,11 +126,14 @@ struct MainView: View {
                                 colors: colors
                             )
 
-                            // タイトル
+                            // パーソナライズ挨拶
                             VStack(spacing: 8) {
-                                Text("今の気分は？")
-                                    .font(.system(.title, design: .rounded, weight: .bold))
+                                Text(greetingMessage.isEmpty ? String(localized: "今の気分は？") : greetingMessage)
+                                    .font(.system(.title3, design: .rounded, weight: .bold))
                                     .foregroundStyle(colors.accent)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.8)
 
                                 Text("\(scoreRange.displayName)でタップして記録")
                                     .font(.system(.subheadline, design: .rounded))
@@ -191,6 +196,15 @@ struct MainView: View {
         }
         .onAppear {
             rebuildStreakCache()
+            // Generate personalized greeting
+            Task {
+                let weather = await weatherManager.fetchCurrentWeather()
+                greetingMessage = GreetingService.generateGreeting(
+                    entries: entries,
+                    weatherCondition: weather.condition,
+                    weatherTemperature: weather.temperature
+                )
+            }
             // Show custom tag creation tip on first launch after onboarding
             if !entries.isEmpty && !UserDefaults.standard.bool(forKey: "hasCreatedCustomTag") {
                 let dismissedKey = "dismissedCustomTagTip"

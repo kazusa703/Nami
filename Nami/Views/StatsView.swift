@@ -491,6 +491,17 @@ struct StatsView: View {
             insights.sort { $0.priority > $1.priority }
             insights = Array(insights.prefix(InsightEngine.maxDisplayCards))
         }
+        // Nemuri sleep insights (returns [] if no Nemuri data — no cross-sell UI)
+        let sleepInsights = InsightEngine.nemuriSleepInsights(
+            entries: entries,
+            currentMax: currentMaxScore,
+            currentMin: currentMinScore
+        )
+        if !sleepInsights.isEmpty {
+            insights.append(contentsOf: sleepInsights)
+            insights.sort { $0.priority > $1.priority }
+            insights = Array(insights.prefix(InsightEngine.maxDisplayCards))
+        }
         cachedInsights = insights
         // Mark as viewed for evolving text
         InsightEngine.markInsightsAsViewed(insights)
