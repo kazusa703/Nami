@@ -57,6 +57,10 @@ struct ContentView: View {
     @State private var fullscreenTargetDate: Date = .init()
     /// フルスクリーン解除時にレイアウトを強制再描画するためのID
     @State private var contentRefreshID = UUID()
+    /// Monthly report banner + sheet
+    @State private var showMonthlyReportBanner = false
+    @State private var showMonthlyReport = false
+    @AppStorage("lastSeenReportMonth") private var lastSeenReportMonth: String = ""
 
     var body: some View {
         if hasCompletedOnboarding {
@@ -144,6 +148,27 @@ struct ContentView: View {
             .onChange(of: selectedTab) { _, newTab in
                 loadedTabs.insert(newTab)
             }
+            // Monthly report banner (top of screen)
+            .overlay(alignment: .top) {
+                if showMonthlyReportBanner {
+                    monthlyReportBanner(colors: colors)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 8)
+                        .padding(.horizontal, 16)
+                        .zIndex(50)
+                }
+            }
+            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: showMonthlyReportBanner)
+            .sheet(isPresented: $showMonthlyReport) {
+                MonthlyReportView()
+            }
+            .onAppear {
+                checkMonthlyReportAvailability()
+                checkPendingDeepLink()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                checkPendingDeepLink()
+            }
         } else {
             OnboardingView()
                 .onChange(of: hasCompletedOnboarding) { _, completed in
@@ -155,6 +180,110 @@ struct ContentView: View {
                         }
                     }
                 }
+        }
+    }
+
+    // MARK: - Monthly Report Banner
+
+    private func monthlyReportBanner(colors: ThemeColors) -> some View {
+        Button {
+            showMonthlyReportBanner = false
+            markReportAsSeen()
+            showMonthlyReport = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.title3)
+                    .foregroundStyle(colors.accent)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(localized: "\(previousMonthName)のレポートが届きました"))
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    Text(String(localized: "1ヶ月の心の波を振り返ってみましょう"))
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: colors.accent.opacity(0.15), radius: 12, y: 4)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(colors.accent.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    if value.translation.height < -20 {
+                        // Swipe up to dismiss
+                        withAnimation { showMonthlyReportBanner = false }
+                        markReportAsSeen()
+                    }
+                }
+        )
+    }
+
+    /// Previous month name for display
+    private var previousMonthName: String {
+        let calendar = Calendar.current
+        let lastMonth = calendar.date(byAdding: .month, value: -1, to: .now) ?? .now
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.dateFormat = "M月"
+        return formatter.string(from: lastMonth)
+    }
+
+    /// Check if monthly report should be shown
+    private func checkMonthlyReportAvailability() {
+        let calendar = Calendar.current
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM"
+
+        let currentMonthKey = formatter.string(from: .now)
+        guard lastSeenReportMonth != currentMonthKey else { return }
+
+        // Check if previous month has entries
+        let lastMonth = calendar.date(byAdding: .month, value: -1, to: .now) ?? .now
+        let lastMonthKey = formatter.string(from: lastMonth)
+
+        // Use AppStorage to check if we already showed for this month
+        // We show banner only if current month key != last seen
+        // and there's likely data (we can't query @Query here, so just show it)
+        guard lastSeenReportMonth != currentMonthKey else { return }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation {
+                showMonthlyReportBanner = true
+            }
+        }
+    }
+
+    private func markReportAsSeen() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM"
+        lastSeenReportMonth = formatter.string(from: .now)
+    }
+
+    /// Check for pending deep link from notification tap
+    private func checkPendingDeepLink() {
+        if NamiAppDelegate.pendingMonthlyReport {
+            NamiAppDelegate.pendingMonthlyReport = false
+            markReportAsSeen()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                showMonthlyReport = true
+            }
         }
     }
 

@@ -355,6 +355,33 @@ enum NotificationManager {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
     }
 
+    // MARK: - Monthly Report Notification
+
+    private static let monthlyReportID = "nami.monthlyReport"
+
+    /// Schedule a local notification for the 1st of next month at the given hour
+    static func scheduleMonthlyReportNotification(lastMonthActiveDays: Int, monthName: String) {
+        cancelPending(identifier: monthlyReportID)
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "🌊 \(monthName)のレポートが完成しました")
+        content.body = String(localized: "先月は\(lastMonthActiveDays)日間記録できました！あなただけの気分の波をチェックしましょう。")
+        content.sound = .default
+        content.userInfo = ["action": "openMonthlyReport"]
+
+        // 1st of next month at 9:00 AM
+        let calendar = Calendar.current
+        var components = DateComponents()
+        components.day = 1
+        components.hour = 9
+        components.minute = 3 // Slight offset to avoid :00 congestion
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: monthlyReportID, content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+    }
+
     // MARK: - Helpers
 
     private static func cancelPending(identifier: String) {

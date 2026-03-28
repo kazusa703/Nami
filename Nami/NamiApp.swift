@@ -8,20 +8,47 @@
 import SwiftData
 import SwiftUI
 import UIKit
+import UserNotifications
 import WidgetKit
 
 // MARK: - 画面回転制御
 
 /// フルスクリーン表示時のみランドスケープを許可するためのAppDelegate
-class NamiAppDelegate: NSObject, UIApplicationDelegate {
+class NamiAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     /// trueの間はランドスケープを許可する（フルスクリーンチャート用）
     static var allowLandscape = false
+    /// Deep link flag: notification tapped to open monthly report
+    static var pendingMonthlyReport = false
+
+    func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
 
     func application(_: UIApplication, supportedInterfaceOrientationsFor _: UIWindow?) -> UIInterfaceOrientationMask {
         if NamiAppDelegate.allowLandscape {
             return [.portrait, .landscapeLeft, .landscapeRight]
         }
         return .portrait
+    }
+
+    /// Handle notification tap (app was killed or in background)
+    func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let userInfo = response.notification.request.content.userInfo
+        if userInfo["action"] as? String == "openMonthlyReport" {
+            NamiAppDelegate.pendingMonthlyReport = true
+        }
+    }
+
+    /// Show notification banner even when app is in foreground
+    nonisolated func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        willPresent _: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
     }
 }
 
@@ -131,6 +158,9 @@ struct NamiApp: App {
 
                     // Win-back通知のスケジュール（未記録7/14/30日後）
                     NotificationManager.scheduleWinbackIfNeeded()
+
+                    // Monthly report notification (schedule for 1st of next month)
+                    Self.scheduleMonthlyReportNotification(context: sharedModelContainer.mainContext)
 
                     // アプリ起動時にリマインダーが有効ならスケジュールを再設定
                     if reminderEnabled {
@@ -255,6 +285,35 @@ struct NamiApp: App {
             let avgScore = (totalLowScore / Double(consecutiveLowDays)) * 10 // rough scale to 10
             NotificationManager.scheduleNegativeAlert(averageScore: avgScore, days: consecutiveLowDays)
         }
+    }
+
+    // MARK: - Monthly Report Notification
+
+    private static func scheduleMonthlyReportNotification(context: ModelContext) {
+        let calendar = Calendar.current
+        // Count active days last month
+        guard let lastMonthInterval = calendar.dateInterval(of: .month, for: calendar.date(byAdding: .month, value: -1, to: .now) ?? .now) else { return }
+
+        let descriptor = FetchDescriptor<MoodEntry>(
+            predicate: #Predicate<MoodEntry> { $0.createdAt >= lastMonthInterval.start && $0.createdAt < lastMonthInterval.end }
+        )
+        let lastMonthEntries = (try? context.fetch(descriptor)) ?? []
+        guard !lastMonthEntries.isEmpty else { return }
+
+        var daySet = Set<Date>()
+        for e in lastMonthEntries {
+            daySet.insert(calendar.startOfDay(for: e.createdAt))
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.dateFormat = "M月"
+        let monthName = formatter.string(from: lastMonthInterval.start)
+
+        NotificationManager.scheduleMonthlyReportNotification(
+            lastMonthActiveDays: daySet.count,
+            monthName: monthName
+        )
     }
 
     // MARK: - データ移行
