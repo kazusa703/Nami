@@ -149,11 +149,9 @@ struct ContentView: View {
                 .onChange(of: hasCompletedOnboarding) { _, completed in
                     if completed, !hasShownPostOnboarding {
                         hasShownPostOnboarding = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            withAnimation {
-                                loadedTabs.insert(.graph)
-                                selectedTab = .graph
-                            }
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            loadedTabs.insert(.stats)
+                            selectedTab = .stats
                         }
                     }
                 }
