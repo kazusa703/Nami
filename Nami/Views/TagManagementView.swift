@@ -20,6 +20,9 @@ struct TagManagementView: View {
     @State private var showAddSheet = false
     /// カテゴリ追加シート表示フラグ
     @State private var showAddCategorySheet = false
+    /// Spotlight coach mark for "+" button
+    @AppStorage("hasSeenTagCreationSpotlight") private var hasSeenTagCreationSpotlight = false
+    @State private var showPlusSpotlight = false
     /// 並び替えモード
     @State private var isReordering = false
     /// 削除確認対象のタグ
@@ -117,6 +120,7 @@ struct TagManagementView: View {
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(.body, design: .rounded, weight: .medium))
+                            .spotlightTarget(id: "addTagButton")
                     }
 
                     Button {
@@ -158,6 +162,24 @@ struct TagManagementView: View {
         } message: {
             if let tag = tagToDelete {
                 Text(String(localized: "「\(tag.name)」を削除しますか？過去の記録からもこのタグが外れます。"))
+            }
+        }
+        .onAppear {
+            if !hasSeenTagCreationSpotlight {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    showPlusSpotlight = true
+                }
+            }
+        }
+        .spotlightOverlay(
+            id: "addTagButton",
+            isPresented: $showPlusSpotlight,
+            message: String(localized: "ここから新しいタグを追加できます"),
+            arrowDirection: .up
+        )
+        .onChange(of: showPlusSpotlight) { _, newValue in
+            if !newValue {
+                hasSeenTagCreationSpotlight = true
             }
         }
     }

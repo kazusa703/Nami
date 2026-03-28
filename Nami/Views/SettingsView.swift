@@ -55,6 +55,9 @@ struct SettingsView: View {
     @State private var showPermissionDeniedAlert = false
     /// 設定ヘルプシート
     @State private var showSettingsHelp = false
+    /// Spotlight coach mark for tag management
+    @AppStorage("hasSeenTagManagementSpotlight") private var hasSeenTagManagementSpotlight = false
+    @State private var showTagSpotlight = false
     // 購入成功アラート
 
     /// クイックタグ追加のテキスト
@@ -124,6 +127,25 @@ struct SettingsView: View {
             .sheet(isPresented: $showExportSheet) {
                 if let url = exportURL {
                     ShareSheet(items: [url])
+                }
+            }
+            .onAppear {
+                if !hasSeenTagManagementSpotlight {
+                    // Delay slightly so preference geometry is available
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        showTagSpotlight = true
+                    }
+                }
+            }
+            .spotlightOverlay(
+                id: "tagManagementRow",
+                isPresented: $showTagSpotlight,
+                message: String(localized: "あなただけのタグを作ってみましょう"),
+                arrowDirection: .up
+            )
+            .onChange(of: showTagSpotlight) { _, newValue in
+                if !newValue {
+                    hasSeenTagManagementSpotlight = true
                 }
             }
         }
@@ -373,6 +395,7 @@ struct SettingsView: View {
                     Spacer()
                 }
             }
+            .spotlightTarget(id: "tagManagementRow")
         } header: {
             Text(String(localized: "タグ"))
         }
