@@ -56,6 +56,10 @@ struct RecordingSheet: View {
     @State private var showOnboardingTip = false
     @State private var showAddTagSheet = false
     @State private var showCustomTagTooltip = false
+    /// Onboarding save ripple effect
+    @State private var showSaveRipple = false
+    @State private var rippleScale: CGFloat = 0.1
+    @State private var rippleOpacity: Double = 0.5
     /// Onboarding step: 0=tag tip, 1=memo tip, 2=done
     @State private var onboardingGuideStep = 0
 
@@ -104,12 +108,17 @@ struct RecordingSheet: View {
                                 .foregroundStyle(.secondary)
                         }
                         Button {
-                            onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags), nil)
+                            if isOnboarding {
+                                triggerSaveWithRipple()
+                            } else {
+                                onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags), nil)
+                            }
                         } label: {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 28))
                                 .foregroundStyle(themeColors.accent)
                         }
+                        .disabled(showSaveRipple)
                     }
                 }
             }
@@ -119,6 +128,28 @@ struct RecordingSheet: View {
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        // Onboarding save ripple overlay
+        .overlay {
+            if showSaveRipple {
+                ZStack {
+                    Circle()
+                        .fill(themeColors.accent.opacity(rippleOpacity))
+                        .scaleEffect(rippleScale)
+                        .frame(width: 80, height: 80)
+
+                    if rippleScale > 2 {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 32, weight: .semibold))
+                            .foregroundStyle(themeColors.accent)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .allowsHitTesting(false)
+                .ignoresSafeArea()
+            }
+        }
+        .animation(.easeOut(duration: 0.6), value: rippleScale)
+        .animation(.easeOut(duration: 0.6), value: rippleOpacity)
         // Full-screen onboarding overlay (covers everything including toolbar)
         .overlay {
             if isOnboarding && showOnboardingTip && onboardingGuideStep < 3 {
@@ -400,6 +431,37 @@ struct RecordingSheet: View {
                 // Auto-select the newly created tag
                 selectedTags.insert(name)
             }
+        }
+    }
+
+    // MARK: - Onboarding Save Ripple
+
+    /// Trigger a subtle ripple animation, then call onSave after the effect
+    private func triggerSaveWithRipple() {
+        // Soft haptic
+        let generator = UIImpactFeedbackGenerator(style: .soft)
+        generator.prepare()
+        generator.impactOccurred()
+
+        showSaveRipple = true
+        rippleScale = 0.1
+        rippleOpacity = 0.4
+
+        // Expand ripple
+        withAnimation(.easeOut(duration: 0.5)) {
+            rippleScale = 8
+            rippleOpacity = 0
+        }
+
+        // Checkmark appears briefly, then save
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                rippleScale = 2.5 // Trigger checkmark visibility
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+            onSave(memoText, capturedPhoto, recorder.recordedURL, Array(selectedTags), nil)
         }
     }
 
