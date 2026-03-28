@@ -55,6 +55,7 @@ struct RecordingSheet: View {
     @State private var showRecordingHelp = false
     @State private var showOnboardingTip = false
     @State private var showAddTagSheet = false
+    @State private var showCustomTagTooltip = false
     /// Onboarding step: 0=tag tip, 1=memo tip, 2=done
     @State private var onboardingGuideStep = 0
 
@@ -351,13 +352,36 @@ struct RecordingSheet: View {
     // MARK: - タグタブ
 
     private var tagsTab: some View {
-        TagSelectionView(
-            selectedTags: $selectedTags,
-            themeColors: themeColors,
-            onCreateTag: { _ in
-                showAddTagSheet = true
+        ZStack(alignment: .bottom) {
+            TagSelectionView(
+                selectedTags: $selectedTags,
+                themeColors: themeColors,
+                onCreateTag: { _ in
+                    showAddTagSheet = true
+                }
+            )
+
+            // Onboarding tooltip: custom tag preview hint
+            if isOnboarding && showCustomTagTooltip {
+                TooltipView(
+                    text: String(localized: "あとで自分だけのタグも自由に作れます ✨"),
+                    accentColor: themeColors.accent,
+                    tailEdge: .bottom
+                )
+                .allowsHitTesting(false)
+                .transition(.opacity.combined(with: .scale(scale: 0.85)))
+                .padding(.bottom, 12)
             }
-        )
+        }
+        .onAppear {
+            if isOnboarding {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                        showCustomTagTooltip = true
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showAddTagSheet) {
             AddTagSheet(themeColors: themeColors) { name, category, icon in
                 // Save the new tag to SwiftData
