@@ -37,12 +37,10 @@ class PremiumManager {
 
     static let monthlyProductID = "com.imai.Nami.premium.monthly"
     static let yearlyProductID = "com.imai.Nami.premium.yearly"
-    static let lifetimeProductID = "com.imai.Nami.premium.lifetime"
-    /// Legacy ID (kept for backward compatibility with existing purchases)
-    static let legacyLifetimeProductID = "com.imai.Nami.removeAds"
+    static let lifetimeProductID = "com.imai.Nami.removeAds" // Approved as-is in App Store Connect
 
     static let allProductIDs: Set<String> = [
-        monthlyProductID, yearlyProductID, lifetimeProductID, legacyLifetimeProductID,
+        monthlyProductID, yearlyProductID, lifetimeProductID,
     ]
 
     // MARK: - Properties
@@ -108,7 +106,7 @@ class PremiumManager {
                         monthlyProduct = p
                     case Self.yearlyProductID:
                         yearlyProduct = p
-                    case Self.lifetimeProductID, Self.legacyLifetimeProductID:
+                    case Self.lifetimeProductID:
                         lifetimeProduct = p
                     default:
                         break
@@ -236,7 +234,7 @@ class PremiumManager {
             guard case let .verified(transaction) = result else { continue }
 
             switch transaction.productID {
-            case Self.lifetimeProductID, Self.legacyLifetimeProductID:
+            case Self.lifetimeProductID:
                 // Non-consumable: always valid if present in entitlements
                 if transaction.revocationDate == nil {
                     foundPlan = .lifetime
