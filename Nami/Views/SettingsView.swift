@@ -18,6 +18,7 @@ struct SettingsView: View {
     @Environment(\.premiumManager) private var premiumManager
     @Environment(\.healthKitManager) private var healthKitManager
     @Environment(\.weatherManager) private var weatherManager
+    @Environment(\.languageManager) private var languageManager
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MoodEntry.createdAt, order: .reverse) private var entries: [MoodEntry]
 
@@ -83,6 +84,9 @@ struct SettingsView: View {
 
                     // テーマ選択セクション
                     themeSection(colors: colors)
+
+                    // 言語セクション
+                    languageSection(colors: colors)
 
                     // 記録設定セクション
                     recordingSettingsSection(colors: colors)
@@ -369,6 +373,43 @@ struct SettingsView: View {
     /// 現在の入力方式
     private var scoreInputType: ScoreInputType {
         ScoreInputType(rawValue: scoreInputTypeRaw) ?? .buttons
+    }
+
+    // MARK: - 言語セクション
+
+    private func languageSection(colors: ThemeColors) -> some View {
+        Section {
+            ForEach(AppLanguage.allCases) { language in
+                let isSelected = languageManager.currentLanguage == language
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        languageManager.currentLanguage = language
+                    }
+                    HapticManager.lightFeedback()
+                } label: {
+                    HStack(spacing: 12) {
+                        Text(language.flag)
+                            .font(.title3)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(language.nativeName)
+                                .font(.system(.body, design: .rounded))
+                                .foregroundStyle(.primary)
+                        }
+
+                        Spacer()
+
+                        if isSelected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(colors.accent)
+                        }
+                    }
+                }
+            }
+        } header: {
+            Text(String(localized: "言語"))
+        }
     }
 
     // MARK: - タグセクション

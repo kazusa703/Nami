@@ -9,10 +9,11 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// Onboarding: 4 steps focused on value-first experience
+/// Onboarding: 5 steps — Language → Welcome → Theme → First Record → Notification
 struct OnboardingView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.themeManager) private var themeManager
+    @Environment(\.languageManager) private var languageManager
     @Environment(\.modelContext) private var modelContext
 
     @AppStorage(AppConstants.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
@@ -32,7 +33,7 @@ struct OnboardingView: View {
     /// Whether first record has been saved (to avoid double-save)
     @State private var firstRecordSaved = false
 
-    private let totalSteps = 4
+    private let totalSteps = 5
 
     var body: some View {
         let colors = themeManager.colors
@@ -62,10 +63,11 @@ struct OnboardingView: View {
                 }
 
                 TabView(selection: $currentStep) {
-                    welcomeStep(colors: colors).tag(0)
-                    themeStep(colors: colors).tag(1)
-                    firstRecordStep(colors: colors).tag(2)
-                    notificationStep(colors: colors).tag(3)
+                    languageStep(colors: colors).tag(0)
+                    welcomeStep(colors: colors).tag(1)
+                    themeStep(colors: colors).tag(2)
+                    firstRecordStep(colors: colors).tag(3)
+                    notificationStep(colors: colors).tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
@@ -100,8 +102,8 @@ struct OnboardingView: View {
                 }
             }
 
-            if currentStep == 2 {
-                // Step 3 (first record): only back button, no next
+            if currentStep == 3 {
+                // Step 4 (first record): only back button, no next
                 // User taps a score → RecordingSheet appears → then auto-advances
                 HStack(spacing: 12) {
                     Button {
@@ -177,6 +179,72 @@ struct OnboardingView: View {
         }
         .padding(.bottom, 32)
         .padding(.top, 8)
+    }
+
+    // MARK: - Step 0: Language Selection
+
+    private func languageStep(colors: ThemeColors) -> some View {
+        VStack(spacing: 32) {
+            Spacer()
+
+            Image(systemName: "globe")
+                .font(.system(size: 64))
+                .foregroundStyle(colors.accent.gradient)
+
+            VStack(spacing: 8) {
+                Text("Choose Language")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(colors.accent)
+
+                Text("言語を選んでください")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 12) {
+                ForEach(AppLanguage.allCases.filter { $0 != .system }) { language in
+                    let isSelected = languageManager.currentLanguage == language ||
+                        (languageManager.currentLanguage == .system && Locale.current.language.languageCode?.identifier == language.rawValue)
+
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            languageManager.currentLanguage = language
+                        }
+                        HapticManager.lightFeedback()
+                    } label: {
+                        HStack(spacing: 14) {
+                            Text(language.flag)
+                                .font(.system(size: 28))
+
+                            Text(language.nativeName)
+                                .font(.system(.title3, design: .rounded, weight: isSelected ? .bold : .regular))
+                                .foregroundStyle(.primary)
+
+                            Spacer()
+
+                            if isSelected {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(colors.accent)
+                                    .font(.title3)
+                                    .transition(.scale.combined(with: .opacity))
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.ultraThinMaterial)
+                                .overlay(RoundedRectangle(cornerRadius: 16)
+                                    .stroke(isSelected ? colors.accent.opacity(0.5) : .clear, lineWidth: 1.5))
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+
+            Spacer()
+            Spacer()
+        }
     }
 
     // MARK: - Step 1: Welcome (Value Proposition)
