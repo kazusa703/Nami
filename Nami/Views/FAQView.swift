@@ -51,10 +51,7 @@ enum FAQContent {
             question: String(localized: "データのエクスポート（書き出し）方法は？"),
             answer: String(localized: "設定タブ → 「データのエクスポート」からCSVファイルとして全記録を書き出せます。日時、スコア、メモ、タグ、天気などが含まれます。他のアプリやスプレッドシートで分析する場合に便利です。")
         ),
-        FAQItem(
-            question: String(localized: "プレミアムの購入を復元するには？"),
-            answer: String(localized: "設定タブの「プレミアム」セクション、またはPROタブの画面下部にある「購入を復元」ボタンをタップしてください。同じApple IDであれば、デバイスを変更しても購入が復元されます。")
-        ),
+        // Purchase restore FAQ moved to ProView's dedicated PRO FAQ section
     ]
 }
 

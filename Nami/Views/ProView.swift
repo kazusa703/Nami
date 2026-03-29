@@ -16,6 +16,7 @@ struct ProView: View {
     @State private var selectedPlan: PremiumPlan = .yearly
     @State private var showProHelp = false
     @State private var showSuccessAnimation = false
+    @State private var expandedFAQ: String?
 
     var body: some View {
         let colors = themeManager.colors
@@ -43,6 +44,9 @@ struct ProView: View {
                         // Restore + Error
                         restoreSection()
                     }
+
+                    // PRO FAQ
+                    proFAQSection()
 
                     // Help link
                     Button { showProHelp = true } label: {
@@ -350,6 +354,94 @@ struct ProView: View {
                     .foregroundStyle(.red)
                     .multilineTextAlignment(.center)
             }
+        }
+    }
+
+    // MARK: - PRO FAQ
+
+    private func proFAQSection() -> some View {
+        let faqs: [(id: String, q: String, a: String)] = [
+            (
+                "diff",
+                String(localized: "無料版との違いは何ですか？"),
+                String(localized: "PRO版では、無制限の過去データ閲覧、高度なAIインサイト（逆インサイト・タグ連鎖・回復トリガー等）、無制限のカスタムタグ作成、HealthKit詳細分析、月間レポートなどすべての機能が解放されます。")
+            ),
+            (
+                "cancel",
+                String(localized: "解約方法は？自動更新されますか？"),
+                String(localized: "年額サブスクリプションは期間終了の24時間前までに解除しない限り自動更新されます。解約はiPhoneの「設定」→ [ユーザー名] →「サブスクリプション」から行えます。買い切りプランは一度の購入で永久に利用できます。")
+            ),
+            (
+                "restore",
+                String(localized: "機種変更時の購入の復元方法は？"),
+                String(localized: "この画面にある「購入を復元」ボタンをタップするだけで、同じApple IDであれば追加費用なしで以前の購入状態を引き継げます。")
+            ),
+        ]
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "よくある質問"))
+                .font(.system(.headline, design: .rounded))
+                .foregroundStyle(.primary)
+
+            VStack(spacing: 0) {
+                ForEach(faqs, id: \.id) { faq in
+                    let isExpanded = expandedFAQ == faq.id
+
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            expandedFAQ = isExpanded ? nil : faq.id
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: "questionmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.orange.opacity(0.7))
+                                    .padding(.top, 2)
+
+                                Text(faq.q)
+                                    .font(.system(.subheadline, design: .rounded, weight: .medium))
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                Spacer()
+
+                                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.top, 4)
+                            }
+                            .padding(.vertical, 12)
+
+                            if isExpanded {
+                                Text(faq.a)
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.leading, 24)
+                                    .padding(.bottom, 12)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if faq.id != faqs.last?.id {
+                        Divider().padding(.horizontal, 14)
+                    }
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(.orange.opacity(0.1), lineWidth: 1)
+                    )
+            )
         }
     }
 
