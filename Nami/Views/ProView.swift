@@ -2,7 +2,7 @@
 //  ProView.swift
 //  Nami
 //
-//  Premium paywall — 3 highlights + plan selection + success animation
+//  Premium paywall — 3 highlights + 3 plans + trial badge + success animation
 //
 
 import StoreKit
@@ -24,18 +24,17 @@ struct ProView: View {
         ZStack {
             // Main content
             ScrollView {
-                VStack(spacing: 32) {
+                VStack(spacing: 28) {
                     // Header with wave animation
                     headerSection(colors: colors)
 
                     if premiumManager.isPremium {
-                        // Already premium — show confirmation
                         premiumActiveSection(colors: colors)
                     } else {
                         // 3 Highlights
                         highlightsSection(colors: colors)
 
-                        // Plan selection
+                        // 3 Plan selection
                         planSelectionSection(colors: colors)
 
                         // Purchase button
@@ -79,7 +78,6 @@ struct ProView: View {
                     showSuccessAnimation = true
                 }
                 HapticManager.successFeedback()
-                // Auto-dismiss after 2.5 seconds
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                     withAnimation {
                         showSuccessAnimation = false
@@ -201,23 +199,37 @@ struct ProView: View {
         )
     }
 
-    // MARK: - Plan Selection
+    // MARK: - 3 Plan Selection
 
     private func planSelectionSection(colors: ThemeColors) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
+            // Yearly (recommended, with trial)
             planCard(
                 plan: .yearly,
                 product: premiumManager.yearlyProduct,
-                badge: String(localized: "おすすめ"),
+                badge: String(localized: "一番人気"),
                 sublabel: String(localized: "/年"),
+                trialText: String(localized: "14日間無料でお試し"),
                 colors: colors
             )
 
+            // Monthly
+            planCard(
+                plan: .monthly,
+                product: premiumManager.monthlyProduct,
+                badge: nil,
+                sublabel: String(localized: "/月"),
+                trialText: nil,
+                colors: colors
+            )
+
+            // Lifetime
             planCard(
                 plan: .lifetime,
                 product: premiumManager.lifetimeProduct,
                 badge: String(localized: "一度きり"),
                 sublabel: String(localized: "買い切り"),
+                trialText: nil,
                 colors: colors
             )
         }
@@ -229,9 +241,11 @@ struct ProView: View {
         product: Product?,
         badge: String?,
         sublabel: String,
+        trialText: String?,
         colors: ThemeColors
     ) -> some View {
         let isSelected = selectedPlan == plan
+        let isRecommended = plan == .yearly
 
         Button {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -239,38 +253,59 @@ struct ProView: View {
             }
             HapticManager.lightFeedback()
         } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Text(plan.displayName)
-                            .font(.system(.headline, design: .rounded))
+            VStack(spacing: 0) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(plan.displayName)
+                                .font(.system(.headline, design: .rounded))
 
-                        if let badge {
-                            Text(badge)
-                                .font(.system(.caption2, design: .rounded, weight: .bold))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Capsule().fill(colors.accent))
-                                .foregroundStyle(.white)
+                            if let badge {
+                                Text(badge)
+                                    .font(.system(.caption2, design: .rounded, weight: .bold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(
+                                        Capsule()
+                                            .fill(isRecommended
+                                                ? LinearGradient(colors: [.orange, .pink], startPoint: .leading, endPoint: .trailing)
+                                                : LinearGradient(colors: [colors.accent], startPoint: .leading, endPoint: .trailing))
+                                    )
+                                    .foregroundStyle(.white)
+                            }
+                        }
+
+                        if let product {
+                            Text(product.displayPrice + sublabel)
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("---")
+                                .font(.system(.subheadline, design: .rounded))
+                                .foregroundStyle(.secondary)
                         }
                     }
 
-                    if let product {
-                        Text(product.displayPrice + sublabel)
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("---")
-                            .font(.system(.subheadline, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    }
+                    Spacer()
+
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 22))
+                        .foregroundStyle(isSelected ? colors.accent : .secondary)
                 }
 
-                Spacer()
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? colors.accent : .secondary)
+                // Trial text for yearly
+                if let trialText, isSelected {
+                    HStack(spacing: 6) {
+                        Image(systemName: "gift.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.orange)
+                        Text(trialText)
+                            .font(.system(.caption, design: .rounded, weight: .semibold))
+                            .foregroundStyle(.orange)
+                    }
+                    .padding(.top, 8)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
             }
             .padding(16)
             .background(
@@ -287,6 +322,7 @@ struct ProView: View {
         }
         .buttonStyle(.plain)
         .disabled(product == nil)
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 
     // MARK: - Purchase Button
@@ -295,8 +331,17 @@ struct ProView: View {
     private func purchaseButton(colors _: ThemeColors) -> some View {
         let selectedProduct: Product? = {
             switch selectedPlan {
+            case .monthly: return premiumManager.monthlyProduct
             case .yearly: return premiumManager.yearlyProduct
             case .lifetime: return premiumManager.lifetimeProduct
+            }
+        }()
+
+        let buttonText: String = {
+            if selectedPlan == .yearly {
+                return String(localized: "無料トライアルを開始")
+            } else {
+                return String(localized: "プランを選んで購入")
             }
         }()
 
@@ -309,7 +354,7 @@ struct ProView: View {
                     ProgressView()
                         .tint(.white)
                 } else {
-                    Text(String(localized: "プランを選んで購入"))
+                    Text(buttonText)
                         .font(.system(.headline, design: .rounded, weight: .bold))
                 }
             }
@@ -367,9 +412,14 @@ struct ProView: View {
                 String(localized: "PRO版では、無制限の過去データ閲覧、高度なAIインサイト（逆インサイト・タグ連鎖・回復トリガー等）、無制限のカスタムタグ作成、HealthKit詳細分析、月間レポートなどすべての機能が解放されます。")
             ),
             (
+                "trial",
+                String(localized: "無料トライアルとは？"),
+                String(localized: "年額プランを選択すると、最初の14日間は無料でお試しいただけます。トライアル期間中にいつでもキャンセルすれば、料金は一切かかりません。")
+            ),
+            (
                 "cancel",
                 String(localized: "解約方法は？自動更新されますか？"),
-                String(localized: "年額サブスクリプションは期間終了の24時間前までに解除しない限り自動更新されます。解約はiPhoneの「設定」→ [ユーザー名] →「サブスクリプション」から行えます。買い切りプランは一度の購入で永久に利用できます。")
+                String(localized: "サブスクリプションは期間終了の24時間前までに解除しない限り自動更新されます。解約はiPhoneの「設定」→ [ユーザー名] →「サブスクリプション」から行えます。買い切りプランは一度の購入で永久に利用できます。")
             ),
             (
                 "restore",
@@ -471,13 +521,11 @@ struct ProView: View {
 
     private func successOverlay(colors: ThemeColors) -> some View {
         ZStack {
-            // Frosted glass background
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
-                // Animated checkmark
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 80))
                     .foregroundStyle(colors.accent)

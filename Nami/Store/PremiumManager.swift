@@ -3,7 +3,7 @@
 //  Nami
 //
 //  Premium state management with 3 plan support
-//  StoreKit 2: monthly subscription, yearly subscription, lifetime purchase
+//  StoreKit 2: monthly subscription, yearly subscription (14-day trial), lifetime purchase
 //
 
 import StoreKit
@@ -13,11 +13,14 @@ import SwiftUI
 
 /// Represents the active premium plan type
 enum PremiumPlan: String {
+    case monthly
     case yearly
     case lifetime
 
     var displayName: String {
         switch self {
+        case .monthly:
+            return String(localized: "月額プラン")
         case .yearly:
             return String(localized: "年額プラン")
         case .lifetime:
@@ -32,9 +35,15 @@ enum PremiumPlan: String {
 class PremiumManager {
     // MARK: - Product IDs
 
+    static let monthlyProductID = "com.imai.Nami.premium.monthly"
     static let yearlyProductID = "com.imai.Nami.premium.yearly"
-    static let lifetimeProductID = "com.imai.Nami.removeAds"
-    static let allProductIDs: Set<String> = [yearlyProductID, lifetimeProductID]
+    static let lifetimeProductID = "com.imai.Nami.premium.lifetime"
+    /// Legacy ID (kept for backward compatibility with existing purchases)
+    static let legacyLifetimeProductID = "com.imai.Nami.removeAds"
+
+    static let allProductIDs: Set<String> = [
+        monthlyProductID, yearlyProductID, lifetimeProductID, legacyLifetimeProductID,
+    ]
 
     // MARK: - Properties
 
@@ -44,6 +53,7 @@ class PremiumManager {
     var activePlan: PremiumPlan?
 
     /// Fetched products
+    var monthlyProduct: Product?
     var yearlyProduct: Product?
     var lifetimeProduct: Product?
 
@@ -61,7 +71,7 @@ class PremiumManager {
     /// Free user custom tag limit
     let freeCustomTagLimit = 10
 
-    /// Legacy single product access (for backward compatibility with existing views)
+    /// Legacy single product access (for backward compatibility)
     var product: Product? {
         lifetimeProduct
     }
@@ -85,7 +95,7 @@ class PremiumManager {
 
     // MARK: - Fetch Products
 
-    /// Fetch all 3 product infos from App Store Connect (retry up to 3 times)
+    /// Fetch all product infos from App Store Connect (retry up to 3 times)
     @MainActor
     func fetchProducts() async {
         productFetchFailed = false
@@ -94,15 +104,17 @@ class PremiumManager {
                 let products = try await Product.products(for: Self.allProductIDs)
                 for p in products {
                     switch p.id {
+                    case Self.monthlyProductID:
+                        monthlyProduct = p
                     case Self.yearlyProductID:
                         yearlyProduct = p
-                    case Self.lifetimeProductID:
+                    case Self.lifetimeProductID, Self.legacyLifetimeProductID:
                         lifetimeProduct = p
                     default:
                         break
                     }
                 }
-                let anyFetched = yearlyProduct != nil || lifetimeProduct != nil
+                let anyFetched = monthlyProduct != nil || yearlyProduct != nil || lifetimeProduct != nil
                 productFetchFailed = !anyFetched
                 return
             } catch {
@@ -224,7 +236,7 @@ class PremiumManager {
             guard case let .verified(transaction) = result else { continue }
 
             switch transaction.productID {
-            case Self.lifetimeProductID:
+            case Self.lifetimeProductID, Self.legacyLifetimeProductID:
                 // Non-consumable: always valid if present in entitlements
                 if transaction.revocationDate == nil {
                     foundPlan = .lifetime
@@ -235,9 +247,18 @@ class PremiumManager {
                    let expiration = transaction.expirationDate,
                    expiration > Date.now
                 {
-                    // Prefer lifetime, then yearly over monthly
                     if foundPlan != .lifetime {
                         foundPlan = .yearly
+                    }
+                }
+
+            case Self.monthlyProductID:
+                if transaction.revocationDate == nil,
+                   let expiration = transaction.expirationDate,
+                   expiration > Date.now
+                {
+                    if foundPlan == nil {
+                        foundPlan = .monthly
                     }
                 }
 
