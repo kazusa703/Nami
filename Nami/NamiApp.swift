@@ -148,6 +148,7 @@ struct NamiApp: App {
                     DefaultTags.seedV2IfNeeded(context: sharedModelContainer.mainContext)
                     DefaultTags.seedV3IfNeeded(context: sharedModelContainer.mainContext)
                     DefaultTags.seedV4IfNeeded(context: sharedModelContainer.mainContext)
+                    DefaultTags.seedV5IfNeeded(context: sharedModelContainer.mainContext)
 
                     // Import pending widget records from UserDefaults queue
                     Self.importPendingWidgetRecords(context: sharedModelContainer.mainContext)

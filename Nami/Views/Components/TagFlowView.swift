@@ -51,7 +51,8 @@ struct TagFlowView: View {
                 // Draw edges first (behind nodes)
                 ForEach(filteredTransitions, id: \.id) { t in
                     if let fromIdx = tags.firstIndex(of: t.fromTag),
-                       let toIdx = tags.firstIndex(of: t.toTag) {
+                       let toIdx = tags.firstIndex(of: t.toTag)
+                    {
                         let from = nodePosition(index: fromIdx, total: total, in: size)
                         let to = nodePosition(index: toIdx, total: total, in: size)
                         arrowView(
@@ -93,7 +94,7 @@ struct TagFlowView: View {
 
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(tag)
+                Text(TagDisplayHelper.displayName(for: tag))
                     .font(.system(.subheadline, design: .rounded, weight: .bold))
                 Spacer()
                 Button {
@@ -155,7 +156,7 @@ struct TagFlowView: View {
     private func nodeView(tag: String, isSelected: Bool) -> some View {
         let score = averageScoreChange(for: tag)
         return VStack(spacing: 2) {
-            Text(tag)
+            Text(TagDisplayHelper.displayName(for: tag))
                 .font(.system(.caption, design: .rounded, weight: .semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -203,7 +204,7 @@ struct TagFlowView: View {
 
         // Arrowhead points
         let arrowLen: CGFloat = 8
-        let arrowAngle: CGFloat = CGFloat.pi / 6
+        let arrowAngle = CGFloat.pi / 6
         // Tangent at endpoint of quadratic bezier: derivative at t=1 = 2*(P2-C)
         let tangentX = endPt.x - control.x
         let tangentY = endPt.y - control.y
@@ -298,7 +299,7 @@ struct TagFlowView: View {
         guard let selected = selectedTag else { return false }
         return transitions.contains { t in
             (t.fromTag == selected && t.toTag == tag) ||
-            (t.toTag == selected && t.fromTag == tag)
+                (t.toTag == selected && t.fromTag == tag)
         }
     }
 }
@@ -307,10 +308,23 @@ struct TagFlowView: View {
 
 private struct IdentifiableTagChain: Identifiable {
     let chain: TagChain
-    var id: String { "\(chain.fromTag)|\(chain.toTag)" }
+    var id: String {
+        "\(chain.fromTag)|\(chain.toTag)"
+    }
 
-    var fromTag: String { chain.fromTag }
-    var toTag: String { chain.toTag }
-    var occurrences: Int { chain.occurrences }
-    var avgScoreChange: Double { chain.avgScoreChange }
+    var fromTag: String {
+        chain.fromTag
+    }
+
+    var toTag: String {
+        chain.toTag
+    }
+
+    var occurrences: Int {
+        chain.occurrences
+    }
+
+    var avgScoreChange: Double {
+        chain.avgScoreChange
+    }
 }

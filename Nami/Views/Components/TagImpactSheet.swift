@@ -6,17 +6,17 @@
 //  特定タグがある日 vs ない日のスコアを比較する
 //
 
-import SwiftUI
-import SwiftData
 import Charts
+import SwiftData
+import SwiftUI
 
 /// 分布チャート用のデータ行
 struct DistributionBar: Identifiable {
     let id = UUID()
-    let bucket: String   // スコアラベル（例: "7" or "1-5"）
+    let bucket: String // スコアラベル（例: "7" or "1-5"）
     let count: Int
-    let group: String    // "タグあり" or "タグなし"
-    let sortKey: Int     // ソート用
+    let group: String // "タグあり" or "タグなし"
+    let sortKey: Int // ソート用
 }
 
 /// タグの影響分析シート
@@ -109,7 +109,7 @@ struct TagImpactSheet: View {
                         HapticManager.lightFeedback()
                     } label: {
                         HStack(spacing: 4) {
-                            Text(item.tag)
+                            Text(TagDisplayHelper.displayName(for: item.tag))
                                 .font(.system(.subheadline, design: .rounded, weight: isSelected ? .semibold : .regular))
                             Text("\(item.count)")
                                 .font(.system(.caption2, design: .rounded))
@@ -122,8 +122,8 @@ struct TagImpactSheet: View {
                                 isSelected
                                     ? themeColors.accent
                                     : isDisabled
-                                        ? Color(.systemGray5)
-                                        : Color(.systemGray6)
+                                    ? Color(.systemGray5)
+                                    : Color(.systemGray6)
                             )
                         )
                         .foregroundStyle(
@@ -150,10 +150,10 @@ struct TagImpactSheet: View {
 
     // MARK: - 平均スコア比較カード
 
-    @ViewBuilder
     private func comparisonCard(impact: (withAvg: Double, withoutAvg: Double, delta: Double,
-                                        withDays: Int, withoutDays: Int,
-                                        withDist: [Int: Int], withoutDist: [Int: Int])) -> some View {
+                                         withDays: Int, withoutDays: Int,
+                                         withDist: [Int: Int], withoutDist: [Int: Int])) -> some View
+    {
         VStack(spacing: 16) {
             Text("「\(selectedTag)」の日 vs それ以外の日")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
@@ -208,8 +208,9 @@ struct TagImpactSheet: View {
 
     @ViewBuilder
     private func distributionChart(impact: (withAvg: Double, withoutAvg: Double, delta: Double,
-                                           withDays: Int, withoutDays: Int,
-                                           withDist: [Int: Int], withoutDist: [Int: Int])) -> some View {
+                                            withDays: Int, withoutDays: Int,
+                                            withDist: [Int: Int], withoutDist: [Int: Int])) -> some View
+    {
         let bars = buildDistributionBars(withDist: impact.withDist, withoutDist: impact.withoutDist)
 
         if !bars.isEmpty {
@@ -252,7 +253,7 @@ struct TagImpactSheet: View {
         }
         .chartForegroundStyleScale([
             "タグあり": accentColor,
-            "タグなし": grayColor
+            "タグなし": grayColor,
         ])
         .chartLegend(.hidden)
         .chartXAxis(.hidden)
@@ -266,7 +267,6 @@ struct TagImpactSheet: View {
     }
 
     /// 凡例アイテム
-    @ViewBuilder
     private func legendItem(color: Color, label: String) -> some View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 3)
@@ -296,28 +296,28 @@ struct TagImpactSheet: View {
     private func scoreBuckets() -> [(label: String, range: ClosedRange<Int>, sortKey: Int)] {
         let totalRange = currentMaxScore - currentMinScore + 1
         if totalRange <= 10 {
-            return Array(currentMinScore...currentMaxScore).map { ("\($0)", $0...$0, $0) }
+            return Array(currentMinScore ... currentMaxScore).map { ("\($0)", $0 ... $0, $0) }
         } else if totalRange <= 30 {
             let step = 5
             return stride(from: currentMinScore, through: currentMaxScore, by: step).map { start in
                 let end = min(start + step - 1, currentMaxScore)
-                return ("\(start)-\(end)", start...end, start)
+                return ("\(start)-\(end)", start ... end, start)
             }
         } else {
             let step = 10
             return stride(from: currentMinScore, through: currentMaxScore, by: step).map { start in
                 let end = min(start + step - 1, currentMaxScore)
-                return ("\(start)-\(end)", start...end, start)
+                return ("\(start)-\(end)", start ... end, start)
             }
         }
     }
 
     // MARK: - サンプルサイズ情報
 
-    @ViewBuilder
     private func sampleInfo(impact: (withAvg: Double, withoutAvg: Double, delta: Double,
                                      withDays: Int, withoutDays: Int,
-                                     withDist: [Int: Int], withoutDist: [Int: Int])) -> some View {
+                                     withDist: [Int: Int], withoutDist: [Int: Int])) -> some View
+    {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "info.circle.fill")
                 .font(.caption)

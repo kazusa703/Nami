@@ -343,7 +343,7 @@ struct MonthlyReportView: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 20, alignment: .trailing)
 
-                        Text(item.tag)
+                        Text(TagDisplayHelper.displayName(for: item.tag))
                             .font(.system(size: isTop3 ? 14 : 11, weight: isTop3 ? .bold : .medium, design: .rounded))
                             .frame(width: 100, alignment: .leading)
                             .lineLimit(1)
@@ -515,7 +515,7 @@ struct ShareableReportImage: View {
             if !topTags.isEmpty {
                 HStack(spacing: 8) {
                     ForEach(topTags.prefix(5), id: \.tag) { item in
-                        Text(item.tag)
+                        Text(TagDisplayHelper.displayName(for: item.tag))
                             .font(.system(.caption2, design: .rounded, weight: .medium))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 10)

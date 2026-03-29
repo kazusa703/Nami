@@ -193,7 +193,7 @@ struct TagManagementView: View {
             }
         } message: {
             if let tag = tagToDelete {
-                Text(String(localized: "「\(tag.name)」を削除しますか？過去の記録からもこのタグが外れます。"))
+                Text(String(localized: "「\(tag.displayName)」を削除しますか？過去の記録からもこのタグが外れます。"))
             }
         }
         .onAppear {
@@ -224,7 +224,7 @@ struct TagManagementView: View {
                 .foregroundStyle(colors.accent)
                 .frame(width: 28)
 
-            Text(tag.name)
+            Text(tag.displayName)
                 .font(.system(.body, design: .rounded))
 
             Spacer()
@@ -479,7 +479,7 @@ struct AddTagSheet: View {
                                         .foregroundStyle(.tertiary)
                                     HStack(spacing: 6) {
                                         ForEach(Array(suggestions), id: \.id) { tag in
-                                            Text(tag.name)
+                                            Text(tag.displayName)
                                                 .font(.system(.caption, design: .rounded))
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 3)

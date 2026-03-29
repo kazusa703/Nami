@@ -96,7 +96,7 @@ struct TagSelectionView: View {
             HStack(spacing: 4) {
                 Image(systemName: tag.icon)
                     .font(.system(size: 11))
-                Text(tag.name)
+                Text(tag.displayName)
                     .font(.system(.caption, design: .rounded, weight: .medium))
             }
             .padding(.horizontal, 12)
@@ -108,7 +108,7 @@ struct TagSelectionView: View {
             .foregroundStyle(isSelected ? .white : .primary)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(tag.name)タグ\(isSelected ? "（選択中）" : "")")
+        .accessibilityLabel("\(tag.displayName)タグ\(isSelected ? "（選択中）" : "")")
     }
 }
 

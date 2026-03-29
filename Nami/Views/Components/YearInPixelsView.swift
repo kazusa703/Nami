@@ -230,7 +230,7 @@ struct YearInPixelsView: View {
                 // 日付ヘッダー行
                 HStack(spacing: gap) {
                     Color.clear.frame(width: monthLabelWidth, height: 12)
-                    ForEach(1...31, id: \.self) { day in
+                    ForEach(1 ... 31, id: \.self) { day in
                         if headerDays.contains(day) {
                             Text("\(day)")
                                 .font(.system(size: 7, weight: .medium, design: .monospaced))
@@ -243,7 +243,7 @@ struct YearInPixelsView: View {
                 }
 
                 // 月行
-                ForEach(1...12, id: \.self) { month in
+                ForEach(1 ... 12, id: \.self) { month in
                     HStack(spacing: gap) {
                         // 月ラベル
                         Text(monthLabels[month - 1])
@@ -253,7 +253,7 @@ struct YearInPixelsView: View {
 
                         // 日セル
                         let days = daysInMonth(month)
-                        ForEach(1...31, id: \.self) { day in
+                        ForEach(1 ... 31, id: \.self) { day in
                             if day <= days {
                                 let date = calendar.date(from: DateComponents(year: displayYear, month: month, day: day))
                                 cellView(for: date, cellSize: cellSize)
@@ -317,7 +317,7 @@ struct YearInPixelsView: View {
 
     /// Cell content: single color for 0-1 entries, horizontal sub-pixels for 2+ entries
     @ViewBuilder
-    private func cellContent(data: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?, entryScores: [Int])?, isFuture: Bool, cellSize: CGFloat) -> some View {
+    private func cellContent(data: (score: Double, hasEntry: Bool, entryCount: Int, memo: String?, entryScores: [Int])?, isFuture: Bool, cellSize _: CGFloat) -> some View {
         if let data, data.hasEntry, data.entryCount >= 2 {
             // Sub-pixel split: up to 3 sub-cells sorted by time
             let scores = Array(data.entryScores.prefix(3))
@@ -360,10 +360,10 @@ struct YearInPixelsView: View {
 
             // スコア範囲に応じて表示するブロック数を調整（最大5個）
             let blockCount = min(5, max(1, currentMaxScore - currentMinScore + 1))
-            ForEach(0..<blockCount, id: \.self) { index in
+            ForEach(0 ..< blockCount, id: \.self) { index in
                 let fraction = blockCount > 1 ? Double(index) / Double(blockCount - 1) : 0.5
                 let score = Int(round(fraction * Double(currentMaxScore - currentMinScore))) + currentMinScore
-                
+
                 Rectangle()
                     .fill(themeColors.color(for: score, minScore: currentMinScore, maxScore: currentMaxScore))
                     .frame(width: 12, height: 12)
@@ -475,7 +475,7 @@ struct YearInPixelsView: View {
                             if !allTags.isEmpty {
                                 HStack(spacing: 3) {
                                     ForEach(allTags.prefix(4), id: \.self) { tag in
-                                        Text(tag)
+                                        Text(TagDisplayHelper.displayName(for: tag))
                                             .font(.system(size: 9, weight: .medium, design: .rounded))
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
@@ -517,9 +517,9 @@ struct YearInPixelsView: View {
 }
 
 #Preview {
-    let sampleEntries = (0..<60).map { i in
+    let sampleEntries = (0 ..< 60).map { i in
         MoodEntry(
-            score: Int.random(in: 2...9),
+            score: Int.random(in: 2 ... 9),
             memo: i % 5 == 0 ? "テスト" : nil,
             tags: i % 3 == 0 ? ["嬉しい", "仕事"] : [],
             createdAt: Calendar.current.date(byAdding: .day, value: -i, to: .now)!

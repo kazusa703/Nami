@@ -1264,7 +1264,7 @@ struct GraphView: View {
                 if !entry.tags.isEmpty {
                     HStack(spacing: 4) {
                         ForEach(Array(entry.tags.prefix(3)), id: \.self) { tag in
-                            Text(tag)
+                            Text(TagDisplayHelper.displayName(for: tag))
                                 .font(.system(.caption2, design: .rounded, weight: .medium))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)

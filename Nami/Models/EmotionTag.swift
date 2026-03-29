@@ -100,6 +100,11 @@ class EmotionTag {
         set { categoryRaw = newValue.rawValue }
     }
 
+    /// Display name: system tags are translated via String(localized:), custom tags show raw name
+    var displayName: String {
+        isDefault ? String(localized: String.LocalizationValue(name)) : name
+    }
+
     init(name: String, category: EmotionTagCategory, icon: String = "tag.fill", isDefault: Bool = false, sortOrder: Int = 0) {
         id = UUID()
         self.name = name
@@ -108,5 +113,20 @@ class EmotionTag {
         self.isDefault = isDefault
         self.sortOrder = sortOrder
         createdAt = .now
+    }
+}
+
+// MARK: - System Tag ID ↔ Display Name Helper
+
+/// Resolves a tag string (which may be a system tag ID or custom text) to its display name
+enum TagDisplayHelper {
+    /// Convert a tag name stored in MoodEntry.tags to a display string
+    static func displayName(for tagName: String) -> String {
+        // If it starts with "tag_" prefix, it's a system tag ID → translate
+        if tagName.hasPrefix("tag_") {
+            return String(localized: String.LocalizationValue(tagName))
+        }
+        // Otherwise it's a user-created custom tag or legacy name
+        return tagName
     }
 }

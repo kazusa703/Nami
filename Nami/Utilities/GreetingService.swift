@@ -108,15 +108,17 @@ enum GreetingService {
 
         guard let entry = yesterdayEntry else { return nil }
 
-        // Check if any notable tags were used
-        let notableTags = ["体の疲れ", "心の疲れ", "ストレス", "不安", "イライラ", "体調不良"]
+        // Check if any notable tags were used (system tag IDs)
+        let notableTags = ["tag_body_tired", "tag_mind_tired", "tag_stressed", "tag_anxious", "tag_irritated", "tag_feeling_sick"]
         if let matchedTag = entry.tags.first(where: { notableTags.contains($0) }) {
-            return String(localized: "昨日は「\(matchedTag)」が記録されていました。今朝の調子はどうですか？")
+            let displayTag = TagDisplayHelper.displayName(for: matchedTag)
+            return String(localized: "昨日は「\(displayTag)」が記録されていました。今朝の調子はどうですか？")
         }
 
-        let positiveTags = ["嬉しい", "楽しい", "穏やか", "感謝", "元気", "スッキリ"]
+        let positiveTags = ["tag_happy", "tag_fun", "tag_calm", "tag_grateful", "tag_energetic", "tag_refreshed"]
         if let matchedTag = entry.tags.first(where: { positiveTags.contains($0) }) {
-            return String(localized: "昨日は「\(matchedTag)」な一日でしたね。今日の気分は？")
+            let displayTag = TagDisplayHelper.displayName(for: matchedTag)
+            return String(localized: "昨日は「\(displayTag)」な一日でしたね。今日の気分は？")
         }
 
         // Fall back to score-based message

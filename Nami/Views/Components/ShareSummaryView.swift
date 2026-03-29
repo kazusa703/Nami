@@ -564,7 +564,7 @@ struct PDFReportPreview: View {
             FlowLayout(spacing: 6) {
                 ForEach(topTags, id: \.tag) { item in
                     HStack(spacing: 4) {
-                        Text(item.tag)
+                        Text(TagDisplayHelper.displayName(for: item.tag))
                             .font(.system(.caption, design: .rounded))
                         Text("×\(item.count)")
                             .font(.system(.caption2, design: .rounded))
@@ -902,7 +902,7 @@ struct MonthlyReportCardView: View {
                 .frame(width: 20, alignment: .trailing)
 
             // Tag name
-            Text(tag)
+            Text(TagDisplayHelper.displayName(for: tag))
                 .font(.system(size: isTop3 ? 13 : 10, weight: isTop3 ? .bold : .medium, design: .rounded))
                 .foregroundStyle(.white)
                 .frame(width: 90, alignment: .leading)

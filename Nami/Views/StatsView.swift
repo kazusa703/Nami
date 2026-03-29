@@ -1266,7 +1266,7 @@ struct StatsView: View {
             HStack(spacing: 6) {
                 ForEach(tags, id: \.tag) { item in
                     HStack(spacing: 3) {
-                        Text(item.tag)
+                        Text(TagDisplayHelper.displayName(for: item.tag))
                             .font(.system(.caption, design: .rounded))
                         Text("\(item.count)")
                             .font(.system(.caption2, design: .rounded))
@@ -2392,7 +2392,7 @@ struct StatsView: View {
                     ForEach(top10, id: \.tag) { item in
                         BarMark(
                             x: .value("回数", item.count),
-                            y: .value("タグ", item.tag)
+                            y: .value("タグ", TagDisplayHelper.displayName(for: item.tag))
                         )
                         .foregroundStyle(colors.accent.gradient)
                         .cornerRadius(4)
@@ -2436,7 +2436,7 @@ struct StatsView: View {
                     ForEach(top10, id: \.tag) { item in
                         BarMark(
                             x: .value("平均", item.average),
-                            y: .value("タグ", item.tag)
+                            y: .value("タグ", TagDisplayHelper.displayName(for: item.tag))
                         )
                         .foregroundStyle(colors.color(for: Int(item.average.rounded()), minScore: currentMinScore, maxScore: currentMaxScore).gradient)
                         .cornerRadius(4)
@@ -2484,7 +2484,7 @@ struct StatsView: View {
                 VStack(spacing: 0) {
                     ForEach(effects.prefix(8), id: \.tag) { item in
                         HStack {
-                            Text(item.tag)
+                            Text(TagDisplayHelper.displayName(for: item.tag))
                                 .font(.system(.subheadline, design: .rounded))
 
                             Spacer()
@@ -3076,7 +3076,7 @@ struct StatsView: View {
                                     Spacer()
                                     HStack(spacing: 3) {
                                         ForEach(event.recoveryTags.prefix(2), id: \.self) { tag in
-                                            Text(tag)
+                                            Text(TagDisplayHelper.displayName(for: tag))
                                                 .font(.system(.caption2, design: .rounded))
                                                 .padding(.horizontal, 6)
                                                 .padding(.vertical, 2)
@@ -3667,7 +3667,7 @@ struct StatsView: View {
     /// タグ+出現率バッジ
     private func tagRateBadge(tag: String, rate: Int, color: Color, colors _: ThemeColors) -> some View {
         HStack(spacing: 4) {
-            Text(tag)
+            Text(TagDisplayHelper.displayName(for: tag))
                 .font(.system(.caption, design: .rounded))
             Text("\(rate)%")
                 .font(.system(.caption2, design: .rounded, weight: .bold))
@@ -3763,7 +3763,7 @@ struct StatsView: View {
                                 .foregroundStyle(.secondary)
                             ForEach(summary.topTags.prefix(3), id: \.tag) { item in
                                 HStack(spacing: 4) {
-                                    Text(item.tag)
+                                    Text(TagDisplayHelper.displayName(for: item.tag))
                                         .font(.system(.caption, design: .rounded))
                                     Text("\(item.count)")
                                         .font(.system(.caption2, design: .rounded))
@@ -3949,7 +3949,7 @@ struct StatsView: View {
                 ForEach(negativeEchoes, id: \.tag) { echo in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text(echo.tag)
+                            Text(TagDisplayHelper.displayName(for: echo.tag))
                                 .font(.system(.caption, design: .rounded, weight: .semibold))
                             Spacer()
                             Text(echo.recoveryDays < 4 ? String(format: "平均%.0f日で回復", echo.recoveryDays) : "3日以上残る")
@@ -4037,7 +4037,7 @@ struct StatsView: View {
                         Image(systemName: "exclamationmark.circle.fill")
                             .font(.caption)
                             .foregroundStyle(.orange)
-                        Text("「\(item.tag)」")
+                        Text("「\(TagDisplayHelper.displayName(for: item.tag))」")
                             .font(.system(.caption, design: .rounded, weight: .semibold))
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
@@ -4081,7 +4081,7 @@ struct StatsView: View {
 
                 ForEach(Array(triggers.prefix(3)), id: \.tag) { trigger in
                     HStack {
-                        Text(trigger.tag)
+                        Text(TagDisplayHelper.displayName(for: trigger.tag))
                             .font(.system(.caption, design: .rounded, weight: .semibold))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
@@ -4329,7 +4329,7 @@ struct StatsView: View {
                 if !entry.tags.isEmpty {
                     HStack(spacing: 3) {
                         ForEach(Array(entry.tags.prefix(3)), id: \.self) { tag in
-                            Text(tag)
+                            Text(TagDisplayHelper.displayName(for: tag))
                                 .font(.system(.caption2, design: .rounded))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
