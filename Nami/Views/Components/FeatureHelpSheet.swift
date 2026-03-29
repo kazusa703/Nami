@@ -399,4 +399,79 @@ enum HelpContent {
             ),
         ]
     }
+
+    // MARK: - Contextual Help (Stats Section Explanations)
+
+    static var hrvExplanation: [HelpItem] {
+        [
+            HelpItem(
+                icon: "waveform.path.ecg",
+                title: String(localized: "HRV（心拍変動）とは？"),
+                description: String(localized: "心拍のリズムの「ゆらぎ」を数値化したもの。自律神経のバランスを反映し、ストレスや疲労の客観的な指標になります。"),
+                diagram: .scale(
+                    labels: [String(localized: "緊張"), "", String(localized: "バランス"), "", String(localized: "リラックス")],
+                    colors: [.red, .orange, .yellow, .green, .blue]
+                )
+            ),
+            HelpItem(
+                icon: "heart.text.clipboard",
+                title: String(localized: "なぜ気分と関係があるの？"),
+                description: String(localized: "HRVが高い日は自律神経のバランスが良く、感情のコントロールがしやすい状態。HRVが低い日はストレスや疲労が溜まっている可能性があり、気分が不安定になりやすい傾向があります。"),
+                diagram: .comparison(
+                    left: (icon: "arrow.up", label: String(localized: "HRV高い→好調")),
+                    right: (icon: "arrow.down", label: String(localized: "HRV低い→不調"))
+                )
+            ),
+            HelpItem(
+                icon: "applewatch",
+                title: String(localized: "計測方法"),
+                description: String(localized: "Apple Watchを装着して寝ると、睡眠中のHRVが自動で計測されます。iPhoneのヘルスケアアプリでも確認可能です。"),
+                diagram: nil
+            ),
+        ]
+    }
+
+    static var sleepCorrelation: [HelpItem] {
+        [
+            HelpItem(
+                icon: "bed.double.fill",
+                title: String(localized: "睡眠と気分の関係"),
+                description: String(localized: "質の高い睡眠は翌日の感情の安定に直結します。睡眠時間だけでなく、入眠までの時間や中途覚醒の回数も気分に影響します。"),
+                diagram: .steps([
+                    (number: 1, text: String(localized: "良い睡眠 → 感情が安定")),
+                    (number: 2, text: String(localized: "睡眠不足 → イライラ・不安が増加")),
+                    (number: 3, text: String(localized: "一定の就寝時刻 → リズムが整う")),
+                ])
+            ),
+            HelpItem(
+                icon: "chart.bar.fill",
+                title: String(localized: "Namiでの活用法"),
+                description: String(localized: "ヘルスケアの睡眠データをONにすると、睡眠時間と気分スコアの相関を自動分析。「よく眠れた翌日のスコア平均」が分かります。Nemuriアプリと連携するとさらに詳しい分析が可能です。"),
+                diagram: nil
+            ),
+        ]
+    }
+
+    static var stabilityExplanation: [HelpItem] {
+        [
+            HelpItem(
+                icon: "waveform.path",
+                title: String(localized: "安定度スコアとは？"),
+                description: String(localized: "気分スコアの「振れ幅」を0〜100で数値化したもの。100に近いほど安定した日々を送れています。激しく上下している時期は数値が低くなります。"),
+                diagram: .scale(
+                    labels: [String(localized: "不安定"), "", String(localized: "普通"), "", String(localized: "安定")],
+                    colors: [.red, .orange, .yellow, .mint, .green]
+                )
+            ),
+            HelpItem(
+                icon: "lightbulb.fill",
+                title: String(localized: "自己理解への活かし方"),
+                description: String(localized: "安定度が低い時期は、外的ストレスや生活リズムの乱れが原因かもしれません。タグと照らし合わせることで、波の原因が見えてきます。安定度の変化を追うことで、自分のメンタルの「波のパターン」が理解できるようになります。"),
+                diagram: .comparison(
+                    left: (icon: "water.waves", label: String(localized: "波が穏やか＝安定")),
+                    right: (icon: "waveform", label: String(localized: "波が激しい＝変動"))
+                )
+            ),
+        ]
+    }
 }

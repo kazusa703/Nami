@@ -195,6 +195,10 @@ struct StatsView: View {
     @State private var showMonthlyReport = false
     /// レポートアーカイブ表示フラグ
     @State private var showReportArchive = false
+    /// Contextual help sheet
+    @State private var showContextHelp = false
+    @State private var contextHelpTitle = ""
+    @State private var contextHelpItems: [HelpItem] = []
     /// セクションジャンプ用のScrollViewProxy
     @State private var scrollProxy: ScrollViewProxy?
     /// Collapsible category group expansion state (all collapsed by default)
@@ -319,6 +323,13 @@ struct StatsView: View {
                 NavigationStack {
                     ReportArchiveView()
                 }
+            }
+            .sheet(isPresented: $showContextHelp) {
+                FeatureHelpSheet(
+                    title: contextHelpTitle,
+                    items: contextHelpItems,
+                    accentColor: themeManager.colors.accent
+                )
             }
             .sheet(isPresented: $showGuideSheet) {
                 statsGuideSheet
@@ -1279,9 +1290,12 @@ struct StatsView: View {
 
         if hasRhythmData {
             VStack(alignment: .leading, spacing: 16) {
-                Text("あなたの1週間のリズム")
-                    .font(.system(.headline, design: .rounded))
-                    .padding(.horizontal, 4)
+                HStack {
+                    Text("あなたの1週間のリズム")
+                        .font(.system(.headline, design: .rounded))
+                    infoButton(title: String(localized: "安定度とリズム"), items: HelpContent.stabilityExplanation)
+                }
+                .padding(.horizontal, 4)
 
                 // 週間リズム波線チャート
                 weeklyRhythmChart(rhythmData: rhythmData, colors: colors)
@@ -1820,6 +1834,21 @@ struct StatsView: View {
 
     // MARK: - 折りたたみセクションヘッダー
 
+    /// Contextual info button that opens a help sheet
+    private func infoButton(title: String, items: [HelpItem]) -> some View {
+        Button {
+            contextHelpTitle = title
+            contextHelpItems = items
+            showContextHelp = true
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .frame(minWidth: 44, minHeight: 44)
+    }
+
     private func collapsibleHeader(_ title: String, sectionKey: String, icon: String? = nil) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -2073,7 +2102,10 @@ struct StatsView: View {
 
     private func healthKitCorrelationSection(colors: ThemeColors) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            collapsibleHeader(String(localized: "ヘルスケア相関"), sectionKey: "healthKit")
+            HStack(spacing: 0) {
+                collapsibleHeader(String(localized: "ヘルスケア相関"), sectionKey: "healthKit")
+                infoButton(title: String(localized: "HRV（心拍変動）"), items: HelpContent.hrvExplanation)
+            }
 
             if expandedSections.contains("healthKit") {
                 if isLoadingHealthData {
@@ -2702,7 +2734,10 @@ struct StatsView: View {
 
         if weekStability != nil || monthStability != nil {
             VStack(alignment: .leading, spacing: 12) {
-                collapsibleHeader(String(localized: "安定度スコア"), sectionKey: "stability", icon: "waveform.path")
+                HStack(spacing: 0) {
+                    collapsibleHeader(String(localized: "安定度スコア"), sectionKey: "stability", icon: "waveform.path")
+                    infoButton(title: String(localized: "安定度スコア"), items: HelpContent.stabilityExplanation)
+                }
 
                 if expandedSections.contains("stability") {
                     HStack(spacing: 12) {

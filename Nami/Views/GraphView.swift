@@ -1023,6 +1023,8 @@ struct GraphView: View {
                     .foregroundStyle(.secondary)
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            } else if visibleEntries.count <= 2 {
+                graphGrowthPrompt(current: visibleEntries.count, needed: 3, colors: colors)
             }
         }
         .chartXSelection(value: $rawSelectedDate)
@@ -1091,6 +1093,8 @@ struct GraphView: View {
                     .foregroundStyle(.secondary)
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            } else if plotDays.count <= 2 {
+                graphGrowthPrompt(current: plotDays.count, needed: 3, colors: colors)
             }
         }
         .chartXScale(domain: range.start ... range.end)
@@ -1214,6 +1218,26 @@ struct GraphView: View {
             .frame(height: 220)
             .padding(.horizontal)
         }
+    }
+
+    // MARK: - Growth Prompt (1-2 entries)
+
+    /// Positive prompt shown when too few data points for a meaningful graph
+    private func graphGrowthPrompt(current: Int, needed: Int, colors: ThemeColors) -> some View {
+        let remaining = needed - current
+        return VStack(spacing: 8) {
+            Image(systemName: "sparkles")
+                .font(.title3)
+                .foregroundStyle(colors.accent.opacity(0.7))
+            Text(String(localized: "あと\(remaining)回記録すると\n気分の波がつながります"))
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .allowsHitTesting(false)
     }
 
     // MARK: - View Components (Rows & States)
