@@ -930,9 +930,11 @@ struct SettingsView: View {
                 legalLinkRow(icon: "lightbulb", title: String(localized: "設定の使い方"))
             }
 
-            // サポート
-            Link(destination: URL(string: "https://kazusa703.github.io/nami-support/ja/support.html")!) {
-                legalLinkRow(icon: "questionmark.circle", title: "サポート")
+            // よくある質問
+            NavigationLink {
+                FAQView()
+            } label: {
+                legalLinkRow(icon: "questionmark.circle", title: String(localized: "よくある質問"))
             }
 
             // プライバシーポリシー
