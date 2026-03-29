@@ -147,6 +147,11 @@ struct NamiApp: App {
                 .environment(\.languageManager, languageManager)
                 .environment(\.locale, languageManager.locale)
                 .task {
+                    // Screenshot mode: generate beautiful dummy data
+                    #if DEBUG
+                        ScreenshotDataGenerator.generateIfNeeded(context: sharedModelContainer.mainContext)
+                    #endif
+
                     // デフォルトタグの初期化
                     DefaultTags.seedIfNeeded(context: sharedModelContainer.mainContext)
                     DefaultTags.seedV2IfNeeded(context: sharedModelContainer.mainContext)
