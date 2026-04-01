@@ -5,6 +5,8 @@
 //  アプリのエントリポイント
 //
 
+import AppTrackingTransparency
+import GoogleMobileAds
 import SwiftData
 import SwiftUI
 import UIKit
@@ -204,6 +206,16 @@ struct NamiApp: App {
                             reminderEnabled = false
                         }
                     }
+
+                    // ATT permission request → AdMob initialization
+                    // ATT dialog must be shown BEFORE ad SDK initialization
+                    #if !DEBUG
+                        // Wait for UI to settle before showing ATT dialog
+                        try? await Task.sleep(for: .seconds(1.5))
+                        await ATTrackingManager.requestTrackingAuthorization()
+                        // Initialize AdMob AFTER ATT response
+                        _ = await MobileAds.shared.start()
+                    #endif
                 }
         }
         .modelContainer(sharedModelContainer)

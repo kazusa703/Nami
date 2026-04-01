@@ -2,24 +2,25 @@
 //  GreetingService.swift
 //  Nami
 //
-//  Personalized greeting with 4-level fallback:
-//  1. Nemuri sleep data  2. Weather  3. Yesterday's mood  4. Generic
+//  Personalized greeting with 5-level fallback:
+//  0. Predictive insight  1. Nemuri sleep  2. Weather  3. Yesterday's mood  4. Generic
 //
 
 import Foundation
 
 /// Generates personalized greeting messages based on available data
 enum GreetingService {
-    /// Generate a greeting with 4-priority fallback
-    /// - Parameters:
-    ///   - entries: Recent mood entries (newest first)
-    ///   - weatherCondition: Current weather condition string (nil if unavailable)
-    ///   - weatherTemperature: Current temperature in Celsius (nil if unavailable)
+    /// Generate a greeting with 5-priority fallback
     static func generateGreeting(
         entries: [MoodEntry],
         weatherCondition: String?,
         weatherTemperature _: Double?
     ) -> String {
+        // Priority 0: Predictive insight from accumulated data
+        if let insight = predictiveInsight(entries: entries) {
+            return insight
+        }
+
         // Priority 1: Nemuri sleep data
         if let sleepGreeting = sleepBasedGreeting() {
             return sleepGreeting
@@ -39,13 +40,151 @@ enum GreetingService {
         return timeBasedGreeting()
     }
 
+    // MARK: - Priority 0: Predictive Insight
+
+    private static func predictiveInsight(entries: [MoodEntry]) -> String? {
+        let calendar = Calendar.current
+        let now = Date.now
+
+        // Need at least 7 entries for meaningful analysis
+        guard entries.count >= 7 else {
+            return fallbackInsight(entryCount: entries.count)
+        }
+
+        // Use last 30 days of data
+        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) ?? now
+        let recentEntries = entries.filter { $0.createdAt >= thirtyDaysAgo }
+        guard recentEntries.count >= 5 else {
+            return fallbackInsight(entryCount: entries.count)
+        }
+
+        // Randomly pick one insight pattern per session (seeded by day)
+        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: now) ?? 1
+        let patternIndex = dayOfYear % 3
+
+        switch patternIndex {
+        case 0:
+            return weekdayTrendInsight(entries: recentEntries, calendar: calendar)
+        case 1:
+            return tagCorrelationInsight(entries: recentEntries, calendar: calendar)
+        default:
+            return weekdayTrendInsight(entries: recentEntries, calendar: calendar)
+                ?? tagCorrelationInsight(entries: recentEntries, calendar: calendar)
+        }
+    }
+
+    /// Pattern A: Weekday trend
+    private static func weekdayTrendInsight(entries: [MoodEntry], calendar: Calendar) -> String? {
+        // Group scores by weekday
+        var weekdayScores: [Int: [Double]] = [:]
+        for entry in entries {
+            let weekday = calendar.component(.weekday, from: entry.createdAt)
+            weekdayScores[weekday, default: []].append(entry.normalizedScore)
+        }
+
+        // Need data for at least 3 weekdays
+        guard weekdayScores.count >= 3 else { return nil }
+
+        let weekdayAverages = weekdayScores.mapValues { scores in
+            scores.reduce(0, +) / Double(scores.count)
+        }
+
+        let overallAvg = entries.map(\.normalizedScore).reduce(0, +) / Double(entries.count)
+
+        // Today's weekday
+        let todayWeekday = calendar.component(.weekday, from: .now)
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        let weekdayName = formatter.weekdaySymbols[todayWeekday - 1]
+
+        if let todayAvg = weekdayAverages[todayWeekday] {
+            if todayAvg < overallAvg - 0.1 {
+                return String(localized: "\(weekdayName)は少し気分が下がりやすい傾向があります。今日は無理せず過ごしましょう。")
+            } else if todayAvg > overallAvg + 0.1 {
+                return String(localized: "\(weekdayName)は気分が高い傾向があります。今日も良い日になりそうですね。")
+            }
+        }
+
+        // Find worst/best weekday as fallback
+        if let worst = weekdayAverages.min(by: { $0.value < $1.value }),
+           worst.value < overallAvg - 0.08
+        {
+            let name = formatter.weekdaySymbols[worst.key - 1]
+            return String(localized: "過去のデータでは、\(name)に気分が下がりやすい傾向があります。パターンを知ることが第一歩です。")
+        }
+
+        return nil
+    }
+
+    /// Pattern B: Tag correlation (positive)
+    private static func tagCorrelationInsight(entries: [MoodEntry], calendar: Calendar) -> String? {
+        // Collect tags and their associated scores
+        var tagScores: [String: [Double]] = [:]
+        var tagNextDayScores: [String: [Double]] = [:]
+
+        let sortedEntries = entries.sorted { $0.createdAt < $1.createdAt }
+
+        for (i, entry) in sortedEntries.enumerated() {
+            for tag in entry.tags {
+                tagScores[tag, default: []].append(entry.normalizedScore)
+
+                // Check next day's score
+                if i + 1 < sortedEntries.count {
+                    let nextEntry = sortedEntries[i + 1]
+                    let dayDiff = calendar.dateComponents([.day], from: entry.createdAt, to: nextEntry.createdAt).day ?? 0
+                    if dayDiff == 1 {
+                        tagNextDayScores[tag, default: []].append(nextEntry.normalizedScore)
+                    }
+                }
+            }
+        }
+
+        let overallAvg = entries.map(\.normalizedScore).reduce(0, +) / Double(entries.count)
+
+        // Find tag with best next-day effect (at least 3 occurrences)
+        let bestNextDay = tagNextDayScores
+            .filter { $0.value.count >= 3 }
+            .mapValues { scores in scores.reduce(0, +) / Double(scores.count) }
+            .max { $0.value < $1.value }
+
+        if let best = bestNextDay, best.value > overallAvg + 0.05 {
+            let displayName = TagDisplayHelper.displayName(for: best.key)
+            return String(localized: "「\(displayName)」の翌日は気分スコアが高い傾向があります。今日も取り入れてみては？")
+        }
+
+        // Find tag that correlates with high same-day scores
+        let bestSameDay = tagScores
+            .filter { $0.value.count >= 3 }
+            .mapValues { scores in scores.reduce(0, +) / Double(scores.count) }
+            .max { $0.value < $1.value }
+
+        if let best = bestSameDay, best.value > overallAvg + 0.08 {
+            let displayName = TagDisplayHelper.displayName(for: best.key)
+            return String(localized: "「\(displayName)」がある日は気分が良い傾向です。あなたの元気の源かもしれません。")
+        }
+
+        return nil
+    }
+
+    /// Pattern D: Fallback for insufficient data
+    private static func fallbackInsight(entryCount: Int) -> String? {
+        if entryCount == 0 {
+            return nil // Let other priorities handle it
+        } else if entryCount < 3 {
+            return String(localized: "記録を続けると、あなただけの気分パターンが見えてきます。今日の気分は？")
+        } else if entryCount < 7 {
+            return String(localized: "あと少しで傾向分析ができるようになります。今日も記録してみましょう。")
+        }
+        return nil
+    }
+
     // MARK: - Priority 1: Sleep Data
 
     private static func sleepBasedGreeting() -> String? {
         guard let sleep = NemuriDataReader.readLatestSleep() else { return nil }
 
         let calendar = Calendar.current
-        // Only use if wakeTime was today
         guard calendar.isDateInToday(sleep.wakeTime) || calendar.isDateInYesterday(sleep.wakeTime) else {
             return nil
         }
@@ -100,7 +239,6 @@ enum GreetingService {
         let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: .now))!
         let todayStart = calendar.startOfDay(for: .now)
 
-        // Find yesterday's latest entry
         let yesterdayEntry = entries.first { entry in
             let day = calendar.startOfDay(for: entry.createdAt)
             return day >= yesterday && day < todayStart
@@ -108,7 +246,6 @@ enum GreetingService {
 
         guard let entry = yesterdayEntry else { return nil }
 
-        // Check if any notable tags were used (system tag IDs)
         let notableTags = ["tag_body_tired", "tag_mind_tired", "tag_stressed", "tag_anxious", "tag_irritated", "tag_feeling_sick"]
         if let matchedTag = entry.tags.first(where: { notableTags.contains($0) }) {
             let displayTag = TagDisplayHelper.displayName(for: matchedTag)
@@ -121,7 +258,6 @@ enum GreetingService {
             return String(localized: "昨日は「\(displayTag)」な一日でしたね。今日の気分は？")
         }
 
-        // Fall back to score-based message
         let norm = entry.normalizedScore
         if norm >= 0.7 {
             return String(localized: "昨日は好調でしたね。今日の気分も記録しましょう。")

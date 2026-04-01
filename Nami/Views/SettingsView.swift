@@ -67,6 +67,8 @@ struct SettingsView: View {
     @State private var quickTagCategory: EmotionTagCategory = .custom
     /// タグ追加エラーメッセージ
     @State private var tagAddError: String?
+    /// カスタムタグヒントカード非表示フラグ
+    @AppStorage("dismissedCustomTagHint") private var dismissedCustomTagHint = false
     /// 全タグ（タグセクション用）
     @Query(sort: \EmotionTag.sortOrder) private var allTags: [EmotionTag]
 
@@ -81,6 +83,16 @@ struct SettingsView: View {
                 List {
                     // タグセクション（最上部）
                     tagSection(colors: colors)
+
+                    // カスタムタグ未作成時のヒントカード
+                    if !dismissedCustomTagHint && allTags.filter({ !$0.isDefault }).isEmpty {
+                        Section {
+                            customTagHintCard(colors: colors)
+                        }
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    }
 
                     // テーマ選択セクション
                     themeSection(colors: colors)
@@ -389,14 +401,9 @@ struct SettingsView: View {
                     HapticManager.lightFeedback()
                 } label: {
                     HStack(spacing: 12) {
-                        Text(language.flag)
-                            .font(.title3)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(language.nativeName)
-                                .font(.system(.body, design: .rounded))
-                                .foregroundStyle(.primary)
-                        }
+                        Text(language.nativeName)
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(.primary)
 
                         Spacer()
 
@@ -440,6 +447,69 @@ struct SettingsView: View {
         } header: {
             Text(String(localized: "タグ"))
         }
+    }
+
+    // MARK: - Custom Tag Hint Card
+
+    private func customTagHintCard(colors: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.yellow)
+
+                Spacer()
+
+                Button {
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        dismissedCustomTagHint = true
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(6)
+                        .background(Circle().fill(Color(.systemGray5)))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text(String(localized: "あなただけのタグを作ってみませんか？"))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+
+            Text(String(localized: "「運動した」「読書」「コーヒー」など、日常のどんな行動でもタグにして、気分の波との関係を分析できます。"))
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            NavigationLink {
+                TagManagementView()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 14))
+                    Text(String(localized: "最初のタグを作る"))
+                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(colors.accent)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(colors.accent.opacity(colorScheme == .dark ? 0.08 : 0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(colors.accent.opacity(0.12), lineWidth: 1)
+                )
+        )
     }
 
     /// Quick add a tag inline

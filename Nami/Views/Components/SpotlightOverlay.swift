@@ -39,11 +39,6 @@ extension View {
 
 extension View {
     /// Show a frosted-glass spotlight overlay pointing at the target with `id`.
-    /// - Parameters:
-    ///   - id: The spotlight target ID to highlight
-    ///   - isPresented: Binding to control visibility (set to false on dismiss)
-    ///   - message: Coach mark text
-    ///   - arrowDirection: Which direction the arrow points toward the target
     func spotlightOverlay(
         id: String,
         isPresented: Binding<Bool>,
@@ -61,7 +56,7 @@ extension View {
     }
 }
 
-/// Arrow direction relative to the tooltip (points toward the target)
+/// Arrow direction: which way the arrow points (toward the target)
 enum SpotlightArrowDirection {
     case up, down, left, right
 }
@@ -98,7 +93,6 @@ private struct SpotlightOverlayModifier: ViewModifier {
     }
 
     private var spotlightView: some View {
-        // Expand the cutout slightly for padding
         let padding: CGFloat = 8
         let cutoutRect = targetRect.insetBy(dx: -padding, dy: -padding)
         let cutoutCornerRadius: CGFloat = min(cutoutRect.height / 2, 16)
@@ -108,7 +102,7 @@ private struct SpotlightOverlayModifier: ViewModifier {
             FrostedCutoutView(cutoutRect: cutoutRect, cornerRadius: cutoutCornerRadius)
                 .ignoresSafeArea()
 
-            // Tooltip with arrow
+            // Tooltip positioned relative to cutout
             tooltipView(cutoutRect: cutoutRect)
         }
         .contentShape(Rectangle())
@@ -124,35 +118,52 @@ private struct SpotlightOverlayModifier: ViewModifier {
 
     @ViewBuilder
     private func tooltipView(cutoutRect: CGRect) -> some View {
-        let arrowIcon = switch arrowDirection {
-        case .up: "arrow.up"
-        case .down: "arrow.down"
-        case .left: "arrow.left"
-        case .right: "arrow.right"
-        }
+        let screenWidth = UIScreen.main.bounds.width
+        let tooltipMaxWidth: CGFloat = 260
+        let spacing: CGFloat = 12
 
-        VStack(spacing: 8) {
-            if arrowDirection == .down {
-                tooltipContent(arrowIcon: arrowIcon, arrowOnTop: false)
-            } else {
-                tooltipContent(arrowIcon: arrowIcon, arrowOnTop: true)
+        // Clamp horizontal center to keep tooltip on screen
+        let clampedX = min(max(cutoutRect.midX, tooltipMaxWidth / 2 + 16), screenWidth - tooltipMaxWidth / 2 - 16)
+
+        VStack(spacing: 4) {
+            switch arrowDirection {
+            case .up:
+                // Arrow points UP toward target → tooltip is BELOW target
+                arrowTriangle(direction: .up)
+                messageCard
+            case .down:
+                // Arrow points DOWN toward target → tooltip is ABOVE target
+                messageCard
+                arrowTriangle(direction: .down)
+            case .left:
+                HStack(spacing: 4) {
+                    arrowTriangle(direction: .left)
+                    messageCard
+                }
+            case .right:
+                HStack(spacing: 4) {
+                    messageCard
+                    arrowTriangle(direction: .right)
+                }
             }
         }
-        .position(tooltipPosition(cutoutRect: cutoutRect))
+        .position(tooltipCenter(cutoutRect: cutoutRect, spacing: spacing, clampedX: clampedX))
     }
 
-    @ViewBuilder
-    private func tooltipContent(arrowIcon: String, arrowOnTop: Bool) -> some View {
-        if arrowOnTop {
-            messageCard
-            Image(systemName: arrowIcon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.white)
-        } else {
-            Image(systemName: arrowIcon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.white)
-            messageCard
+    /// Triangle arrow pointing toward the target
+    private func arrowTriangle(direction: SpotlightArrowDirection) -> some View {
+        Triangle()
+            .fill(.black.opacity(0.75))
+            .frame(width: 16, height: 8)
+            .rotationEffect(triangleRotation(for: direction))
+    }
+
+    private func triangleRotation(for direction: SpotlightArrowDirection) -> Angle {
+        switch direction {
+        case .up: return .zero // pointing up
+        case .down: return .degrees(180)
+        case .left: return .degrees(-90)
+        case .right: return .degrees(90)
         }
     }
 
@@ -177,20 +188,32 @@ private struct SpotlightOverlayModifier: ViewModifier {
         .frame(maxWidth: 260)
     }
 
-    private func tooltipPosition(cutoutRect: CGRect) -> CGPoint {
-        let midX = cutoutRect.midX
+    private func tooltipCenter(cutoutRect: CGRect, spacing: CGFloat, clampedX: CGFloat) -> CGPoint {
         switch arrowDirection {
         case .up:
-            // Tooltip above target, arrow points down to target
-            return CGPoint(x: min(max(midX, 140), UIScreen.main.bounds.width - 140), y: cutoutRect.minY - 70)
+            // Tooltip below the target
+            return CGPoint(x: clampedX, y: cutoutRect.maxY + spacing + 40)
         case .down:
-            // Tooltip below target, arrow points up to target
-            return CGPoint(x: min(max(midX, 140), UIScreen.main.bounds.width - 140), y: cutoutRect.maxY + 70)
+            // Tooltip above the target
+            return CGPoint(x: clampedX, y: cutoutRect.minY - spacing - 40)
         case .left:
             return CGPoint(x: cutoutRect.minX - 120, y: cutoutRect.midY)
         case .right:
             return CGPoint(x: cutoutRect.maxX + 120, y: cutoutRect.midY)
         }
+    }
+}
+
+// MARK: - Triangle Shape
+
+private struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 

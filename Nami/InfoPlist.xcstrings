@@ -63,6 +63,23 @@
           }
         }
       }
+    },
+    "NSUserTrackingUsageDescription" : {
+      "comment" : "Privacy - Tracking Usage Description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This identifier will be used to deliver personalized rewarded ads to unlock custom tag slots."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "カスタムタグ枠を拡張するための動画広告を最適化して表示するために使用されます。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

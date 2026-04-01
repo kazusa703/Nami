@@ -89,13 +89,9 @@ struct RecordingSheet: View {
                     Button {
                         cleanupAndSkip()
                     } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(.caption, weight: .semibold))
-                            Text(isEditing ? String(localized: "キャンセル") : String(localized: "戻る"))
-                        }
-                        .font(.system(.body, design: .rounded))
-                        .foregroundStyle(.secondary)
+                        Image(systemName: isEditing ? "xmark" : "chevron.left")
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {

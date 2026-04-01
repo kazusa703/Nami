@@ -442,66 +442,222 @@ struct DateSelectorSheet: View {
     @Binding var dateMode: DateSelectionMode
     @Binding var targetDate: Date
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.themeManager) private var themeManager
+    @Environment(\.colorScheme) private var colorScheme
 
-    @State private var tempMode: DateSelectionMode
-    @State private var tempDate: Date
+    @State private var isSingleDay: Bool
+    @State private var startDate: Date
+    @State private var endDate: Date
+    @State private var expandingStart = false
+    @State private var expandingEnd = false
 
     init(dateMode: Binding<DateSelectionMode>, targetDate: Binding<Date>) {
         _dateMode = dateMode
         _targetDate = targetDate
-        _tempMode = State(initialValue: dateMode.wrappedValue)
-        _tempDate = State(initialValue: targetDate.wrappedValue)
+
+        let mode = dateMode.wrappedValue
+        let target = targetDate.wrappedValue
+        let range = periodRange(mode: mode, targetDate: target)
+        _isSingleDay = State(initialValue: mode == .day)
+        _startDate = State(initialValue: range.start)
+        _endDate = State(initialValue: range.end)
+    }
+
+    private var formattedStart: String {
+        startDate.formatted(.dateTime.year().month().day().locale(Locale(identifier: "ja_JP")))
+    }
+
+    private var formattedEnd: String {
+        endDate.formatted(.dateTime.year().month().day().locale(Locale(identifier: "ja_JP")))
     }
 
     var body: some View {
+        let colors = themeManager.colors
+
         NavigationStack {
-            Form {
-                Section(header: Text("表示単位")) {
-                    Picker("単位", selection: $tempMode) {
-                        ForEach(DateSelectionMode.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
+            ZStack {
+                colors.backgroundGradient(for: colorScheme).ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    VStack(spacing: 16) {
+                        // Single day toggle
+                        Toggle(isOn: $isSingleDay) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "calendar")
+                                    .foregroundStyle(colors.accent)
+                                Text(String(localized: "1日のみを表示"))
+                                    .font(.system(.body, design: .rounded))
+                            }
+                        }
+                        .tint(colors.accent)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
+                        .onChange(of: isSingleDay) { _, newValue in
+                            if newValue {
+                                endDate = startDate
+                                expandingEnd = false
+                            }
+                        }
+
+                        // Start date row
+                        VStack(spacing: 0) {
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    expandingStart.toggle()
+                                    if expandingStart { expandingEnd = false }
+                                }
+                            } label: {
+                                HStack {
+                                    Text(String(localized: "開始日"))
+                                        .font(.system(.body, design: .rounded, weight: .medium))
+                                        .foregroundStyle(colors.accent)
+                                    Spacer()
+                                    Text(formattedStart)
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .foregroundStyle(colors.accent)
+                                    Image(systemName: expandingStart ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .padding()
+                            }
+
+                            if expandingStart {
+                                Divider().padding(.horizontal)
+                                DatePicker(
+                                    "",
+                                    selection: $startDate,
+                                    in: ...Date.now,
+                                    displayedComponents: .date
+                                )
+                                .datePickerStyle(.wheel)
+                                .labelsHidden()
+                                .onChange(of: startDate) { _, newStart in
+                                    if isSingleDay {
+                                        endDate = newStart
+                                    } else if endDate < newStart {
+                                        endDate = newStart
+                                    }
+                                }
+                            }
+                        }
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
+
+                        // End date row (hidden when single day)
+                        if !isSingleDay {
+                            VStack(spacing: 0) {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        expandingEnd.toggle()
+                                        if expandingEnd { expandingStart = false }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(String(localized: "終了日"))
+                                            .font(.system(.body, design: .rounded, weight: .medium))
+                                            .foregroundStyle(colors.accent)
+                                        Spacer()
+                                        Text(formattedEnd)
+                                            .font(.system(.subheadline, design: .rounded))
+                                            .foregroundStyle(colors.accent)
+                                        Image(systemName: expandingEnd ? "chevron.up" : "chevron.down")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .padding()
+                                }
+
+                                if expandingEnd {
+                                    Divider().padding(.horizontal)
+                                    DatePicker(
+                                        "",
+                                        selection: $endDate,
+                                        in: startDate ... Date.now,
+                                        displayedComponents: .date
+                                    )
+                                    .datePickerStyle(.wheel)
+                                    .labelsHidden()
+                                }
+                            }
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(Color(.secondarySystemGroupedBackground))
+                            )
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
-                    .pickerStyle(.segmented)
-                }
+                    .padding()
 
-                Section(header: Text("対象の期間")) {
-                    UnifiedDatePicker(mode: tempMode, date: $tempDate)
+                    Spacer()
+
+                    // Apply button (pinned to bottom)
+                    Button {
+                        applyRange()
+                    } label: {
+                        Text(String(localized: "適用"))
+                            .font(.system(.body, design: .rounded, weight: .bold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(colors.accent)
+                            )
+                            .foregroundStyle(.white)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
                 }
             }
-            .navigationTitle("期間の設定")
+            .navigationTitle(String(localized: "期間の設定"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text("戻る")
-                        }
-                        .font(.system(.body, weight: .medium))
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    HStack(spacing: 12) {
-                        Button {
-                            // Reset date to now, keep mode
-                            tempDate = .now
-                        } label: {
-                            Text(String(localized: "リセット"))
-                                .font(.system(.body, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-                        Button(String(localized: "適用")) {
-                            dateMode = tempMode
-                            targetDate = tempDate
-                            dismiss()
-                        }
+                    Button {
+                        startDate = .now
+                        endDate = .now
+                        isSingleDay = false
+                    } label: {
+                        Text(String(localized: "リセット"))
+                            .font(.system(.body, design: .rounded))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
+            .animation(.easeInOut(duration: 0.25), value: isSingleDay)
         }
+    }
+
+    /// Determine dateMode from selected range and apply
+    private func applyRange() {
+        let cal = Calendar.current
+        let days = cal.dateComponents([.day], from: cal.startOfDay(for: startDate), to: cal.startOfDay(for: endDate)).day ?? 0
+
+        if isSingleDay || days == 0 {
+            dateMode = .day
+            targetDate = startDate
+        } else if days <= 7 {
+            dateMode = .week
+            targetDate = startDate
+        } else if days <= 31 {
+            dateMode = .month
+            targetDate = startDate
+        } else {
+            dateMode = .year
+            targetDate = startDate
+        }
+        dismiss()
     }
 }
 
@@ -523,6 +679,7 @@ struct GraphView: View {
 
     @State private var selectedEntry: MoodEntry?
     @State private var showDetail = false
+    @State private var hideGrowthPrompt = false
     @State private var editingEntry: MoodEntry?
     @State private var enrichingEntry: MoodEntry?
     @State private var entryToDelete: MoodEntry?
@@ -605,27 +762,6 @@ struct GraphView: View {
                                 )
                             }
                         }
-                        .overlay(alignment: .topTrailing) {
-                            // Expand button overlay on chart area
-                            if onShowFullscreen != nil {
-                                Button {
-                                    onShowFullscreen?(graphMode, dateMode, targetDate)
-                                    HapticManager.lightFeedback()
-                                } label: {
-                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(.primary.opacity(0.6))
-                                        .padding(8)
-                                        .background(
-                                            Circle()
-                                                .fill(.ultraThinMaterial)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.trailing, 24)
-                                .padding(.top, 16)
-                            }
-                        }
                         .layoutPriority(1)
 
                         if showDetail, let entry = selectedEntry {
@@ -664,7 +800,7 @@ struct GraphView: View {
             }
             .sheet(isPresented: $showDateSelector) {
                 DateSelectorSheet(dateMode: $dateMode, targetDate: $targetDate)
-                    .presentationDetents([.medium, .large])
+                    .presentationDetents([.large])
             }
             .sheet(item: $editingEntry) { entry in
                 MemoInputView(
@@ -776,16 +912,11 @@ struct GraphView: View {
                     }
                     HapticManager.lightFeedback()
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(.caption, design: .rounded, weight: .bold))
-                        Text(String(localized: "戻る"))
-                            .font(.system(.caption, design: .rounded, weight: .semibold))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(colors.accent.opacity(0.12)))
-                    .foregroundStyle(colors.accent)
+                    Image(systemName: "chevron.left")
+                        .font(.system(.caption, design: .rounded, weight: .bold))
+                        .padding(8)
+                        .background(Circle().fill(colors.accent.opacity(0.12)))
+                        .foregroundStyle(colors.accent)
                 }
 
                 if let day = selectedDay {
@@ -860,7 +991,7 @@ struct GraphView: View {
                     .buttonStyle(.plain)
                 }
 
-                // Row 2: ◀ [日|週|月|年] ▶  date label (only for line mode)
+                // Row 2: ◀ date range ▶ (only for line mode)
                 if graphMode != .heatmap {
                     HStack(spacing: 8) {
                         // Previous period
@@ -874,32 +1005,24 @@ struct GraphView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // Date mode segment
-                        HStack(spacing: 2) {
-                            ForEach(DateSelectionMode.allCases) { mode in
-                                let isSelected = dateMode == mode
-                                Button {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        dateMode = mode
-                                        targetDate = .now
-                                    }
-                                    HapticManager.lightFeedback()
-                                } label: {
-                                    Text(mode.rawValue)
-                                        .font(.system(.caption, design: .rounded, weight: isSelected ? .bold : .medium))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 6)
-                                                .fill(isSelected ? colors.accent : .clear)
-                                        )
-                                        .foregroundStyle(isSelected ? .white : .secondary)
-                                }
-                                .buttonStyle(.plain)
+                        Spacer()
+
+                        // Date range label (tap to open date picker)
+                        Button {
+                            showDateSelector = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(formattedTargetDate())
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                    .lineLimit(1)
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 10, weight: .bold))
                             }
+                            .foregroundStyle(colors.accent)
                         }
-                        .padding(2)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color(.systemGray5).opacity(0.6)))
+                        .buttonStyle(.plain)
+
+                        Spacer()
 
                         // Next period
                         Button {
@@ -909,19 +1032,6 @@ struct GraphView: View {
                                 .font(.system(.caption, weight: .bold))
                                 .frame(width: 28, height: 28)
                                 .foregroundStyle(colors.accent)
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        // Date label (tap to open sheet for specific date)
-                        Button {
-                            showDateSelector = true
-                        } label: {
-                            Text(formattedTargetDate())
-                                .font(.system(.caption2, design: .rounded, weight: .medium))
-                                .foregroundStyle(colors.accent)
-                                .lineLimit(1)
                         }
                         .buttonStyle(.plain)
                     }
@@ -1023,7 +1133,7 @@ struct GraphView: View {
                     .foregroundStyle(.secondary)
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            } else if visibleEntries.count <= 2 {
+            } else if visibleEntries.count <= 2 && !hideGrowthPrompt {
                 graphGrowthPrompt(current: visibleEntries.count, needed: 3, colors: colors)
             }
         }
@@ -1093,7 +1203,7 @@ struct GraphView: View {
                     .foregroundStyle(.secondary)
                     .padding()
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            } else if plotDays.count <= 2 {
+            } else if plotDays.count <= 2 && !hideGrowthPrompt {
                 graphGrowthPrompt(current: plotDays.count, needed: 3, colors: colors)
             }
         }
@@ -1225,19 +1335,27 @@ struct GraphView: View {
     /// Positive prompt shown when too few data points for a meaningful graph
     private func graphGrowthPrompt(current: Int, needed: Int, colors: ThemeColors) -> some View {
         let remaining = needed - current
-        return VStack(spacing: 8) {
+        return HStack(spacing: 6) {
             Image(systemName: "sparkles")
-                .font(.title3)
+                .font(.caption)
                 .foregroundStyle(colors.accent.opacity(0.7))
-            Text(String(localized: "あと\(remaining)回記録すると\n気分の波がつながります"))
-                .font(.system(.caption, design: .rounded, weight: .medium))
+            Text(String(localized: "あと\(remaining)回記録すると波がつながります"))
+                .font(.system(.caption2, design: .rounded, weight: .medium))
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    hideGrowthPrompt = true
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
-        .allowsHitTesting(false)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial, in: Capsule())
     }
 
     // MARK: - View Components (Rows & States)

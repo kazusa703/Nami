@@ -137,7 +137,6 @@ struct ContentView: View {
                             }
                         }
                     )
-                    .ignoresSafeArea()
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     .zIndex(100)
                     .onAppear {

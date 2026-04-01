@@ -29,6 +29,10 @@ struct TagManagementView: View {
     @State private var isReordering = false
     /// 削除確認対象のタグ
     @State private var tagToDelete: EmotionTag?
+    /// Limit reached modal
+    @State private var showLimitReached = false
+    /// Rewarded ad manager
+    @State private var rewardedAdManager = RewardedAdManager()
 
     /// カスタムタグの数
     private var customTagCount: Int {
@@ -90,34 +94,14 @@ struct TagManagementView: View {
                                 .font(.system(.caption, design: .rounded))
                                 .foregroundStyle(.secondary)
                         } else {
-                            Button {
-                                showProView = true
-                                HapticManager.lightFeedback()
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "sparkles")
-                                        .font(.caption)
-                                    Text(String(localized: "プレミアムで無制限に追加"))
-                                        .font(.system(.subheadline, design: .rounded, weight: .bold))
-                                }
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [.orange, .pink],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .shadow(color: .orange.opacity(0.25), radius: 8, y: 3)
-                                )
+                            HStack(spacing: 8) {
+                                Image(systemName: "play.rectangle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(colors.accent)
+                                Text(String(localized: "広告を見てタグ枠を追加できます"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(colors.accent)
                             }
-                            .buttonStyle(.plain)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                         }
                     }
                 }
@@ -132,11 +116,10 @@ struct TagManagementView: View {
                 HStack(spacing: 12) {
                     Menu {
                         Button {
-                            showAddSheet = true
+                            handleAddTagTap()
                         } label: {
                             Label(String(localized: "タグを追加"), systemImage: "tag.fill")
                         }
-                        .disabled(!premiumManager.canCreateCustomTag(currentCount: customTagCount))
 
                         Button {
                             showAddCategorySheet = true
@@ -159,6 +142,9 @@ struct TagManagementView: View {
                 }
             }
         }
+        .task {
+            rewardedAdManager.loadAd()
+        }
         .sheet(isPresented: $showProView) {
             NavigationStack {
                 ProView()
@@ -173,6 +159,16 @@ struct TagManagementView: View {
             AddCategorySheet(themeColors: colors) { name, icon in
                 addCustomCategory(name: name, icon: icon)
             }
+        }
+        .sheet(isPresented: $showLimitReached) {
+            LimitReachedView(
+                rewardedAdManager: rewardedAdManager,
+                onRewardUnlocked: {
+                    // After reward, open add tag sheet
+                    showAddSheet = true
+                }
+            )
+            .presentationDetents([.medium])
         }
         .alert(
             String(localized: "タグを削除"),
@@ -216,6 +212,17 @@ struct TagManagementView: View {
         }
     }
 
+    // MARK: - Tag limit gate
+
+    /// Handles tag add button tap — shows limit modal or add sheet
+    private func handleAddTagTap() {
+        if premiumManager.canCreateCustomTag(currentCount: customTagCount) {
+            showAddSheet = true
+        } else {
+            showLimitReached = true
+        }
+    }
+
     /// Tag row
     private func tagRow(tag: EmotionTag, colors: ThemeColors) -> some View {
         HStack(spacing: 12) {
@@ -255,7 +262,6 @@ struct TagManagementView: View {
     private func moveCustomTags(in category: EmotionTagCategory, from source: IndexSet, to destination: Int) {
         var categoryTags = allTags.filter { $0.category == category }
         categoryTags.move(fromOffsets: source, toOffset: destination)
-        // Update sort order for all tags in this category
         for (index, tag) in categoryTags.enumerated() {
             tag.sortOrder = category.sortIndex * 1000 + index
         }
@@ -278,11 +284,8 @@ struct TagManagementView: View {
         HapticManager.lightFeedback()
     }
 
-    /// Add a custom category (creates a placeholder tag so the category appears)
+    /// Add a custom category
     private func addCustomCategory(name: String, icon: String) {
-        // Custom categories are created by adding a tag with a unique category name
-        // Since EmotionTagCategory is a fixed enum, custom categories use .custom
-        // and differentiate via a prefix in the tag name
         let nextOrder = (allTags.map(\.sortOrder).max() ?? 0) + 1
         let tag = EmotionTag(
             name: name,
@@ -374,7 +377,9 @@ struct AddCategorySheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "キャンセル")) { dismiss() }
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "追加")) {
@@ -566,8 +571,6 @@ struct AddTagSheet: View {
                         ForEach(categories) { category in
                             Button {
                                 selectedCategory = category
-                                // Reset icon to auto when category changes
-                                if selectedIcon == nil {} // keep auto
                             } label: {
                                 HStack(spacing: 10) {
                                     Image(systemName: category.icon)
@@ -598,7 +601,9 @@ struct AddTagSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "キャンセル")) { dismiss() }
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "追加")) {

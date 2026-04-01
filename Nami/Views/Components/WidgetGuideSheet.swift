@@ -16,7 +16,6 @@ struct WidgetGuideSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-
                     // Header
                     VStack(spacing: 8) {
                         Image(systemName: "square.grid.2x2.fill")
@@ -123,7 +122,9 @@ struct WidgetGuideSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: "閉じる")) { dismiss() }
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                    }
                 }
             }
         }
@@ -131,7 +132,6 @@ struct WidgetGuideSheet: View {
 
     // MARK: - Components
 
-    @ViewBuilder
     private func useCaseCard(
         emoji: String,
         title: String,
@@ -186,7 +186,6 @@ struct WidgetGuideSheet: View {
         .padding(.horizontal)
     }
 
-    @ViewBuilder
     private func stepRow(number: Int, text: String) -> some View {
         HStack(spacing: 10) {
             Text("\(number)")

@@ -26,6 +26,7 @@ struct MainView: View {
     @AppStorage("totalRecordCount") private var totalRecordCount: Int = 0
     @State private var showCoachTip: String? = nil
     @State private var showMainHelp = false
+    @State private var showOnboardingReplay = false
     /// Personalized greeting message (4-level fallback)
     @State private var greetingMessage: String = ""
     /// Entry being edited from inbox
@@ -114,6 +115,12 @@ struct MainView: View {
                         VStack(spacing: 32) {
                             Spacer()
 
+                            // 波アイコン
+                            Image(systemName: "water.waves")
+                                .font(.system(size: 44))
+                                .foregroundStyle(colors.accent.gradient)
+                                .symbolEffect(.variableColor.iterative, options: .repeating.speed(0.3))
+
                             // ストリークバッジ
                             StreakBadgeView(
                                 currentStreak: cachedCurrentStreak,
@@ -121,17 +128,24 @@ struct MainView: View {
                                 colors: colors
                             )
 
-                            // パーソナライズ挨拶
+                            // パーソナライズ挨拶 / 予測インサイト
                             VStack(spacing: 8) {
-                                Text(greetingMessage.isEmpty ? String(localized: "今の気分は？") : greetingMessage)
-                                    .font(.system(.title3, design: .rounded, weight: .bold))
-                                    .foregroundStyle(colors.accent)
-                                    .multilineTextAlignment(.center)
-                                    .lineLimit(2)
-                                    .minimumScaleFactor(0.8)
+                                HStack(spacing: 6) {
+                                    if !greetingMessage.isEmpty {
+                                        Image(systemName: "sparkles")
+                                            .font(.system(.subheadline))
+                                            .foregroundStyle(colors.accent.opacity(0.7))
+                                    }
+                                    Text(greetingMessage.isEmpty ? String(localized: "今の気分は？") : greetingMessage)
+                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                        .foregroundStyle(colors.accent)
+                                        .multilineTextAlignment(.center)
+                                        .lineLimit(3)
+                                        .minimumScaleFactor(0.8)
+                                }
 
                                 Text("\(scoreRange.displayName)でタップして記録")
-                                    .font(.system(.subheadline, design: .rounded))
+                                    .font(.system(.caption, design: .rounded))
                                     .foregroundStyle(.secondary)
                             }
 
@@ -178,7 +192,7 @@ struct MainView: View {
             .navigationBarHidden(true)
         }
         .overlay(alignment: .topTrailing) {
-            Button { showMainHelp = true } label: {
+            Button { showOnboardingReplay = true } label: {
                 Image(systemName: "questionmark.circle")
                     .font(.system(.body))
                     .foregroundStyle(.secondary)
@@ -186,8 +200,8 @@ struct MainView: View {
             .padding(.trailing, 16)
             .padding(.top, 8)
         }
-        .sheet(isPresented: $showMainHelp) {
-            FeatureHelpSheet(title: String(localized: "画面の見方"), items: HelpContent.mainViewHelp, accentColor: themeManager.colors.accent)
+        .fullScreenCover(isPresented: $showOnboardingReplay) {
+            OnboardingView(isReplay: true)
         }
         .onAppear {
             rebuildStreakCache()

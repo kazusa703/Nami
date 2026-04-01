@@ -66,8 +66,12 @@ class PremiumManager {
     /// Purchase success flag for UI
     var showPurchaseSuccess: Bool = false
 
-    /// Free user custom tag limit
-    let freeCustomTagLimit = 10
+    /// Free user custom tag base limit
+    let freeCustomTagLimit = 30
+
+    /// Rewarded ad unlock count (persisted)
+    @ObservationIgnored
+    @AppStorage("rewardedTagUnlocks") var rewardedTagUnlocks: Int = 0
 
     /// Legacy single product access (for backward compatibility)
     var product: Product? {
@@ -202,16 +206,32 @@ class PremiumManager {
 
     // MARK: - Custom Tag Limits
 
+    /// Effective free tag limit (base + rewarded unlocks)
+    var effectiveFreeTagLimit: Int {
+        freeCustomTagLimit + rewardedTagUnlocks
+    }
+
     /// Whether user can create another custom tag
     func canCreateCustomTag(currentCount: Int) -> Bool {
         if isPremium { return true }
-        return currentCount < freeCustomTagLimit
+        return currentCount < effectiveFreeTagLimit
     }
 
-    /// Remaining custom tags the user can create
+    /// Remaining custom tags the user can create without rewarded ad
     func remainingCustomTags(currentCount: Int) -> Int {
         if isPremium { return .max }
-        return max(0, freeCustomTagLimit - currentCount)
+        return max(0, effectiveFreeTagLimit - currentCount)
+    }
+
+    /// Whether a rewarded ad is needed to create the next tag
+    func needsRewardedAd(currentCount: Int) -> Bool {
+        if isPremium { return false }
+        return currentCount >= effectiveFreeTagLimit
+    }
+
+    /// Called when user successfully watches a rewarded ad
+    func unlockTagWithReward() {
+        rewardedTagUnlocks += 1
     }
 
     /// Free user history limit in days
@@ -235,7 +255,6 @@ class PremiumManager {
 
             switch transaction.productID {
             case Self.lifetimeProductID:
-                // Non-consumable: always valid if present in entitlements
                 if transaction.revocationDate == nil {
                     foundPlan = .lifetime
                 }

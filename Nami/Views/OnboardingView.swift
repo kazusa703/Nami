@@ -15,6 +15,10 @@ struct OnboardingView: View {
     @Environment(\.themeManager) private var themeManager
     @Environment(\.languageManager) private var languageManager
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    /// When true, onboarding is shown as a replay (does not reset hasCompletedOnboarding)
+    var isReplay: Bool = false
 
     @AppStorage(AppConstants.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
     @AppStorage("reminderEnabled") private var reminderEnabled = false
@@ -47,12 +51,17 @@ struct OnboardingView: View {
                 if currentStep < totalSteps - 1 {
                     HStack {
                         Spacer()
-                        Button {
-                            HapticManager.lightFeedback()
-                            completeOnboarding()
-                        } label: {
-                            Text(String(localized: "あとで設定する"))
-                                .font(.system(.caption, design: .rounded))
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Button {
+                                HapticManager.lightFeedback()
+                                completeOnboarding()
+                            } label: {
+                                Text(String(localized: "あとで設定する"))
+                                    .font(.system(.caption, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(String(localized: "記録画面の ? からいつでも再開できます"))
+                                .font(.system(size: 9, design: .rounded))
                                 .foregroundStyle(.tertiary)
                         }
                         .padding(.trailing, 20)
@@ -717,8 +726,12 @@ struct OnboardingView: View {
             }
         }
 
-        withAnimation(.easeInOut(duration: 0.4)) {
-            hasCompletedOnboarding = true
+        if isReplay {
+            dismiss()
+        } else {
+            withAnimation(.easeInOut(duration: 0.4)) {
+                hasCompletedOnboarding = true
+            }
         }
     }
 }

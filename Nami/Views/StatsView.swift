@@ -393,8 +393,10 @@ struct StatsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(String(localized: "閉じる")) {
+                    Button {
                         showGuideSheet = false
+                    } label: {
+                        Image(systemName: "xmark")
                     }
                 }
             }
@@ -971,7 +973,9 @@ struct StatsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: "閉じる")) { showAllInsights = false }
+                    Button { showAllInsights = false } label: {
+                        Image(systemName: "xmark")
+                    }
                 }
             }
         }
