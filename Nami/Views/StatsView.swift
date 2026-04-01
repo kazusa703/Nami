@@ -38,6 +38,8 @@ enum StatsSection: Int, CaseIterable, Identifiable {
     case tagFlow
     case discovery
     case activity
+    case habitImpact
+    case momentum
 
     var id: Int {
         rawValue
@@ -72,6 +74,8 @@ enum StatsSection: Int, CaseIterable, Identifiable {
         case .tagFlow: return String(localized: "タグ遷移マップ")
         case .discovery: return String(localized: "発見")
         case .activity: return String(localized: "アクティビティ")
+        case .habitImpact: return String(localized: "習慣インパクト")
+        case .momentum: return String(localized: "スコア・モメンタム")
         }
     }
 
@@ -104,6 +108,8 @@ enum StatsSection: Int, CaseIterable, Identifiable {
         case .tagFlow: return "arrow.triangle.branch"
         case .discovery: return "magnifyingglass"
         case .activity: return "list.bullet"
+        case .habitImpact: return "arrow.up.arrow.down"
+        case .momentum: return "gauge.with.needle.fill"
         }
     }
 
@@ -136,6 +142,8 @@ enum StatsSection: Int, CaseIterable, Identifiable {
         case .tagFlow: return String(localized: "タグの遷移パターンをフロー図で可視化。どのタグの後にどのタグが続くかを表示")
         case .discovery: return String(localized: "記録回数やタグ使用頻度とスコアの関係など、意外なパターンを発見")
         case .activity: return String(localized: "最近の記録を時系列で一覧表示。タップしてメモを編集できます")
+        case .habitImpact: return String(localized: "各タグ（習慣）がある日とない日でスコアがどう変わるかをランキング表示。行動変容の手がかりに")
+        case .momentum: return String(localized: "直近7日と30日の移動平均の差から、気分の上昇・下降トレンドを検出します")
         }
     }
 }
@@ -450,8 +458,8 @@ struct StatsView: View {
 
     /// Returns the category group title a section belongs to (nil for highlight sections)
     private func categoryGroupTitle(for section: StatsSection) -> String? {
-        let trendCases: Set<StatsSection> = [.moodRhythm, .distribution, .average, .pastComparison, .weekday, .timeOfDay, .streak]
-        let tagCases: Set<StatsSection> = [.tagAnalysis, .memoKeyword]
+        let trendCases: Set<StatsSection> = [.moodRhythm, .distribution, .average, .pastComparison, .weekday, .timeOfDay, .streak, .momentum]
+        let tagCases: Set<StatsSection> = [.tagAnalysis, .memoKeyword, .habitImpact]
         let contextCases: Set<StatsSection> = [.weatherMood, .energyMood, .locationMood, .sourceBreakdown, .recordTiming, .healthKit]
         let deepCases: Set<StatsSection> = [.stability, .recovery, .discovery, .activity]
         let proCases: Set<StatsSection> = [.prediction, .tagFlow, .premium]
@@ -571,7 +579,11 @@ struct StatsView: View {
 
     /// Group A: Trend analysis sections
     private var trendSections: [StatsSection] {
-        [.moodRhythm, .distribution, .average, .pastComparison, .weekday, .timeOfDay, .streak]
+        var sections: [StatsSection] = [.moodRhythm, .distribution, .average, .pastComparison, .weekday, .timeOfDay, .streak]
+        if entries.count >= 7 {
+            sections.insert(.momentum, at: 0)
+        }
+        return sections
     }
 
     /// Group B: Tag & keyword sections (conditionally included)
@@ -579,6 +591,9 @@ struct StatsView: View {
         var sections: [StatsSection] = []
         if entries.contains(where: { !$0.tags.isEmpty }) {
             sections.append(.tagAnalysis)
+            if entries.count >= 10 {
+                sections.append(.habitImpact)
+            }
         }
         if entries.contains(where: { $0.memo != nil }) {
             sections.append(.memoKeyword)
@@ -837,6 +852,8 @@ struct StatsView: View {
         case .tagFlow: tagFlowSection(colors: colors)
         case .discovery: discoverySection(colors: colors)
         case .activity: activitySection(colors: colors)
+        case .habitImpact: habitImpactSection(colors: colors)
+        case .momentum: momentumSection(colors: colors)
         }
     }
 
@@ -4590,6 +4607,181 @@ struct StatsView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.ultraThinMaterial)
         )
+    }
+
+    // MARK: - 習慣インパクトセクション
+
+    private func habitImpactSection(colors: ThemeColors) -> some View {
+        let impacts = statsVM.habitImpactScores(entries: entries, targetMax: currentMaxScore, targetMin: currentMinScore)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: StatsSection.habitImpact.icon)
+                    .font(.system(.subheadline))
+                    .foregroundStyle(colors.accent)
+                Text(StatsSection.habitImpact.displayName)
+                    .font(.system(.headline, design: .rounded))
+            }
+
+            if impacts.isEmpty {
+                Text(String(localized: "タグが5回以上使用されるとインパクトを分析できます"))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            } else {
+                // Free: show top 1, Pro: show all
+                let displayImpacts = premiumManager.isPremium ? impacts : Array(impacts.prefix(1))
+                let hiddenCount = premiumManager.isPremium ? 0 : max(0, impacts.count - 1)
+
+                VStack(spacing: 8) {
+                    ForEach(displayImpacts) { impact in
+                        let displayName = TagDisplayHelper.displayName(for: impact.tagName)
+                        HStack(spacing: 12) {
+                            // Impact indicator
+                            Image(systemName: impact.impact >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(impact.impact >= 0 ? .green : .orange)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(displayName)
+                                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                HStack(spacing: 4) {
+                                    Text(String(format: "%+.1f", impact.impact))
+                                        .font(.system(.caption, design: .rounded, weight: .bold))
+                                        .foregroundStyle(impact.impact >= 0 ? .green : .orange)
+                                    Text(String(localized: "(\(impact.sampleCount)回)"))
+                                        .font(.system(.caption2, design: .rounded))
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+
+                            Spacer()
+
+                            // With/Without comparison
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(String(format: "%.1f", impact.withAvg))
+                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                    .foregroundStyle(colors.accent)
+                                Text(String(format: "vs %.1f", impact.withoutAvg))
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+                    }
+
+                    if hiddenCount > 0 {
+                        Button {
+                            showProView = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "lock.fill")
+                                    .font(.caption2)
+                                Text(String(localized: "残り\(hiddenCount)個の習慣はProで確認"))
+                                    .font(.system(.caption, design: .rounded, weight: .medium))
+                            }
+                            .foregroundStyle(.orange)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(.orange.opacity(0.08)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - スコア・モメンタムセクション
+
+    private func momentumSection(colors: ThemeColors) -> some View {
+        let momentum = statsVM.scoreMomentum(entries: entries, targetMax: currentMaxScore, targetMin: currentMinScore)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: StatsSection.momentum.icon)
+                    .font(.system(.subheadline))
+                    .foregroundStyle(colors.accent)
+                Text(StatsSection.momentum.displayName)
+                    .font(.system(.headline, design: .rounded))
+            }
+
+            if let m = momentum {
+                // Main momentum card
+                HStack(spacing: 16) {
+                    // Trend icon
+                    Image(systemName: m.trend.icon)
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(m.trend.color)
+                        .frame(width: 44, height: 44)
+                        .background(m.trend.color.opacity(0.12), in: Circle())
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text(m.trend.label)
+                                .font(.system(.headline, design: .rounded, weight: .bold))
+                                .foregroundStyle(m.trend.color)
+                            Text(String(format: "%+.1f", m.momentum))
+                                .font(.system(.caption, design: .rounded, weight: .bold))
+                                .foregroundStyle(m.trend.color.opacity(0.8))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(m.trend.color.opacity(0.1)))
+                        }
+
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(String(localized: "7日平均"))
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Text(String(format: "%.1f", m.ma7))
+                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            }
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(String(localized: "30日平均"))
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Text(String(format: "%.1f", m.ma30))
+                                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                            }
+                        }
+                    }
+
+                    Spacer()
+                }
+                .padding(16)
+                .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
+
+                // Pro: momentum history chart teaser
+                if !premiumManager.isPremium {
+                    Button {
+                        showProView = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .font(.caption)
+                            Text(String(localized: "モメンタム推移グラフはProで確認"))
+                                .font(.system(.caption, design: .rounded, weight: .medium))
+                        }
+                        .foregroundStyle(.orange)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.orange.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                }
+            } else {
+                Text(String(localized: "7日以上の記録が必要です"))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            }
+        }
     }
 }
 

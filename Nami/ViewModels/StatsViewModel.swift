@@ -8,6 +8,7 @@
 import Foundation
 import NaturalLanguage
 import SwiftData
+import SwiftUI
 
 /// 時間帯の分類
 enum TimeOfDay: Int, CaseIterable, Identifiable {
@@ -1816,5 +1817,160 @@ class StatsViewModel {
         guard !entries.isEmpty else { return nil }
         let avgNormalized = entries.reduce(0.0) { $0 + $1.normalizedScore } / Double(entries.count)
         return avgNormalized * Double(targetMax - targetMin) + Double(targetMin)
+    }
+
+    // MARK: - 習慣インパクトスコア
+
+    struct HabitImpact: Identifiable {
+        let id = UUID()
+        let tagName: String
+        let withAvg: Double
+        let withoutAvg: Double
+        let impact: Double
+        let sampleCount: Int
+    }
+
+    /// Calculate the impact of each tag on mood score
+    /// impact = avg(score when tag present) - avg(score when tag absent)
+    func habitImpactScores(entries: [MoodEntry], targetMax: Int, targetMin: Int) -> [HabitImpact] {
+        guard entries.count >= 10 else { return [] }
+
+        // Collect all tags that appear at least 5 times
+        var tagCounts: [String: Int] = [:]
+        for entry in entries {
+            for tag in entry.tags {
+                tagCounts[tag, default: 0] += 1
+            }
+        }
+
+        let qualifiedTags = tagCounts.filter { $0.value >= 5 }.keys
+
+        var results: [HabitImpact] = []
+
+        for tag in qualifiedTags {
+            let withTag = entries.filter { $0.tags.contains(tag) }
+            let withoutTag = entries.filter { !$0.tags.contains(tag) }
+
+            guard !withTag.isEmpty, !withoutTag.isEmpty else { continue }
+
+            let withAvg = withTag.map { $0.scaledScore(to: targetMax, targetMin: targetMin) }.reduce(0, +) / Double(withTag.count)
+            let withoutAvg = withoutTag.map { $0.scaledScore(to: targetMax, targetMin: targetMin) }.reduce(0, +) / Double(withoutTag.count)
+            let impact = withAvg - withoutAvg
+
+            results.append(HabitImpact(
+                tagName: tag,
+                withAvg: withAvg,
+                withoutAvg: withoutAvg,
+                impact: impact,
+                sampleCount: withTag.count
+            ))
+        }
+
+        return results.sorted { abs($0.impact) > abs($1.impact) }
+    }
+
+    // MARK: - スコア・モメンタム
+
+    struct ScoreMomentum {
+        let ma7: Double
+        let ma30: Double
+        let momentum: Double
+        let trend: MomentumTrend
+
+        enum MomentumTrend {
+            case rising, falling, stable
+
+            var label: String {
+                switch self {
+                case .rising: return String(localized: "上昇中")
+                case .falling: return String(localized: "下降中")
+                case .stable: return String(localized: "安定")
+                }
+            }
+
+            var icon: String {
+                switch self {
+                case .rising: return "arrow.up.right"
+                case .falling: return "arrow.down.right"
+                case .stable: return "arrow.right"
+                }
+            }
+
+            var color: Color {
+                switch self {
+                case .rising: return .green
+                case .falling: return .red
+                case .stable: return .yellow
+                }
+            }
+        }
+    }
+
+    /// Calculate score momentum (MA7 - MA30)
+    func scoreMomentum(entries: [MoodEntry], targetMax: Int, targetMin: Int) -> ScoreMomentum? {
+        let cal = Calendar.current
+        let now = Date.now
+
+        guard let sevenDaysAgo = cal.date(byAdding: .day, value: -7, to: now),
+              let thirtyDaysAgo = cal.date(byAdding: .day, value: -30, to: now)
+        else { return nil }
+
+        let recent7 = entries.filter { $0.createdAt >= sevenDaysAgo }
+        let recent30 = entries.filter { $0.createdAt >= thirtyDaysAgo }
+
+        guard recent7.count >= 3, recent30.count >= 7 else { return nil }
+
+        let ma7 = recent7.map { $0.scaledScore(to: targetMax, targetMin: targetMin) }.reduce(0, +) / Double(recent7.count)
+        let ma30 = recent30.map { $0.scaledScore(to: targetMax, targetMin: targetMin) }.reduce(0, +) / Double(recent30.count)
+        let momentum = ma7 - ma30
+
+        let trend: ScoreMomentum.MomentumTrend
+        if momentum > 0.5 {
+            trend = .rising
+        } else if momentum < -0.5 {
+            trend = .falling
+        } else {
+            trend = .stable
+        }
+
+        return ScoreMomentum(ma7: ma7, ma30: ma30, momentum: momentum, trend: trend)
+    }
+
+    /// Historical momentum data points (for Pro chart)
+    struct MomentumDataPoint: Identifiable {
+        let id = UUID()
+        let date: Date
+        let ma7: Double
+        let ma30: Double
+        let momentum: Double
+    }
+
+    /// Generate momentum history for chart (weekly data points over last 90 days)
+    func momentumHistory(entries: [MoodEntry], targetMax: Int, targetMin: Int) -> [MomentumDataPoint] {
+        let cal = Calendar.current
+        let now = Date.now
+        guard entries.count >= 30 else { return [] }
+
+        var results: [MomentumDataPoint] = []
+
+        // Generate a data point every 3 days for the last 90 days
+        for dayOffset in stride(from: -90, through: 0, by: 3) {
+            guard let pointDate = cal.date(byAdding: .day, value: dayOffset, to: now),
+                  let sevenBefore = cal.date(byAdding: .day, value: -7, to: pointDate),
+                  let thirtyBefore = cal.date(byAdding: .day, value: -30, to: pointDate)
+            else { continue }
+
+            let r7 = entries.filter { $0.createdAt >= sevenBefore && $0.createdAt <= pointDate }
+            let r30 = entries.filter { $0.createdAt >= thirtyBefore && $0.createdAt <= pointDate }
+
+            guard r7.count >= 2, r30.count >= 5 else { continue }
+
+            let m7 = r7.map { $0.scaledScore(to: targetMax, targetMin: targetMin) }.reduce(0, +) / Double(r7.count)
+            let m30 = r30.map { $0.scaledScore(to: targetMax, targetMin: targetMin) }.reduce(0, +) / Double(r30.count)
+
+            results.append(MomentumDataPoint(date: pointDate, ma7: m7, ma30: m30, momentum: m7 - m30))
+        }
+
+        return results
     }
 }
