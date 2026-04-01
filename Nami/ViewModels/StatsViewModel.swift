@@ -1810,6 +1810,113 @@ class StatsViewModel {
         )
     }
 
+    // MARK: - 回復ブースター分析
+
+    struct RecoveryBooster: Identifiable {
+        let id = UUID()
+        let tagName: String
+        let recoveryRate: Double // Tag present on recovery day rate
+        let baselineRate: Double // Tag present on any day rate
+        let lift: Double // recoveryRate / baselineRate
+        let recoveryCount: Int // How many recovery events had this tag
+    }
+
+    /// Identify tags that appear disproportionately on recovery days
+    /// Recovery = score drops below mean-1σ, then returns to mean within 3 days
+    func recoveryBoosters(entries: [MoodEntry]) -> [RecoveryBooster] {
+        let calendar = Calendar.current
+        let sorted = entries.sorted { $0.createdAt < $1.createdAt }
+        guard sorted.count >= 15 else { return [] }
+
+        // Build daily data
+        var dailyData: [(date: Date, avgNorm: Double, tags: Set<String>)] = []
+        var grouped: [Date: (norms: [Double], tags: Set<String>)] = [:]
+
+        for entry in sorted {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if grouped[day] == nil {
+                grouped[day] = (norms: [entry.normalizedScore], tags: Set(entry.tags))
+            } else {
+                grouped[day]?.norms.append(entry.normalizedScore)
+                grouped[day]?.tags.formUnion(entry.tags)
+            }
+        }
+
+        for (date, data) in grouped {
+            let avg = data.norms.reduce(0, +) / Double(data.norms.count)
+            dailyData.append((date, avg, data.tags))
+        }
+        dailyData.sort { $0.date < $1.date }
+
+        guard dailyData.count >= 7 else { return [] }
+
+        // Calculate mean and stddev
+        let allNorms = dailyData.map(\.avgNorm)
+        let mean = allNorms.reduce(0, +) / Double(allNorms.count)
+        let variance = allNorms.reduce(0.0) { $0 + pow($1 - mean, 2) } / Double(allNorms.count)
+        let stddev = sqrt(variance)
+        let lowThreshold = mean - stddev
+
+        // Find recovery events
+        var recoveryDayTags: [Set<String>] = []
+
+        for i in 0 ..< dailyData.count {
+            guard dailyData[i].avgNorm < lowThreshold else { continue }
+
+            // Look for recovery within 3 days
+            for j in (i + 1) ... min(i + 3, dailyData.count - 1) {
+                if dailyData[j].avgNorm >= mean {
+                    recoveryDayTags.append(dailyData[j].tags)
+                    break
+                }
+            }
+        }
+
+        guard recoveryDayTags.count >= 2 else { return [] }
+
+        // Calculate baseline tag rates (across all days)
+        let totalDays = Double(dailyData.count)
+        var baselineTagCounts: [String: Int] = [:]
+        for day in dailyData {
+            for tag in day.tags {
+                baselineTagCounts[tag, default: 0] += 1
+            }
+        }
+
+        // Calculate recovery day tag rates
+        let totalRecoveryDays = Double(recoveryDayTags.count)
+        var recoveryTagCounts: [String: Int] = [:]
+        for tags in recoveryDayTags {
+            for tag in tags {
+                recoveryTagCounts[tag, default: 0] += 1
+            }
+        }
+
+        // Calculate lift for each tag
+        var boosters: [RecoveryBooster] = []
+        for (tag, recoveryCount) in recoveryTagCounts {
+            guard recoveryCount >= 2 else { continue }
+            let baselineCount = baselineTagCounts[tag] ?? 0
+            guard baselineCount >= 3 else { continue }
+
+            let recoveryRate = Double(recoveryCount) / totalRecoveryDays
+            let baselineRate = Double(baselineCount) / totalDays
+            guard baselineRate > 0 else { continue }
+
+            let lift = recoveryRate / baselineRate
+
+            boosters.append(RecoveryBooster(
+                tagName: tag,
+                recoveryRate: recoveryRate,
+                baselineRate: baselineRate,
+                lift: lift,
+                recoveryCount: recoveryCount
+            ))
+        }
+
+        return boosters.filter { $0.lift > 1.2 }.sorted { $0.lift > $1.lift }
+    }
+
     // MARK: - ヘルパー
 
     /// 正規化ベースの平均を算出し、指定レンジにスケールする

@@ -3253,6 +3253,74 @@ struct StatsView: View {
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 4)
                     }
+
+                    // Recovery boosters
+                    let boosters = statsVM.recoveryBoosters(entries: entries)
+                    if !boosters.isEmpty {
+                        Divider().padding(.vertical, 4)
+
+                        HStack(spacing: 6) {
+                            Image(systemName: "bolt.heart.fill")
+                                .foregroundStyle(.green)
+                            Text(String(localized: "回復ブースター"))
+                                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        }
+
+                        Text(String(localized: "不調日の後、回復を早めるタグ"))
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        let displayBoosters = premiumManager.isPremium ? boosters : Array(boosters.prefix(1))
+                        let hiddenCount = premiumManager.isPremium ? 0 : max(0, boosters.count - 1)
+
+                        ForEach(displayBoosters) { booster in
+                            let displayName = TagDisplayHelper.displayName(for: booster.tagName)
+                            HStack(spacing: 10) {
+                                Image(systemName: "arrow.up.heart.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(.green)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(displayName)
+                                        .font(.system(.subheadline, design: .rounded, weight: .semibold))
+                                    Text(String(localized: "回復日の\(Int(booster.recoveryRate * 100))%で出現（通常\(Int(booster.baselineRate * 100))%）"))
+                                        .font(.system(.caption2, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+
+                                VStack(alignment: .trailing, spacing: 1) {
+                                    Text(String(format: "×%.1f", booster.lift))
+                                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                                        .foregroundStyle(.green)
+                                    Text(String(localized: "リフト"))
+                                        .font(.system(size: 9, design: .rounded))
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .padding(10)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(.green.opacity(0.06)))
+                        }
+
+                        if hiddenCount > 0 {
+                            Button {
+                                showProView = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.caption2)
+                                    Text(String(localized: "残り\(hiddenCount)個のブースターはProで確認"))
+                                        .font(.system(.caption, design: .rounded, weight: .medium))
+                                }
+                                .foregroundStyle(.orange)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(RoundedRectangle(cornerRadius: 12).fill(.orange.opacity(0.08)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
             }
         }
