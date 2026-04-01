@@ -95,15 +95,28 @@ struct MediumWidgetView: View {
                     }
                 }
 
-                // 週間トレンド
-                if let trend = entry.weeklyTrend {
+                // モメンタムトレンド
+                if entry.momentumTrend != .unknown {
                     HStack(spacing: 3) {
-                        Image(systemName: trend >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        Image(systemName: entry.momentumTrend.icon)
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(trend >= 0 ? .green : .orange)
-                        Text(String(format: "%+.1f", trend))
+                            .foregroundStyle(entry.momentumTrend == .rising ? .green : entry.momentumTrend == .falling ? .orange : .secondary)
+                        Text(entry.momentumTrend.label)
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                // ベストアクション提案
+                if let action = entry.bestAction {
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 8))
+                            .foregroundStyle(theme.accent.opacity(0.6))
+                        Text("今日も\(action)")
+                            .font(.system(size: 9, weight: .medium, design: .rounded))
+                            .foregroundStyle(theme.accent.opacity(0.7))
+                            .lineLimit(1)
                     }
                 }
             }

@@ -81,6 +81,9 @@ struct MonthlyReportView: View {
                         // Average score hero
                         averageScoreSection(colors: colors)
 
+                        // Best day feature card
+                        bestDayCard(colors: colors)
+
                         // Sentiment ring
                         sentimentRingSection(colors: colors)
 
@@ -92,9 +95,12 @@ struct MonthlyReportView: View {
                             heroInsightSection(insight: insight, colors: colors)
                         }
 
-                        // Top tags
+                        // Recovery booster
+                        recoveryBoosterSection(colors: colors)
+
+                        // Top tags with impact
                         if !tagRanking.isEmpty {
-                            topTagsSection(colors: colors)
+                            topTagsWithImpactSection(colors: colors)
                         }
 
                         // Share button
@@ -372,9 +378,193 @@ struct MonthlyReportView: View {
 
     // MARK: - Share Button
 
+    // MARK: - Best Day Card
+
+    @ViewBuilder
+    private func bestDayCard(colors: ThemeColors) -> some View {
+        if let best = summary?.bestDay {
+            let scaled = Double(best.score)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.fill")
+                        .foregroundStyle(.yellow)
+                    Text(String(localized: "今月のベストデイ"))
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                }
+
+                HStack(spacing: 16) {
+                    Text(String(format: "%.0f", scaled))
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundStyle(colors.accent)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(best.date.formatted(.dateTime.month().day().weekday(.wide)))
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
+
+                        if let memo = best.memo, !memo.isEmpty {
+                            Text(memo)
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+
+                        // Tags for best day
+                        let bestDayEntries = monthEntries.filter { Calendar.current.isDate($0.createdAt, inSameDayAs: best.date) }
+                        let bestDayTags = Array(Set(bestDayEntries.flatMap(\.tags))).prefix(3)
+                        if !bestDayTags.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(Array(bestDayTags), id: \.self) { tag in
+                                    Text(TagDisplayHelper.displayName(for: tag))
+                                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(Capsule().fill(colors.accent.opacity(0.1)))
+                                        .foregroundStyle(colors.accent)
+                                }
+                            }
+                        }
+
+                        // Weather if available
+                        if let weather = bestDayEntries.compactMap(\.weatherCondition).first {
+                            let weatherIcon = switch weather {
+                            case "sunny", "clear": "sun.max.fill"
+                            case "cloudy": "cloud.fill"
+                            case "rainy": "cloud.rain.fill"
+                            case "snowy": "cloud.snow.fill"
+                            default: "cloud.fill"
+                            }
+                            HStack(spacing: 4) {
+                                Image(systemName: weatherIcon)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                                if let temp = bestDayEntries.compactMap(\.weatherTemperature).first {
+                                    Text(String(format: "%.0f°C", temp))
+                                        .font(.system(.caption2, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(.yellow.opacity(0.2), lineWidth: 1)
+                    )
+            )
+        }
+    }
+
+    // MARK: - Recovery Booster Section
+
+    @ViewBuilder
+    private func recoveryBoosterSection(colors _: ThemeColors) -> some View {
+        let boosters = statsVM.recoveryBoosters(entries: monthEntries)
+        if !boosters.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "bolt.heart.fill")
+                        .foregroundStyle(.green)
+                    Text(String(localized: "今月あなたを救ったアクション"))
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                }
+
+                ForEach(boosters.prefix(3)) { booster in
+                    let displayName = TagDisplayHelper.displayName(for: booster.tagName)
+                    HStack(spacing: 10) {
+                        Image(systemName: "arrow.up.heart.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.green)
+                        Text(displayName)
+                            .font(.system(.subheadline, design: .rounded, weight: .medium))
+                        Spacer()
+                        Text(String(format: "×%.1f", booster.lift))
+                            .font(.system(.caption, design: .rounded, weight: .bold))
+                            .foregroundStyle(.green)
+                    }
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(.green.opacity(0.06)))
+                }
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
+        }
+    }
+
+    // MARK: - Top Tags with Impact
+
+    private func topTagsWithImpactSection(colors: ThemeColors) -> some View {
+        let impacts = statsVM.habitImpactScores(entries: monthEntries, targetMax: currentMaxScore, targetMin: currentMinScore)
+        let impactMap = Dictionary(uniqueKeysWithValues: impacts.map { ($0.tagName, $0.impact) })
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "tag.fill")
+                    .foregroundStyle(colors.accent)
+                Text(String(localized: "よく使ったタグ"))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+            }
+
+            ForEach(tagRanking.prefix(10), id: \.tag) { item in
+                let displayName = TagDisplayHelper.displayName(for: item.tag)
+                let impact = impactMap[item.tag]
+
+                HStack(spacing: 8) {
+                    Text(displayName)
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .frame(width: 80, alignment: .leading)
+                        .lineLimit(1)
+
+                    // Bar
+                    GeometryReader { geo in
+                        let maxCount = tagRanking.first?.count ?? 1
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(colors.accent.opacity(0.7))
+                            .frame(width: geo.size.width * CGFloat(item.count) / CGFloat(maxCount))
+                    }
+                    .frame(height: 8)
+
+                    Text("\(item.count)")
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, alignment: .trailing)
+
+                    // Impact badge
+                    if let impact {
+                        Text(String(format: "%+.1f", impact))
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(impact >= 0 ? .green : .orange)
+                            .frame(width: 36, alignment: .trailing)
+                    }
+                }
+            }
+
+            if !impacts.isEmpty {
+                Text(String(localized: "右端の数値はスコアへの影響度"))
+                    .font(.system(size: 9, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
+    }
+
     private func shareButton(colors: ThemeColors) -> some View {
-        Button {
-            generateShareImage(colors: colors)
+        Menu {
+            Button {
+                generateShareImage(colors: colors, storyFormat: false)
+            } label: {
+                Label(String(localized: "カード（3:4）"), systemImage: "rectangle.portrait")
+            }
+            Button {
+                generateShareImage(colors: colors, storyFormat: true)
+            } label: {
+                Label(String(localized: "ストーリーズ（9:16）"), systemImage: "rectangle")
+            }
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: "square.and.arrow.up")
@@ -409,13 +599,16 @@ struct MonthlyReportView: View {
 
     // MARK: - Share Image Generation
 
-    private func generateShareImage(colors: ThemeColors) {
+    private func generateShareImage(colors: ThemeColors, storyFormat: Bool = false) {
         let avg = summary?.average ?? 0
         let topTags = Array(tagRanking.prefix(5))
         let formatter = DateFormatter()
         formatter.locale = .current
         formatter.dateFormat = "yyyy年M月"
         let monthLabel = formatter.string(from: displayMonth)
+
+        // Daily scores for wave background (story format)
+        let dailyScores: [Double] = storyFormat ? buildDailyScoreArray() : []
 
         let imageView = ShareableReportImage(
             monthLabel: monthLabel,
@@ -427,7 +620,9 @@ struct MonthlyReportView: View {
             positiveRate: sentimentRatio.positive,
             topTags: topTags,
             insightTitle: heroInsight?.title,
-            themeColors: colors
+            themeColors: colors,
+            storyFormat: storyFormat,
+            dailyScores: dailyScores
         )
 
         let renderer = ImageRenderer(content: imageView)
@@ -437,6 +632,27 @@ struct MonthlyReportView: View {
             shareImage = image
             showShareSheet = true
         }
+    }
+
+    /// Build daily average score array for the month (for wave background)
+    private func buildDailyScoreArray() -> [Double] {
+        let calendar = Calendar.current
+        guard let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: displayMonth)),
+              let monthRange = calendar.range(of: .day, in: .month, for: displayMonth)
+        else { return [] }
+
+        var scores: [Double] = []
+        for dayOffset in 0 ..< monthRange.count {
+            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: monthStart) else { continue }
+            let dayEntries = monthEntries.filter { calendar.isDate($0.createdAt, inSameDayAs: day) }
+            if dayEntries.isEmpty {
+                scores.append(0)
+            } else {
+                let avg = dayEntries.map { $0.scaledScore(to: currentMaxScore, targetMin: currentMinScore) }.reduce(0, +) / Double(dayEntries.count)
+                scores.append(avg)
+            }
+        }
+        return scores
     }
 }
 
@@ -454,9 +670,16 @@ struct ShareableReportImage: View {
     let topTags: [(tag: String, count: Int)]
     let insightTitle: String?
     let themeColors: ThemeColors
+    var storyFormat: Bool = false
+    var dailyScores: [Double] = []
 
-    private let cardWidth: CGFloat = 390
-    private let cardHeight: CGFloat = 520
+    private var cardWidth: CGFloat {
+        storyFormat ? 360 : 390
+    }
+
+    private var cardHeight: CGFloat {
+        storyFormat ? 640 : 520
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -553,6 +776,13 @@ struct ShareableReportImage: View {
                     )
                 )
         )
+        .overlay {
+            if storyFormat && !dailyScores.isEmpty {
+                // Wave line background for story format
+                WaveLineOverlay(scores: dailyScores, maxScore: Double(maxScore), minScore: Double(minScore))
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+            }
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 24)
                 .stroke(.white.opacity(0.15), lineWidth: 1)
@@ -571,6 +801,72 @@ struct ShareableReportImage: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(0.1)))
+    }
+}
+
+// MARK: - Wave Line Overlay (Story Format Background)
+
+private struct WaveLineOverlay: View {
+    let scores: [Double]
+    let maxScore: Double
+    let minScore: Double
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            let height = geo.size.height
+            let nonZeroScores = scores.filter { $0 > 0 }
+            if !nonZeroScores.isEmpty {
+                // Draw wave in bottom third of the image
+                let baseY = height * 0.65
+                let amplitude = height * 0.08
+                let scoreRange = max(maxScore - minScore, 1)
+
+                Path { path in
+                    var started = false
+                    for (i, score) in scores.enumerated() {
+                        guard score > 0 else { continue }
+                        let x = width * CGFloat(i) / CGFloat(max(scores.count - 1, 1))
+                        let normalized = (score - minScore) / scoreRange
+                        let y = baseY - amplitude * normalized * 2
+
+                        if !started {
+                            path.move(to: CGPoint(x: x, y: y))
+                            started = true
+                        } else {
+                            // Smooth curve
+                            let prevI = max(0, i - 1)
+                            let prevX = width * CGFloat(prevI) / CGFloat(max(scores.count - 1, 1))
+                            let cpX = (prevX + x) / 2
+                            path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: cpX, y: y))
+                        }
+                    }
+                }
+                .stroke(.white.opacity(0.15), lineWidth: 3)
+
+                // Second wave offset
+                Path { path in
+                    var started = false
+                    for (i, score) in scores.enumerated() {
+                        guard score > 0 else { continue }
+                        let x = width * CGFloat(i) / CGFloat(max(scores.count - 1, 1))
+                        let normalized = (score - minScore) / scoreRange
+                        let y = baseY + amplitude * 0.5 - amplitude * normalized * 1.5
+
+                        if !started {
+                            path.move(to: CGPoint(x: x, y: y))
+                            started = true
+                        } else {
+                            let prevI = max(0, i - 1)
+                            let prevX = width * CGFloat(prevI) / CGFloat(max(scores.count - 1, 1))
+                            let cpX = (prevX + x) / 2
+                            path.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: cpX, y: y))
+                        }
+                    }
+                }
+                .stroke(.white.opacity(0.08), lineWidth: 2)
+            } // end if nonZeroScores
+        }
     }
 }
 

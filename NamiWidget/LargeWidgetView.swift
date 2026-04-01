@@ -31,6 +31,19 @@ struct LargeWidgetView: View {
                 // ヘッダー: ロゴ + ストリーク
                 headerSection(theme: theme)
 
+                // ベストアクション提案
+                if let action = entry.bestAction {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 10))
+                            .foregroundStyle(theme.accent.opacity(0.6))
+                        Text("今日も「\(action)」してみよう")
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(theme.accent.opacity(0.8))
+                            .lineLimit(1)
+                    }
+                }
+
                 // メインスコアと統計カード
                 statsRow(theme: theme)
 
@@ -126,20 +139,12 @@ struct LargeWidgetView: View {
                 theme: theme
             )
 
-            // トレンド
-            let trendText: String = {
-                guard let trend = entry.weeklyTrend else { return "--" }
-                return String(format: "%+.1f", trend)
-            }()
-            let trendColor: Color = {
-                guard let trend = entry.weeklyTrend else { return .secondary }
-                return trend >= 0 ? .green : .orange
-            }()
+            // モメンタム
             statCard(
-                title: "先週比",
-                value: trendText,
-                icon: (entry.weeklyTrend ?? 0) >= 0 ? "arrow.up.right" : "arrow.down.right",
-                iconColor: trendColor,
+                title: "モメンタム",
+                value: entry.momentumTrend.label.isEmpty ? "--" : entry.momentumTrend.label,
+                icon: entry.momentumTrend.icon,
+                iconColor: entry.momentumTrend == .rising ? .green : entry.momentumTrend == .falling ? .orange : .secondary,
                 theme: theme
             )
         }

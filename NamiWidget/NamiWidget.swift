@@ -38,6 +38,33 @@ struct MoodWidgetEntry: TimelineEntry {
     let minScore: Int
     /// Random past record (at least 7 days old) for memory display
     let randomPastRecord: PastRecord?
+    /// Momentum: MA7 vs MA30 trend
+    let momentumTrend: MomentumTrend
+    /// Best action suggestion (most impactful tag)
+    let bestAction: String?
+}
+
+/// Momentum trend for widget display
+enum MomentumTrend {
+    case rising, falling, stable, unknown
+
+    var icon: String {
+        switch self {
+        case .rising: return "arrow.up.right"
+        case .falling: return "arrow.down.right"
+        case .stable: return "arrow.right"
+        case .unknown: return "minus"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .rising: return "上昇中"
+        case .falling: return "下降中"
+        case .stable: return "安定"
+        case .unknown: return ""
+        }
+    }
 }
 
 /// Random past record for "on this day" / memory feature
@@ -80,7 +107,9 @@ struct NamiTimelineProvider: TimelineProvider {
                 memo: "いい天気だった",
                 tags: ["嬉しい", "穏やか"],
                 daysAgo: 30
-            )
+            ),
+            momentumTrend: .rising,
+            bestAction: "散歩"
         )
     }
 
@@ -192,6 +221,45 @@ struct NamiTimelineProvider: TimelineProvider {
             )
         }
 
+        // Momentum: MA7 vs MA30
+        let momentumTrend: MomentumTrend = {
+            guard let ma7 = weeklyAverage, let ma30 = monthlyAverage else { return .unknown }
+            let diff = ma7 - ma30
+            if diff > 0.5 { return .rising }
+            if diff < -0.5 { return .falling }
+            return .stable
+        }()
+
+        // Best action: find tag with highest positive impact
+        let bestAction: String? = {
+            var tagScores: [String: (withSum: Double, withCount: Int, withoutSum: Double, withoutCount: Int)] = [:]
+            for entry in recentEntries {
+                let score = entry.scaledScore(to: maxScore, targetMin: minScore)
+                for tag in entry.tags {
+                    tagScores[tag, default: (0, 0, 0, 0)].withSum += score
+                    tagScores[tag, default: (0, 0, 0, 0)].withCount += 1
+                }
+            }
+            let allTags = Set(recentEntries.flatMap(\.tags))
+            for entry in recentEntries {
+                let score = entry.scaledScore(to: maxScore, targetMin: minScore)
+                for tag in allTags where !entry.tags.contains(tag) {
+                    tagScores[tag, default: (0, 0, 0, 0)].withoutSum += score
+                    tagScores[tag, default: (0, 0, 0, 0)].withoutCount += 1
+                }
+            }
+            return tagScores
+                .filter { $0.value.withCount >= 3 && $0.value.withoutCount >= 3 }
+                .map { tag, data -> (String, Double) in
+                    let withAvg = data.withSum / Double(data.withCount)
+                    let withoutAvg = data.withoutSum / Double(data.withoutCount)
+                    return (tag, withAvg - withoutAvg)
+                }
+                .filter { $0.1 > 0 }
+                .max(by: { $0.1 < $1.1 })?
+                .0
+        }()
+
         return MoodWidgetEntry(
             date: .now,
             dailyData: dailyData,
@@ -205,7 +273,9 @@ struct NamiTimelineProvider: TimelineProvider {
             theme: theme,
             maxScore: maxScore,
             minScore: minScore,
-            randomPastRecord: randomPast
+            randomPastRecord: randomPast,
+            momentumTrend: momentumTrend,
+            bestAction: bestAction
         )
     }
 
@@ -270,7 +340,9 @@ struct NamiTimelineProvider: TimelineProvider {
             theme: theme,
             maxScore: maxScore,
             minScore: minScore,
-            randomPastRecord: nil
+            randomPastRecord: nil,
+            momentumTrend: .unknown,
+            bestAction: nil
         )
     }
 
