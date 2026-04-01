@@ -25,8 +25,9 @@ struct MainView: View {
     /// Progressive disclosure: coaching tips after Nth recording
     @AppStorage("totalRecordCount") private var totalRecordCount: Int = 0
     @State private var showCoachTip: String? = nil
-    @State private var showMainHelp = false
+    @State private var showOnboardingMenu = false
     @State private var showOnboardingReplay = false
+    @State private var onboardingStartStep = 0
     /// Personalized greeting message (4-level fallback)
     @State private var greetingMessage: String = ""
     /// Entry being edited from inbox
@@ -191,17 +192,27 @@ struct MainView: View {
             }
             .navigationBarHidden(true)
         }
-        .overlay(alignment: .topTrailing) {
-            Button { showOnboardingReplay = true } label: {
+        .safeAreaInset(edge: .top, alignment: .trailing) {
+            Button { showOnboardingMenu = true } label: {
                 Image(systemName: "questionmark.circle")
                     .font(.system(.body))
                     .foregroundStyle(.secondary)
+                    .padding(12)
+                    .contentShape(Rectangle())
             }
-            .padding(.trailing, 16)
-            .padding(.top, 8)
+            .padding(.trailing, 4)
+        }
+        .sheet(isPresented: $showOnboardingMenu) {
+            OnboardingMenuView { step in
+                if let step {
+                    onboardingStartStep = step
+                    showOnboardingReplay = true
+                }
+            }
+            .presentationDetents([.medium])
         }
         .fullScreenCover(isPresented: $showOnboardingReplay) {
-            OnboardingView(isReplay: true)
+            OnboardingView(isReplay: true, startingStep: onboardingStartStep)
         }
         .onAppear {
             rebuildStreakCache()

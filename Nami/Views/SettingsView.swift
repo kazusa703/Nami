@@ -143,6 +143,14 @@ struct SettingsView: View {
             .sheet(isPresented: $showExportSheet) {
                 if let url = exportURL {
                     ShareSheet(items: [url])
+                } else {
+                    VStack(spacing: 16) {
+                        ProgressView()
+                        Text(String(localized: "エクスポート準備中..."))
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .onAppear {
@@ -1100,7 +1108,10 @@ struct SettingsView: View {
         do {
             try csv.write(to: fileURL, atomically: true, encoding: .utf8)
             exportURL = fileURL
-            showExportSheet = true
+            // Delay to ensure state is updated before sheet presents
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                showExportSheet = true
+            }
         } catch {
             showExportErrorAlert = true
         }

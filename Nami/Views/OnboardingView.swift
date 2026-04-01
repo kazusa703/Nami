@@ -19,13 +19,15 @@ struct OnboardingView: View {
 
     /// When true, onboarding is shown as a replay (does not reset hasCompletedOnboarding)
     var isReplay: Bool = false
+    /// Starting step (for jumping to specific steps from menu)
+    var startingStep: Int = 0
 
     @AppStorage(AppConstants.hasCompletedOnboardingKey) private var hasCompletedOnboarding = false
     @AppStorage("reminderEnabled") private var reminderEnabled = false
     @AppStorage("reminderHour") private var reminderHour = 21
     @AppStorage("reminderMinute") private var reminderMinute = 0
 
-    @State private var currentStep = 0
+    @State private var currentStep: Int
     @State private var enableReminder = false
     @State private var showPermissionDeniedAlert = false
     /// First record score (nil = not yet selected)
@@ -36,8 +38,17 @@ struct OnboardingView: View {
     @State private var showTooltip = true
     /// Whether first record has been saved (to avoid double-save)
     @State private var firstRecordSaved = false
+    /// Custom tag name for step 4
+    @State private var customTagName = ""
+    @State private var customTagSaved = false
 
-    private let totalSteps = 5
+    private let totalSteps = 6
+
+    init(isReplay: Bool = false, startingStep: Int = 0) {
+        self.isReplay = isReplay
+        self.startingStep = startingStep
+        _currentStep = State(initialValue: startingStep)
+    }
 
     var body: some View {
         let colors = themeManager.colors
@@ -76,7 +87,8 @@ struct OnboardingView: View {
                     welcomeStep(colors: colors).tag(1)
                     themeStep(colors: colors).tag(2)
                     firstRecordStep(colors: colors).tag(3)
-                    notificationStep(colors: colors).tag(4)
+                    customTagStep(colors: colors).tag(4)
+                    notificationStep(colors: colors).tag(5)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: currentStep)
@@ -111,9 +123,9 @@ struct OnboardingView: View {
                 }
             }
 
-            if currentStep == 3 {
-                // Step 4 (first record): only back button, no next
-                // User taps a score → RecordingSheet appears → then auto-advances
+            if currentStep == 3 || currentStep == 4 {
+                // Step 3 (first record) / Step 4 (custom tag): only back button
+                // User action auto-advances
                 HStack(spacing: 12) {
                     Button {
                         HapticManager.lightFeedback()
@@ -574,7 +586,118 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 4: Notification + Start
+    // MARK: - Step 4: Custom Tag Creation (Deepen)
+
+    private func customTagStep(colors: ThemeColors) -> some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            VStack(spacing: 12) {
+                Image(systemName: "tag.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(colors.accent.gradient)
+
+                Text(String(localized: "気分の理由をタグにしよう"))
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+
+                Text(String(localized: "「コーヒー」「散歩」「残業」など\n日常の行動をタグにして、気分との関係を発見できます"))
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // Tag name input
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(colors.accent)
+
+                    TextField(String(localized: "タグ名を入力（例: コーヒー）"), text: $customTagName)
+                        .font(.system(.body, design: .rounded))
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.ultraThinMaterial)
+                )
+
+                // Suggestion chips
+                HStack(spacing: 8) {
+                    ForEach(["散歩", "読書", "運動", "コーヒー"], id: \.self) { suggestion in
+                        Button {
+                            customTagName = suggestion
+                            HapticManager.lightFeedback()
+                        } label: {
+                            Text(suggestion)
+                                .font(.system(.caption, design: .rounded, weight: .medium))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(
+                                    Capsule()
+                                        .fill(customTagName == suggestion ? colors.accent : colors.accent.opacity(0.08))
+                                )
+                                .foregroundStyle(customTagName == suggestion ? .white : .primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                // Save button
+                Button {
+                    saveCustomTag()
+                    HapticManager.successFeedback()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        withAnimation { currentStep += 1 }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 16))
+                        Text(String(localized: "このタグを作成"))
+                            .font(.system(.headline, design: .rounded, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(customTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : colors.accent)
+                    )
+                }
+                .buttonStyle(.plain)
+                .disabled(customTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                if customTagSaved {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text(String(localized: "タグを作成しました！"))
+                            .font(.system(.caption, design: .rounded, weight: .medium))
+                            .foregroundStyle(.green)
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                }
+            }
+            .padding(.horizontal, 24)
+
+            // Skip hint
+            Button {
+                withAnimation { currentStep += 1 }
+            } label: {
+                Text(String(localized: "スキップして次へ"))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+            Spacer()
+        }
+        .animation(.spring(response: 0.3), value: customTagSaved)
+    }
+
+    // MARK: - Step 5: Notification + Start
 
     private func notificationStep(colors: ThemeColors) -> some View {
         VStack(spacing: 24) {
@@ -702,6 +825,21 @@ struct OnboardingView: View {
         NotificationManager.trackRecordingTime()
         NotificationManager.updateLastRecordDate()
         NotificationManager.cancelWinback()
+    }
+
+    private func saveCustomTag() {
+        let trimmed = customTagName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !customTagSaved else { return }
+        let tag = EmotionTag(
+            name: trimmed,
+            category: .custom,
+            icon: "star.fill",
+            isDefault: false,
+            sortOrder: 9999
+        )
+        modelContext.insert(tag)
+        customTagSaved = true
+        UserDefaults.standard.set(true, forKey: "hasCreatedCustomTag")
     }
 
     private func completeOnboarding() {
