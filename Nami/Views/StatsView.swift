@@ -40,6 +40,8 @@ enum StatsSection: Int, CaseIterable, Identifiable {
     case activity
     case habitImpact
     case momentum
+    case wellnessCompass
+    case personalBest
 
     var id: Int {
         rawValue
@@ -76,6 +78,8 @@ enum StatsSection: Int, CaseIterable, Identifiable {
         case .activity: return String(localized: "アクティビティ")
         case .habitImpact: return String(localized: "習慣インパクト")
         case .momentum: return String(localized: "スコア・モメンタム")
+        case .wellnessCompass: return String(localized: "ウェルネス・コンパス")
+        case .personalBest: return String(localized: "ベストブック")
         }
     }
 
@@ -110,6 +114,8 @@ enum StatsSection: Int, CaseIterable, Identifiable {
         case .activity: return "list.bullet"
         case .habitImpact: return "arrow.up.arrow.down"
         case .momentum: return "gauge.with.needle.fill"
+        case .wellnessCompass: return "circle.hexagongrid.fill"
+        case .personalBest: return "trophy.fill"
         }
     }
 
@@ -144,6 +150,8 @@ enum StatsSection: Int, CaseIterable, Identifiable {
         case .activity: return String(localized: "最近の記録を時系列で一覧表示。タップしてメモを編集できます")
         case .habitImpact: return String(localized: "各タグ（習慣）がある日とない日でスコアがどう変わるかをランキング表示。行動変容の手がかりに")
         case .momentum: return String(localized: "直近7日と30日の移動平均の差から、気分の上昇・下降トレンドを検出します")
+        case .wellnessCompass: return String(localized: "睡眠・運動・社交・マインドの4軸で、各要素と気分の相関強度を可視化します")
+        case .personalBest: return String(localized: "最高スコア、ベストウィーク、最長好調ストリークなど、あなたの記録を振り返ります")
         }
     }
 }
@@ -461,8 +469,8 @@ struct StatsView: View {
         let trendCases: Set<StatsSection> = [.moodRhythm, .distribution, .average, .pastComparison, .weekday, .timeOfDay, .streak, .momentum]
         let tagCases: Set<StatsSection> = [.tagAnalysis, .memoKeyword, .habitImpact]
         let contextCases: Set<StatsSection> = [.weatherMood, .energyMood, .locationMood, .sourceBreakdown, .recordTiming, .healthKit]
-        let deepCases: Set<StatsSection> = [.stability, .recovery, .discovery, .activity]
-        let proCases: Set<StatsSection> = [.prediction, .tagFlow, .premium]
+        let deepCases: Set<StatsSection> = [.stability, .recovery, .discovery, .activity, .personalBest]
+        let proCases: Set<StatsSection> = [.prediction, .tagFlow, .premium, .wellnessCompass]
 
         if trendCases.contains(section) { return String(localized: "トレンド分析") }
         if tagCases.contains(section) { return String(localized: "タグ・キーワード") }
@@ -632,13 +640,21 @@ struct StatsView: View {
         if entries.count >= 10 {
             sections.append(.recovery)
         }
+        if entries.count >= 5 {
+            sections.append(.personalBest)
+        }
         sections.append(contentsOf: [.discovery, .activity])
         return sections
     }
 
     /// Group E: PRO advanced analysis sections
     private var proSections: [StatsSection] {
-        [.prediction, .tagFlow, .premium]
+        var sections: [StatsSection] = [.prediction, .tagFlow]
+        if healthKitManager.isEnabled {
+            sections.append(.wellnessCompass)
+        }
+        sections.append(.premium)
+        return sections
     }
 
     // MARK: - Highlight Cards (Positive + Improvement)
@@ -854,6 +870,8 @@ struct StatsView: View {
         case .activity: activitySection(colors: colors)
         case .habitImpact: habitImpactSection(colors: colors)
         case .momentum: momentumSection(colors: colors)
+        case .wellnessCompass: wellnessCompassSection(colors: colors)
+        case .personalBest: personalBestSection(colors: colors)
         }
     }
 
@@ -4675,6 +4693,206 @@ struct StatsView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.ultraThinMaterial)
         )
+    }
+
+    // MARK: - ウェルネス・コンパスセクション
+
+    private func wellnessCompassSection(colors: ThemeColors) -> some View {
+        let metrics = Array(healthKitManager.cachedMetrics.values)
+        let compass = statsVM.wellnessCompass(entries: entries, healthMetrics: metrics)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: StatsSection.wellnessCompass.icon)
+                    .font(.system(.subheadline))
+                    .foregroundStyle(premiumManager.isPremium ? colors.accent : .orange)
+                Text(StatsSection.wellnessCompass.displayName)
+                    .font(.system(.headline, design: .rounded))
+                if !premiumManager.isPremium {
+                    Text("PRO")
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(.orange))
+                }
+            }
+
+            if compass.axes.isEmpty {
+                Text(String(localized: "HealthKitデータが蓄積されると4軸分析が表示されます"))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            } else if premiumManager.isPremium {
+                // Full compass view
+                VStack(spacing: 12) {
+                    // Radar-style horizontal bars
+                    ForEach(compass.axes) { axis in
+                        HStack(spacing: 10) {
+                            Image(systemName: axis.icon)
+                                .font(.system(size: 16))
+                                .foregroundStyle(colors.accent)
+                                .frame(width: 24)
+
+                            Text(axis.name)
+                                .font(.system(.caption, design: .rounded, weight: .medium))
+                                .frame(width: 60, alignment: .leading)
+
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color(.systemGray5))
+                                        .frame(height: 8)
+
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(axis.correlation >= 0 ? colors.accent : .orange)
+                                        .frame(width: geo.size.width * axis.strength, height: 8)
+                                }
+                            }
+                            .frame(height: 8)
+
+                            Text(String(format: "%.2f", axis.correlation))
+                                .font(.system(.caption2, design: .rounded, weight: .bold))
+                                .foregroundStyle(axis.correlation >= 0 ? colors.accent : .orange)
+                                .frame(width: 40, alignment: .trailing)
+                        }
+                    }
+
+                    // Recommendation
+                    if let weakest = compass.weakestAxis, let strongest = compass.strongestAxis {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sparkles")
+                                    .font(.caption2)
+                                    .foregroundStyle(colors.accent)
+                                Text(String(localized: "最強の軸: \(strongest.name)"))
+                                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                            }
+                            if weakest.id != strongest.id {
+                                Text(String(localized: "\(weakest.name)を意識すると新たな改善が見込めるかもしれません"))
+                                    .font(.system(.caption2, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                .padding(16)
+                .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
+            } else {
+                // Pro teaser
+                VStack(spacing: 12) {
+                    HStack(spacing: 16) {
+                        ForEach(["bed.double.fill", "figure.run", "person.2.fill", "brain.head.profile"], id: \.self) { icon in
+                            VStack(spacing: 4) {
+                                Image(systemName: icon)
+                                    .font(.system(size: 20))
+                                    .foregroundStyle(.secondary)
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(Color(.systemGray4))
+                                    .frame(width: 40, height: 6)
+                            }
+                        }
+                    }
+
+                    Button {
+                        showProView = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lock.fill")
+                                .font(.caption2)
+                            Text(String(localized: "Proで4軸ウェルネス分析を解放"))
+                                .font(.system(.caption, design: .rounded, weight: .medium))
+                        }
+                        .foregroundStyle(.orange)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.orange.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(16)
+                .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
+            }
+        }
+    }
+
+    // MARK: - パーソナル・ベストブックセクション
+
+    private func personalBestSection(colors: ThemeColors) -> some View {
+        let bests = statsVM.personalBests(entries: entries, targetMax: currentMaxScore, targetMin: currentMinScore)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: StatsSection.personalBest.icon)
+                    .font(.system(.subheadline))
+                    .foregroundStyle(colors.accent)
+                Text(StatsSection.personalBest.displayName)
+                    .font(.system(.headline, design: .rounded))
+            }
+
+            if bests.isEmpty {
+                Text(String(localized: "5件以上の記録が必要です"))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(.ultraThinMaterial))
+            } else {
+                // Free: show first 2, Pro: show all
+                let displayBests = premiumManager.isPremium ? bests : Array(bests.prefix(2))
+                let hiddenCount = premiumManager.isPremium ? 0 : max(0, bests.count - 2)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    ForEach(displayBests) { best in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
+                                Image(systemName: best.icon)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(colors.accent)
+                                Text(best.title)
+                                    .font(.system(.caption, design: .rounded, weight: .bold))
+                            }
+
+                            Text(best.value)
+                                .font(.system(.title2, design: .rounded, weight: .bold))
+                                .foregroundStyle(colors.accent)
+
+                            Text(best.details)
+                                .font(.system(size: 10, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(.ultraThinMaterial)
+                        )
+                    }
+                }
+
+                if hiddenCount > 0 {
+                    Button {
+                        showProView = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lock.fill")
+                                .font(.caption2)
+                            Text(String(localized: "全ての記録 + 再現レシピはProで"))
+                                .font(.system(.caption, design: .rounded, weight: .medium))
+                        }
+                        .foregroundStyle(.orange)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(.orange.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 
     // MARK: - 習慣インパクトセクション

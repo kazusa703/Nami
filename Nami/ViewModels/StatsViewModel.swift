@@ -1810,6 +1810,270 @@ class StatsViewModel {
         )
     }
 
+    // MARK: - ウェルネス・コンパス
+
+    struct WellnessAxis: Identifiable {
+        let id = UUID()
+        let name: String
+        let icon: String
+        let correlation: Double // -1.0 to 1.0
+        let strength: Double // 0.0 to 1.0 (abs of correlation)
+        let sampleCount: Int
+    }
+
+    struct WellnessCompass {
+        let axes: [WellnessAxis]
+        let weakestAxis: WellnessAxis?
+        let strongestAxis: WellnessAxis?
+    }
+
+    /// Calculate 4-axis wellness compass (sleep, exercise, social, mind)
+    func wellnessCompass(entries: [MoodEntry], healthMetrics: [DailyHealthMetric]) -> WellnessCompass {
+        let calendar = Calendar.current
+        var axes: [WellnessAxis] = []
+
+        // Build day-indexed score map
+        var dayScores: [Date: Double] = [:]
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            if dayScores[day] == nil {
+                dayScores[day] = entry.normalizedScore
+            } else {
+                // Average if multiple entries
+                dayScores[day] = (dayScores[day]! + entry.normalizedScore) / 2
+            }
+        }
+
+        // Sleep axis (from HealthKit or Nemuri)
+        var sleepPairs: [(Double, Double)] = []
+        for metric in healthMetrics {
+            if let sleepHours = metric.sleepHours, sleepHours > 0,
+               let score = dayScores[calendar.startOfDay(for: metric.date)]
+            {
+                sleepPairs.append((sleepHours, score))
+            }
+        }
+        if sleepPairs.count >= 5 {
+            let corr = pearsonCorrelation(sleepPairs)
+            axes.append(WellnessAxis(name: String(localized: "睡眠"), icon: "bed.double.fill", correlation: corr, strength: abs(corr), sampleCount: sleepPairs.count))
+        }
+
+        // Exercise axis
+        var exercisePairs: [(Double, Double)] = []
+        for metric in healthMetrics {
+            if let exerciseMin = metric.exerciseMinutes,
+               let score = dayScores[calendar.startOfDay(for: metric.date)]
+            {
+                exercisePairs.append((exerciseMin, score))
+            }
+        }
+        if exercisePairs.count >= 5 {
+            let corr = pearsonCorrelation(exercisePairs)
+            axes.append(WellnessAxis(name: String(localized: "運動"), icon: "figure.run", correlation: corr, strength: abs(corr), sampleCount: exercisePairs.count))
+        }
+
+        // Social axis (tag-based: social/communication category tags)
+        let socialTags = Set(["tag_friends", "tag_family", "tag_lover", "tag_colleagues", "tag_social_fatigue", "tag_phone_call", "tag_message", "tag_meeting"])
+        var socialPairs: [(Double, Double)] = []
+        let sortedEntries = entries.sorted { $0.createdAt < $1.createdAt }
+        var dayGroups: [Date: (hasTag: Bool, scores: [Double])] = [:]
+        for entry in sortedEntries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            let hasSocial = !Set(entry.tags).isDisjoint(with: socialTags)
+            if dayGroups[day] == nil {
+                dayGroups[day] = (hasTag: hasSocial, scores: [entry.normalizedScore])
+            } else {
+                if hasSocial { dayGroups[day]?.hasTag = true }
+                dayGroups[day]?.scores.append(entry.normalizedScore)
+            }
+        }
+        for (_, data) in dayGroups {
+            let avg = data.scores.reduce(0, +) / Double(data.scores.count)
+            socialPairs.append((data.hasTag ? 1.0 : 0.0, avg))
+        }
+        if socialPairs.count >= 7 {
+            let corr = pearsonCorrelation(socialPairs)
+            axes.append(WellnessAxis(name: String(localized: "社交"), icon: "person.2.fill", correlation: corr, strength: abs(corr), sampleCount: socialPairs.count))
+        }
+
+        // Mind axis (tag-based: mind/morning category or meditation/reading tags)
+        let mindTags = Set(["tag_meditation", "tag_reading", "tag_journaling", "tag_clear_mind", "tag_focused", "tag_brain_fog"])
+        var mindPairs: [(Double, Double)] = []
+        var mindDayGroups: [Date: (hasTag: Bool, scores: [Double])] = [:]
+        for entry in sortedEntries {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            let hasMind = !Set(entry.tags).isDisjoint(with: mindTags)
+            if mindDayGroups[day] == nil {
+                mindDayGroups[day] = (hasTag: hasMind, scores: [entry.normalizedScore])
+            } else {
+                if hasMind { mindDayGroups[day]?.hasTag = true }
+                mindDayGroups[day]?.scores.append(entry.normalizedScore)
+            }
+        }
+        for (_, data) in mindDayGroups {
+            let avg = data.scores.reduce(0, +) / Double(data.scores.count)
+            mindPairs.append((data.hasTag ? 1.0 : 0.0, avg))
+        }
+        if mindPairs.count >= 7 {
+            let corr = pearsonCorrelation(mindPairs)
+            axes.append(WellnessAxis(name: String(localized: "マインド"), icon: "brain.head.profile", correlation: corr, strength: abs(corr), sampleCount: mindPairs.count))
+        }
+
+        let strongest = axes.max(by: { $0.strength < $1.strength })
+        let weakest = axes.min(by: { $0.strength < $1.strength })
+
+        return WellnessCompass(axes: axes, weakestAxis: weakest, strongestAxis: strongest)
+    }
+
+    /// Pearson correlation coefficient
+    private func pearsonCorrelation(_ pairs: [(Double, Double)]) -> Double {
+        let n = Double(pairs.count)
+        guard n >= 3 else { return 0 }
+        let sumX = pairs.map(\.0).reduce(0, +)
+        let sumY = pairs.map(\.1).reduce(0, +)
+        let sumXY = pairs.reduce(0.0) { $0 + $1.0 * $1.1 }
+        let sumX2 = pairs.reduce(0.0) { $0 + $1.0 * $1.0 }
+        let sumY2 = pairs.reduce(0.0) { $0 + $1.1 * $1.1 }
+
+        let numerator = n * sumXY - sumX * sumY
+        let denominator = sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY))
+        guard denominator > 0 else { return 0 }
+        return numerator / denominator
+    }
+
+    // MARK: - パーソナル・ベストブック
+
+    struct PersonalBest: Identifiable {
+        let id = UUID()
+        let title: String
+        let icon: String
+        let value: String
+        let date: Date?
+        let details: String
+    }
+
+    /// Generate personal bests from recorded data
+    func personalBests(entries: [MoodEntry], targetMax: Int, targetMin: Int) -> [PersonalBest] {
+        guard entries.count >= 5 else { return [] }
+        let calendar = Calendar.current
+        var bests: [PersonalBest] = []
+
+        // Best single day score
+        if let best = entries.max(by: { $0.scaledScore(to: targetMax, targetMin: targetMin) < $1.scaledScore(to: targetMax, targetMin: targetMin) }) {
+            let score = best.scaledScore(to: targetMax, targetMin: targetMin)
+            let tags = best.tags.prefix(3).map { TagDisplayHelper.displayName(for: $0) }.joined(separator: ", ")
+            let detail = tags.isEmpty ? best.createdAt.formatted(.dateTime.month().day().weekday()) : "\(best.createdAt.formatted(.dateTime.month().day().weekday())) — \(tags)"
+            bests.append(PersonalBest(
+                title: String(localized: "最高スコア"),
+                icon: "star.fill",
+                value: String(format: "%.0f", score),
+                date: best.createdAt,
+                details: detail
+            ))
+        }
+
+        // Best week (7-day moving average)
+        let sorted = entries.sorted { $0.createdAt < $1.createdAt }
+        var bestWeekAvg: Double = 0
+        var bestWeekDate: Date?
+        var bestWeekTags: [String] = []
+
+        // Build daily averages
+        var dailyAvgs: [(date: Date, avg: Double, tags: [String])] = []
+        var dayGroups: [Date: (scores: [Double], tags: [String])] = [:]
+        for entry in sorted {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            let score = entry.scaledScore(to: targetMax, targetMin: targetMin)
+            if dayGroups[day] == nil {
+                dayGroups[day] = (scores: [score], tags: entry.tags)
+            } else {
+                dayGroups[day]?.scores.append(score)
+                dayGroups[day]?.tags.append(contentsOf: entry.tags)
+            }
+        }
+        for (date, data) in dayGroups {
+            let avg = data.scores.reduce(0, +) / Double(data.scores.count)
+            dailyAvgs.append((date, avg, data.tags))
+        }
+        dailyAvgs.sort { $0.date < $1.date }
+
+        if dailyAvgs.count >= 7 {
+            for i in 0 ... (dailyAvgs.count - 7) {
+                let window = dailyAvgs[i ..< (i + 7)]
+                let weekAvg = window.map(\.avg).reduce(0, +) / 7.0
+                if weekAvg > bestWeekAvg {
+                    bestWeekAvg = weekAvg
+                    bestWeekDate = window.first?.date
+                    // Most common tags in the week
+                    var tagCounts: [String: Int] = [:]
+                    for day in window {
+                        for tag in day.tags {
+                            tagCounts[tag, default: 0] += 1
+                        }
+                    }
+                    bestWeekTags = tagCounts.sorted { $0.value > $1.value }.prefix(3).map(\.key)
+                }
+            }
+
+            if let date = bestWeekDate {
+                let endDate = calendar.date(byAdding: .day, value: 6, to: date) ?? date
+                let tagStr = bestWeekTags.map { TagDisplayHelper.displayName(for: $0) }.joined(separator: ", ")
+                let detail = tagStr.isEmpty
+                    ? "\(date.formatted(.dateTime.month().day())) - \(endDate.formatted(.dateTime.month().day()))"
+                    : "\(date.formatted(.dateTime.month().day())) - \(endDate.formatted(.dateTime.month().day())) — \(tagStr)"
+                bests.append(PersonalBest(
+                    title: String(localized: "ベストウィーク"),
+                    icon: "trophy.fill",
+                    value: String(format: "%.1f", bestWeekAvg),
+                    date: date,
+                    details: detail
+                ))
+            }
+        }
+
+        // Longest high-score streak (score >= 70% of max)
+        let highThreshold = Double(targetMin) + Double(targetMax - targetMin) * 0.7
+        var currentHighStreak = 0
+        var longestHighStreak = 0
+        var highStreakEndDate: Date?
+        let sortedDays = dailyAvgs.sorted { $0.date < $1.date }
+
+        for i in 0 ..< sortedDays.count {
+            if sortedDays[i].avg >= highThreshold {
+                currentHighStreak += 1
+                if currentHighStreak > longestHighStreak {
+                    longestHighStreak = currentHighStreak
+                    highStreakEndDate = sortedDays[i].date
+                }
+            } else {
+                currentHighStreak = 0
+            }
+        }
+
+        if longestHighStreak >= 3 {
+            let startDate = calendar.date(byAdding: .day, value: -(longestHighStreak - 1), to: highStreakEndDate ?? .now) ?? .now
+            bests.append(PersonalBest(
+                title: String(localized: "最長好調ストリーク"),
+                icon: "flame.fill",
+                value: String(localized: "\(longestHighStreak)日"),
+                date: startDate,
+                details: "\(startDate.formatted(.dateTime.month().day())) - \(highStreakEndDate?.formatted(.dateTime.month().day()) ?? "")"
+            ))
+        }
+
+        // Total records milestone
+        let totalRecords = entries.count
+        bests.append(PersonalBest(
+            title: String(localized: "総記録数"),
+            icon: "chart.bar.fill",
+            value: "\(totalRecords)",
+            date: nil,
+            details: String(localized: "\(dailyAvgs.count)日間の記録")
+        ))
+
+        return bests
+    }
+
     // MARK: - 回復ブースター分析
 
     struct RecoveryBooster: Identifiable {
