@@ -221,8 +221,16 @@ struct StatsView: View {
                     } else {
                         // Grouped layout: highlight sections always visible, rest in collapsible categories
                         ScrollViewReader { proxy in
+                            // Horizontal category navigation
+                            horizontalCategoryNav(colors: colors, proxy: proxy)
+
                             ScrollView {
                                 LazyVStack(spacing: 20) {
+                                    // Top highlight cards (positive + improvement)
+                                    if !cachedInsights.isEmpty {
+                                        highlightCards(colors: colors)
+                                    }
+
                                     // Always visible highlight sections
                                     ForEach(highlightSections) { section in
                                         sectionContent(section, colors: colors)
@@ -618,6 +626,123 @@ struct StatsView: View {
         [.prediction, .tagFlow, .premium]
     }
 
+    // MARK: - Highlight Cards (Positive + Improvement)
+
+    private func highlightCards(colors: ThemeColors) -> some View {
+        let allInsights = cachedInsights + cachedPremiumInsights
+        let positive = allInsights.first { $0.tone == .positive }
+        let improvement = allInsights.first { $0.tone == .caution }
+
+        return VStack(spacing: 12) {
+            if let card = positive {
+                highlightCard(
+                    icon: "arrow.up.circle.fill",
+                    label: String(localized: "良い傾向"),
+                    title: card.title,
+                    body: card.body,
+                    color: .green,
+                    colors: colors
+                )
+            }
+
+            if let card = improvement {
+                highlightCard(
+                    icon: "lightbulb.fill",
+                    label: String(localized: "改善のヒント"),
+                    title: card.title,
+                    body: card.body,
+                    color: .orange,
+                    colors: colors
+                )
+            }
+        }
+    }
+
+    private func highlightCard(icon: String, label: String, title: String, body: String, color: Color, colors _: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.system(.caption, design: .rounded, weight: .bold))
+                    .foregroundStyle(color)
+            }
+
+            Text(title)
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+
+            Text(body)
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(color.opacity(colorScheme == .dark ? 0.1 : 0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(color.opacity(0.15), lineWidth: 1)
+                )
+        )
+    }
+
+    // MARK: - Horizontal Category Navigation
+
+    private func horizontalCategoryNav(colors: ThemeColors, proxy: ScrollViewProxy) -> some View {
+        let categories: [(title: String, icon: String, anchor: StatsSection)] = [
+            (String(localized: "インサイト"), "sparkles", .insight),
+            (String(localized: "トレンド"), "chart.line.uptrend.xyaxis", .moodRhythm),
+            (String(localized: "タグ"), "tag.fill", .tagAnalysis),
+            (String(localized: "環境"), "cloud.sun.fill", .weatherMood),
+            (String(localized: "深い分析"), "brain.head.profile", .stability),
+            (String(localized: "PRO"), "sparkles", .prediction),
+        ]
+
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(categories, id: \.anchor) { category in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            // Expand the category group if collapsed
+                            if let groupTitle = categoryGroupTitle(for: category.anchor),
+                               !expandedCategories.contains(groupTitle)
+                            {
+                                expandedCategories.insert(groupTitle)
+                            }
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation {
+                                proxy.scrollTo(category.anchor, anchor: .top)
+                            }
+                        }
+                        HapticManager.lightFeedback()
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: category.icon)
+                                .font(.system(size: 11))
+                            Text(category.title)
+                                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(colors.accent.opacity(0.08))
+                        )
+                        .foregroundStyle(colors.accent)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 6)
+        }
+        .background(.ultraThinMaterial)
+    }
+
     /// Toggle a category group's expansion state
     private func toggleCategoryGroup(_ title: String) {
         if expandedCategories.contains(title) {
@@ -672,7 +797,13 @@ struct StatsView: View {
                     }
                 }
             }
-            .padding(.top, 8)
+            .padding(.top, 16)
+            .padding(.horizontal, 4)
+
+            // Visual separator between groups
+            Divider()
+                .padding(.horizontal)
+                .padding(.top, 4)
         }
     }
 
