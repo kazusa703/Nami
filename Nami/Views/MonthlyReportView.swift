@@ -14,6 +14,7 @@ struct MonthlyReportView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.themeManager) private var themeManager
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.premiumManager) private var premiumManager
     @Query(sort: \MoodEntry.createdAt, order: .reverse) private var allEntries: [MoodEntry]
 
     /// Optional initial month to display (nil = current month)
@@ -195,28 +196,38 @@ struct MonthlyReportView: View {
                         // Narrative
                         narrativeSection(colors: colors)
 
-                        // Best day (with recipe)
+                        // Best day (with recipe) — free
                         bestDayCard(colors: colors)
 
-                        // Challenge day
-                        challengeDayCard(colors: colors)
+                        // Challenge day — Pro only
+                        if premiumManager.isPremium {
+                            challengeDayCard(colors: colors)
+                        }
 
-                        // Sentiment ring
+                        // Sentiment ring — free
                         sentimentRingSection(colors: colors)
 
-                        // Monthly heatmap
+                        // Monthly heatmap — free
                         heatmapSection(colors: colors)
 
-                        // Insights (up to 3 swipeable cards)
+                        // Insights — 1 free, 3 Pro
                         insightCardsSection(colors: colors)
 
-                        // Recovery booster
+                        // Recovery booster — TOP1 free, rest Pro (handled inside)
                         recoveryBoosterSection(colors: colors)
 
-                        // Monthly proposal
-                        monthlyProposalSection(colors: colors)
+                        // Monthly proposal — Pro only
+                        if premiumManager.isPremium {
+                            monthlyProposalSection(colors: colors)
+                        } else {
+                            proGateCard(
+                                title: String(localized: "来月のチャレンジ"),
+                                description: String(localized: "あなたのデータに基づいた行動提案"),
+                                colors: colors
+                            )
+                        }
 
-                        // Top tags with impact
+                        // Top tags with impact — free (impact hidden for non-Pro handled inside)
                         if !tagRanking.isEmpty {
                             topTagsWithImpactSection(colors: colors)
                         }
@@ -703,7 +714,8 @@ struct MonthlyReportView: View {
 
     private func insightCardsSection(colors: ThemeColors) -> some View {
         let insights = InsightEngine.generate(from: monthEntries, currentMax: currentMaxScore, currentMin: currentMinScore)
-        let displayInsights = Array(insights.prefix(3))
+        let maxCards = premiumManager.isPremium ? 3 : 1
+        let displayInsights = Array(insights.prefix(maxCards))
 
         return VStack(spacing: 8) {
             if !displayInsights.isEmpty {
@@ -1157,33 +1169,114 @@ struct MonthlyReportView: View {
         .background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial))
     }
 
+    @State private var showProView = false
+
     private func shareButton(colors: ThemeColors) -> some View {
-        Menu {
-            Button {
-                generateShareImage(colors: colors, storyFormat: false)
+        VStack(spacing: 12) {
+            // Closing message
+            VStack(spacing: 6) {
+                Text(String(localized: "すべての波は、あなたの大切な記録です。"))
+                    .font(.system(.subheadline, design: .serif))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                // Small wave decoration
+                Image(systemName: "water.waves")
+                    .font(.system(size: 16))
+                    .foregroundStyle(colors.accent.opacity(0.3))
+            }
+            .padding(.top, 8)
+
+            // Share menu
+            Menu {
+                Button {
+                    generateShareImage(colors: colors, template: .compact)
+                } label: {
+                    Label(String(localized: "コンパクト（3:4）"), systemImage: "rectangle.portrait")
+                }
+                Button {
+                    generateShareImage(colors: colors, template: .stories)
+                } label: {
+                    Label(String(localized: "ストーリーズ（9:16）"), systemImage: "rectangle")
+                }
+                if premiumManager.isPremium {
+                    Button {
+                        generateShareImage(colors: colors, template: .square)
+                    } label: {
+                        Label(String(localized: "スクエア（1:1）"), systemImage: "square")
+                    }
+                    Button {
+                        generateShareImage(colors: colors, template: .wide)
+                    } label: {
+                        Label(String(localized: "ワイド（16:9）"), systemImage: "rectangle.landscape")
+                    }
+                } else {
+                    Button {
+                        showProView = true
+                    } label: {
+                        Label(String(localized: "スクエア・ワイド（Pro）"), systemImage: "lock.fill")
+                    }
+                }
             } label: {
-                Label(String(localized: "カード（3:4）"), systemImage: "rectangle.portrait")
+                HStack(spacing: 8) {
+                    Image(systemName: "square.and.arrow.up")
+                    Text(String(localized: "シェアする"))
+                        .font(.system(.headline, design: .rounded, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(RoundedRectangle(cornerRadius: 16).fill(colors.accent))
             }
-            Button {
-                generateShareImage(colors: colors, storyFormat: true)
-            } label: {
-                Label(String(localized: "ストーリーズ（9:16）"), systemImage: "rectangle")
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "square.and.arrow.up")
-                Text(String(localized: "シェアする"))
-                    .font(.system(.headline, design: .rounded, weight: .bold))
-            }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(colors.accent)
-            )
         }
         .padding(.top, 8)
+        .sheet(isPresented: $showProView) {
+            NavigationStack { ProView() }
+        }
+    }
+
+    private enum ShareTemplate {
+        case compact, stories, square, wide
+    }
+
+    // MARK: - Pro Gate Card
+
+    private func proGateCard(title: String, description: String, colors _: ThemeColors) -> some View {
+        Button {
+            showProView = true
+        } label: {
+            VStack(spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill")
+                        .font(.caption)
+                    Text(title)
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                }
+                .foregroundStyle(.orange)
+
+                Text(description)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.secondary)
+
+                Text(String(localized: "Proで解放"))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(.orange))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.orange.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(.orange.opacity(0.15), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Empty Month
@@ -1203,35 +1296,57 @@ struct MonthlyReportView: View {
 
     // MARK: - Share Image Generation
 
-    private func generateShareImage(colors: ThemeColors, storyFormat: Bool = false) {
+    private func generateShareImage(colors: ThemeColors, template: ShareTemplate) {
         let avg = summary?.average ?? 0
         let topTags = Array(tagRanking.prefix(5))
         let formatter = DateFormatter()
         formatter.locale = .current
         formatter.dateFormat = "yyyy年M月"
         let monthLabel = formatter.string(from: displayMonth)
+        let dailyScores = buildDailyScoreArray()
+        let impacts = statsVM.habitImpactScores(entries: monthEntries, targetMax: currentMaxScore, targetMin: currentMinScore)
+        let topImpactTags = impacts.prefix(5).map { (tag: TagDisplayHelper.displayName(for: $0.tagName), impact: $0.impact) }
 
-        // Daily scores for wave background (story format)
-        let dailyScores: [Double] = storyFormat ? buildDailyScoreArray() : []
-
-        let imageView = ShareableReportImage(
-            monthLabel: monthLabel,
-            averageScore: avg,
-            maxScore: currentMaxScore,
-            minScore: currentMinScore,
-            activeDays: summary?.activeDays ?? 0,
-            entryCount: monthEntries.count,
-            positiveRate: sentimentRatio.positive,
-            topTags: topTags,
-            insightTitle: heroInsight?.title,
-            themeColors: colors,
-            storyFormat: storyFormat,
-            dailyScores: dailyScores
-        )
+        let imageView: AnyView
+        switch template {
+        case .compact:
+            imageView = AnyView(ShareableReportImage(
+                monthLabel: monthLabel, averageScore: avg, maxScore: currentMaxScore,
+                minScore: currentMinScore, activeDays: summary?.activeDays ?? 0,
+                entryCount: monthEntries.count, positiveRate: sentimentRatio.positive,
+                topTags: topTags, insightTitle: heroInsight?.title,
+                themeColors: colors, storyFormat: false, dailyScores: []
+            ))
+        case .stories:
+            imageView = AnyView(ShareableReportImage(
+                monthLabel: monthLabel, averageScore: avg, maxScore: currentMaxScore,
+                minScore: currentMinScore, activeDays: summary?.activeDays ?? 0,
+                entryCount: monthEntries.count, positiveRate: sentimentRatio.positive,
+                topTags: topTags, insightTitle: heroInsight?.title,
+                themeColors: colors, storyFormat: true, dailyScores: dailyScores
+            ))
+        case .square:
+            imageView = AnyView(SquareShareTemplate(
+                monthLabel: monthLabel, averageScore: avg, maxScore: currentMaxScore,
+                delta: (summary?.average ?? 0) - (summary?.previousMonthAverage ?? 0),
+                narrative: NarrativeGenerator.generate(
+                    activeDays: summary?.activeDays ?? 0, daysInMonth: daysInMonth,
+                    monthName: monthName, average: avg,
+                    previousAverage: summary?.previousMonthAverage, topRescueAction: topRescueAction
+                ).plainText,
+                themeColors: colors
+            ))
+        case .wide:
+            imageView = AnyView(WideShareTemplate(
+                monthLabel: monthLabel, averageScore: avg, maxScore: currentMaxScore,
+                delta: (summary?.average ?? 0) - (summary?.previousMonthAverage ?? 0),
+                activeDays: summary?.activeDays ?? 0, entryCount: monthEntries.count,
+                topImpactTags: topImpactTags, themeColors: colors
+            ))
+        }
 
         let renderer = ImageRenderer(content: imageView)
         renderer.scale = 3.0
-
         if let image = renderer.uiImage {
             shareImage = image
             showShareSheet = true
@@ -1471,6 +1586,186 @@ private struct WaveLineOverlay: View {
                 .stroke(.white.opacity(0.08), lineWidth: 2)
             } // end if nonZeroScores
         }
+    }
+}
+
+// MARK: - Square Share Template (1080×1080)
+
+struct SquareShareTemplate: View {
+    let monthLabel: String
+    let averageScore: Double
+    let maxScore: Int
+    let delta: Double
+    let narrative: String
+    let themeColors: ThemeColors
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            // Score
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(String(format: "%.1f", averageScore))
+                    .font(.system(size: 72, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("/\(maxScore)")
+                    .font(.system(size: 24, weight: .light, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+
+            // Delta
+            HStack(spacing: 4) {
+                Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
+                    .font(.system(size: 12, weight: .bold))
+                Text(String(format: "%+.1f", delta))
+                    .font(.system(.callout, design: .rounded, weight: .bold))
+            }
+            .foregroundStyle(.white.opacity(0.7))
+            .padding(.top, 4)
+
+            // Narrative
+            Text(narrative)
+                .font(.system(.caption, design: .serif))
+                .foregroundStyle(.white.opacity(0.8))
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .padding(.horizontal, 32)
+                .padding(.top, 16)
+
+            Spacer()
+
+            // Footer
+            HStack(spacing: 6) {
+                Image(systemName: "water.waves")
+                    .font(.system(size: 14))
+                Text("Nami")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                Text("— \(monthLabel)")
+                    .font(.system(size: 12, design: .rounded))
+                    .opacity(0.6)
+            }
+            .foregroundStyle(.white.opacity(0.5))
+            .padding(.bottom, 24)
+        }
+        .frame(width: 360, height: 360)
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(
+                    LinearGradient(
+                        colors: [themeColors.accent, themeColors.accent.opacity(0.6)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+    }
+}
+
+// MARK: - Wide Share Template (1200×675 → 400×225 @3x)
+
+struct WideShareTemplate: View {
+    let monthLabel: String
+    let averageScore: Double
+    let maxScore: Int
+    let delta: Double
+    let activeDays: Int
+    let entryCount: Int
+    let topImpactTags: [(tag: String, impact: Double)]
+    let themeColors: ThemeColors
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Left: Score + stats
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 4) {
+                    Image(systemName: "water.waves")
+                        .font(.system(size: 12))
+                    Text("Nami")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.white.opacity(0.6))
+
+                Text(monthLabel)
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.5))
+
+                Spacer()
+
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(String(format: "%.1f", averageScore))
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                    Text("/\(maxScore)")
+                        .font(.system(size: 16, weight: .light))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .foregroundStyle(.white)
+
+                HStack(spacing: 12) {
+                    Text("\(activeDays)日")
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
+                    Text("\(entryCount)件")
+                        .font(.system(.caption2, design: .rounded, weight: .bold))
+                    HStack(spacing: 2) {
+                        Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
+                            .font(.system(size: 9, weight: .bold))
+                        Text(String(format: "%+.1f", delta))
+                            .font(.system(.caption2, design: .rounded, weight: .bold))
+                    }
+                }
+                .foregroundStyle(.white.opacity(0.6))
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Right: Tag impact bars
+            VStack(alignment: .leading, spacing: 6) {
+                Text(String(localized: "習慣インパクト"))
+                    .font(.system(.caption2, design: .rounded, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.5))
+
+                Spacer()
+
+                let maxImpact = topImpactTags.map { abs($0.impact) }.max() ?? 1
+                ForEach(topImpactTags.prefix(5), id: \.tag) { item in
+                    HStack(spacing: 6) {
+                        Text(item.tag)
+                            .font(.system(size: 10, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .frame(width: 60, alignment: .trailing)
+                            .lineLimit(1)
+
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(.white.opacity(0.15))
+                                .frame(width: 80, height: 8)
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(item.impact >= 0 ? .green.opacity(0.8) : .red.opacity(0.7))
+                                .frame(width: 80 * abs(item.impact) / maxImpact, height: 8)
+                        }
+
+                        Text(String(format: "%+.1f", item.impact))
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundStyle(item.impact >= 0 ? .green : .red)
+                            .frame(width: 28, alignment: .trailing)
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(width: 400, height: 225)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(
+                    LinearGradient(
+                        colors: [themeColors.accent.opacity(0.9), themeColors.accent.opacity(0.5)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+        )
     }
 }
 
