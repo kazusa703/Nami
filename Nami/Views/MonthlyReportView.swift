@@ -66,6 +66,117 @@ struct MonthlyReportView: View {
         return insights.first
     }
 
+    /// Daily average scores for wave shape (0 = no record)
+    private var dailyAverageScores: [Double] {
+        guard let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: displayMonth)),
+              let monthRange = calendar.range(of: .day, in: .month, for: displayMonth)
+        else { return [] }
+
+        return (0 ..< monthRange.count).map { dayOffset in
+            guard let day = calendar.date(byAdding: .day, value: dayOffset, to: monthStart) else { return 0 }
+            let dayEntries = monthEntries.filter { calendar.isDate($0.createdAt, inSameDayAs: day) }
+            guard !dayEntries.isEmpty else { return 0 }
+            return dayEntries.map { $0.scaledScore(to: currentMaxScore, targetMin: currentMinScore) }.reduce(0, +) / Double(dayEntries.count)
+        }
+    }
+
+    /// Days in the displayed month
+    private var daysInMonth: Int {
+        calendar.range(of: .day, in: .month, for: displayMonth)?.count ?? 30
+    }
+
+    /// Month name for narrative
+    private var monthName: String {
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateFormat = "M月"
+        return f.string(from: displayMonth)
+    }
+
+    /// Top rescue action for narrative highlight
+    private var topRescueAction: (name: String, multiplier: Double)? {
+        let boosters = statsVM.recoveryBoosters(entries: monthEntries)
+        guard let top = boosters.first else { return nil }
+        return (name: TagDisplayHelper.displayName(for: top.tagName), multiplier: top.lift)
+    }
+
+    /// Challenge day (worst day of the month)
+    private var challengeDay: (date: Date, score: Double, memo: String?, tags: [String], weather: String?, temperature: Double?, nextDayScore: Double?)? {
+        guard let s = summary, let worst = s.worstDay, let best = s.bestDay else { return nil }
+        // Skip if same as best day
+        guard !calendar.isDate(worst.date, inSameDayAs: best.date) else { return nil }
+
+        let worstEntries = monthEntries.filter { calendar.isDate($0.createdAt, inSameDayAs: worst.date) }
+        let tags = Array(Set(worstEntries.flatMap(\.tags))).prefix(3).map { String($0) }
+        let weather = worstEntries.compactMap(\.weatherCondition).first
+        let temp = worstEntries.compactMap(\.weatherTemperature).first
+
+        // Next day recovery score
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: worst.date)
+        let nextDayScore: Double? = nextDay.flatMap { nd in
+            let nextEntries = monthEntries.filter { calendar.isDate($0.createdAt, inSameDayAs: nd) }
+            guard !nextEntries.isEmpty else { return nil }
+            return nextEntries.map { $0.scaledScore(to: currentMaxScore, targetMin: currentMinScore) }.reduce(0, +) / Double(nextEntries.count)
+        }
+
+        let scaledScore = worstEntries.map { $0.scaledScore(to: currentMaxScore, targetMin: currentMinScore) }.reduce(0, +) / max(Double(worstEntries.count), 1)
+
+        return (date: worst.date, score: scaledScore, memo: worst.memo, tags: tags, weather: weather, temperature: temp, nextDayScore: nextDayScore)
+    }
+
+    /// Best day recipe (conditions that led to the best day)
+    private var bestDayRecipe: String? {
+        guard let best = summary?.bestDay else { return nil }
+        let bestEntries = monthEntries.filter { calendar.isDate($0.createdAt, inSameDayAs: best.date) }
+        var conditions: [String] = []
+
+        // Weather
+        if let weather = bestEntries.compactMap(\.weatherCondition).first {
+            let name: String = switch weather {
+            case "sunny", "clear": String(localized: "晴天")
+            case "cloudy": String(localized: "曇り")
+            case "rainy": String(localized: "雨")
+            case "snowy": String(localized: "雪")
+            default: weather
+            }
+            conditions.append(name)
+        }
+
+        // Exercise tags
+        let exerciseTags = Set(["tag_running", "tag_yoga", "tag_gym", "tag_walk", "ランニング", "ヨガ/ストレッチ", "筋トレ", "散歩", "運動"])
+        let allTags = Set(bestEntries.flatMap(\.tags))
+        if !allTags.isDisjoint(with: exerciseTags) {
+            conditions.append(String(localized: "運動"))
+        }
+
+        // Social tags
+        let socialTags = Set(["tag_friends", "tag_family", "tag_lover", "tag_colleagues", "友人", "家族", "パートナー", "同僚"])
+        if !allTags.isDisjoint(with: socialTags) {
+            conditions.append(String(localized: "人とのつながり"))
+        }
+
+        guard !conditions.isEmpty else { return nil }
+        return conditions.joined(separator: " ・ ")
+    }
+
+    /// Resolve tag IDs in text to display names
+    private func resolveTagIDs(_ text: String) -> String {
+        var resolved = text
+        let tagPattern = /tag_[a-z_]+/
+        for match in text.matches(of: tagPattern) {
+            let tagID = String(match.output)
+            let displayName = TagDisplayHelper.displayName(for: tagID)
+            if displayName != tagID {
+                resolved = resolved.replacingOccurrences(of: tagID, with: displayName)
+            }
+        }
+        return resolved
+    }
+
+    // Animation states
+    @State private var displayedScore: Double = 0
+    @State private var waveOpacity: Double = 0
+
     var body: some View {
         let colors = themeManager.colors
 
@@ -78,11 +189,17 @@ struct MonthlyReportView: View {
                     if monthEntries.isEmpty {
                         emptyMonthView(colors: colors)
                     } else {
-                        // Average score hero
-                        averageScoreSection(colors: colors)
+                        // Wave header + score
+                        scoreHeaderWithWave(colors: colors)
 
-                        // Best day feature card
+                        // Narrative
+                        narrativeSection(colors: colors)
+
+                        // Best day (with recipe)
                         bestDayCard(colors: colors)
+
+                        // Challenge day
+                        challengeDayCard(colors: colors)
 
                         // Sentiment ring
                         sentimentRingSection(colors: colors)
@@ -175,6 +292,193 @@ struct MonthlyReportView: View {
     }
 
     // MARK: - Average Score
+
+    // MARK: - Wave Header + Score
+
+    private func scoreHeaderWithWave(colors: ThemeColors) -> some View {
+        let avg = summary?.average ?? 0
+
+        return VStack(spacing: 8) {
+            // Wave background
+            ZStack {
+                ScoreWaveShape(dailyScores: dailyAverageScores)
+                    .fill(
+                        LinearGradient(
+                            colors: [colors.accent.opacity(0.2), colors.accent.opacity(0.05)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(height: 80)
+
+                ScoreWaveShape(dailyScores: dailyAverageScores)
+                    .stroke(colors.accent.opacity(0.4), lineWidth: 1.5)
+                    .frame(height: 80)
+            }
+            .drawingGroup()
+            .opacity(waveOpacity)
+            .padding(.horizontal, -20)
+
+            Text(String(localized: "心の波のスコア"))
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(String(format: "%.1f", displayedScore))
+                    .font(.system(size: 72, weight: .bold, design: .rounded))
+                    .foregroundStyle(colors.accent)
+                    .contentTransition(.numericText(value: displayedScore))
+
+                Text("/\(currentMaxScore)")
+                    .font(.system(size: 22, weight: .light, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            // Trend vs previous month
+            if let prev = summary?.previousMonthAverage {
+                let delta = avg - prev
+                HStack(spacing: 4) {
+                    Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.system(.caption, weight: .bold))
+                    Text(String(format: "%+.1f", delta))
+                        .font(.system(.callout, design: .rounded, weight: .bold))
+                    Text(String(localized: "先月比"))
+                        .font(.system(.caption2, design: .rounded))
+                }
+                .foregroundStyle(delta >= 0 ? .green : .red)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Capsule().fill((delta >= 0 ? Color.green : .red).opacity(0.12)))
+            }
+
+            // Active days
+            if let s = summary {
+                Text(String(localized: "\(s.activeDays)日記録 / \(s.entryCount)件のエントリ"))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 8)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.8)) {
+                displayedScore = avg
+            }
+            withAnimation(.easeIn(duration: 0.6)) {
+                waveOpacity = 1.0
+            }
+        }
+        .onChange(of: displayMonth) { _, _ in
+            displayedScore = 0
+            waveOpacity = 0
+            withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
+                displayedScore = summary?.average ?? 0
+            }
+            withAnimation(.easeIn(duration: 0.6).delay(0.1)) {
+                waveOpacity = 1.0
+            }
+        }
+    }
+
+    // MARK: - Narrative
+
+    private func narrativeSection(colors: ThemeColors) -> some View {
+        let narrative = NarrativeGenerator.generate(
+            activeDays: summary?.activeDays ?? 0,
+            daysInMonth: daysInMonth,
+            monthName: monthName,
+            average: summary?.average ?? 0,
+            previousAverage: summary?.previousMonthAverage,
+            topRescueAction: topRescueAction
+        )
+
+        return Text(NarrativeGenerator.attributedText(from: narrative, accentColor: colors.accent))
+            .font(.system(.body, design: .serif))
+            .lineSpacing(6)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+    }
+
+    // MARK: - Challenge Day Card
+
+    @ViewBuilder
+    private func challengeDayCard(colors _: ThemeColors) -> some View {
+        if let challenge = challengeDay {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(String(localized: "チャレンジデイ"), systemImage: "cloud.rain.fill")
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Text(challenge.date.formatted(.dateTime.month().day().weekday(.wide)))
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    HStack(alignment: .firstTextBaseline, spacing: 1) {
+                        Text(String(format: "%.0f", challenge.score))
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                        Text("/\(currentMaxScore)")
+                            .font(.system(size: 14, weight: .light, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let memo = challenge.memo, !memo.isEmpty {
+                    Text(memo)
+                        .font(.system(.callout, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                // Weather + tags
+                HStack(spacing: 6) {
+                    if let weather = challenge.weather {
+                        let icon = switch weather {
+                        case "sunny", "clear": "sun.max.fill"
+                        case "cloudy": "cloud.fill"
+                        case "rainy": "cloud.rain.fill"
+                        case "snowy": "cloud.snow.fill"
+                        case "stormy": "cloud.bolt.fill"
+                        default: "cloud.fill"
+                        }
+                        Label(
+                            challenge.temperature.map { "\(Int($0))°C" } ?? "",
+                            systemImage: icon
+                        )
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.tertiary)
+                    }
+                    ForEach(challenge.tags, id: \.self) { tag in
+                        Text(TagDisplayHelper.displayName(for: tag))
+                            .font(.system(.caption2, design: .rounded))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Color.secondary.opacity(0.08)))
+                    }
+                }
+
+                // Next day recovery
+                if let nextScore = challenge.nextDayScore, nextScore > challenge.score {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.right")
+                            .font(.caption2)
+                        Text(String(localized: "翌日は \(String(format: "%.1f", nextScore)) に回復"))
+                            .font(.system(.callout, design: .rounded))
+                        Image(systemName: "sparkles")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.green)
+                    .padding(.top, 4)
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color.secondary.opacity(colorScheme == .dark ? 0.08 : 0.04))
+            )
+        }
+    }
+
+    // MARK: - Average Score (legacy, kept for reference)
 
     private func averageScoreSection(colors: ThemeColors) -> some View {
         let avg = summary?.average ?? 0
@@ -321,7 +625,7 @@ struct MonthlyReportView: View {
                 }
             }
 
-            Text(insight.body)
+            Text(resolveTagIDs(insight.body))
                 .font(.system(.subheadline, design: .rounded))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -446,13 +750,26 @@ struct MonthlyReportView: View {
                         }
                     }
                 }
+
+                // Recipe for best day
+                if let recipe = bestDayRecipe {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(String(localized: "再現レシピ"))
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.tertiary)
+                        Text(recipe)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
-            .padding(16)
+            .padding(20)
             .background(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 20)
                     .fill(.ultraThinMaterial)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 20)
                             .stroke(.yellow.opacity(0.2), lineWidth: 1)
                     )
             )
