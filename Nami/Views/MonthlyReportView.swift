@@ -207,13 +207,14 @@ struct MonthlyReportView: View {
                         // Monthly heatmap
                         heatmapSection(colors: colors)
 
-                        // Hero insight
-                        if let insight = heroInsight {
-                            heroInsightSection(insight: insight, colors: colors)
-                        }
+                        // Insights (up to 3 swipeable cards)
+                        insightCardsSection(colors: colors)
 
                         // Recovery booster
                         recoveryBoosterSection(colors: colors)
+
+                        // Monthly proposal
+                        monthlyProposalSection(colors: colors)
 
                         // Top tags with impact
                         if !tagRanking.isEmpty {
@@ -696,6 +697,157 @@ struct MonthlyReportView: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial))
         .overlay(RoundedRectangle(cornerRadius: 20).stroke(insight.tone.color.opacity(0.25), lineWidth: 1.5))
+    }
+
+    // MARK: - Insight Cards (3 swipeable)
+
+    private func insightCardsSection(colors: ThemeColors) -> some View {
+        let insights = InsightEngine.generate(from: monthEntries, currentMax: currentMaxScore, currentMin: currentMinScore)
+        let displayInsights = Array(insights.prefix(3))
+
+        return VStack(spacing: 8) {
+            if !displayInsights.isEmpty {
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lightbulb.fill")
+                            .foregroundStyle(.yellow)
+                        Text(String(localized: "今月の気づき"))
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    }
+                    Spacer()
+                    // Page dots
+                    HStack(spacing: 4) {
+                        ForEach(0 ..< displayInsights.count, id: \.self) { i in
+                            Circle()
+                                .fill(i == 0 ? colors.accent : colors.accent.opacity(0.3))
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+                }
+
+                TabView {
+                    ForEach(displayInsights) { insight in
+                        insightCardContent(insight: insight, colors: colors)
+                            .padding(.horizontal, 4)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: 140)
+            }
+        }
+    }
+
+    private func insightCardContent(insight: InsightCard, colors _: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: insight.icon)
+                    .font(.system(.body))
+                    .foregroundStyle(insight.tone.color)
+                Text(resolveTagIDs(insight.title))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+            }
+
+            Text(resolveTagIDs(insight.body))
+                .font(.system(.caption, design: .rounded))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(4)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(insight.tone.color.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(insight.tone.color.opacity(0.15), lineWidth: 1)
+                )
+        )
+    }
+
+    // MARK: - Monthly Proposal
+
+    @ViewBuilder
+    private func monthlyProposalSection(colors: ThemeColors) -> some View {
+        let impacts = statsVM.habitImpactScores(entries: monthEntries, targetMax: currentMaxScore, targetMin: currentMinScore)
+        let proposal = generateProposal(impacts: impacts)
+
+        if let proposal {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Image(systemName: "target")
+                        .foregroundStyle(.white)
+                    Text(String(localized: "来月のチャレンジ"))
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+
+                Text(proposal.title)
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+                    .foregroundStyle(.white)
+
+                Text(proposal.reason)
+                    .font(.system(.callout, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.caption2)
+                    Text(proposal.expectedImpact)
+                        .font(.system(.caption, design: .rounded))
+                }
+                .foregroundStyle(.white.opacity(0.7))
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(
+                        LinearGradient(
+                            colors: [colors.accent, colors.accent.opacity(0.7)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            )
+        }
+    }
+
+    private struct MonthlyProposal {
+        let title: String
+        let reason: String
+        let expectedImpact: String
+    }
+
+    private func generateProposal(impacts: [StatsViewModel.HabitImpact]) -> MonthlyProposal? {
+        guard !impacts.isEmpty else { return nil }
+
+        // Priority 1: High impact + low frequency tag
+        let avgCount = tagRanking.map(\.count).reduce(0, +) / max(tagRanking.count, 1)
+        if let candidate = impacts
+            .filter({ $0.impact > 0.5 && $0.sampleCount < avgCount })
+            .first
+        {
+            let name = TagDisplayHelper.displayName(for: candidate.tagName)
+            return MonthlyProposal(
+                title: "「\(name)」を増やしてみよう",
+                reason: "\(name)のある日はスコアが\(String(format: "+%.1f", candidate.impact))高いのに、月\(candidate.sampleCount)回しか記録していません",
+                expectedImpact: String(localized: "月間平均が+0.3〜0.5改善する可能性")
+            )
+        }
+
+        // Priority 2: Most impactful tag
+        if let top = impacts.first, top.impact > 0.3 {
+            let name = TagDisplayHelper.displayName(for: top.tagName)
+            return MonthlyProposal(
+                title: "「\(name)」を意識してみよう",
+                reason: "\(name)はあなたの気分に最もプラスの影響を与えています（\(String(format: "+%.1f", top.impact))）",
+                expectedImpact: String(localized: "この習慣を維持するだけでスコアの安定に繋がります")
+            )
+        }
+
+        return nil
     }
 
     // MARK: - Top Tags
