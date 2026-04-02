@@ -527,63 +527,125 @@ struct MonthlyReportView: View {
 
     // MARK: - Sentiment Ring
 
-    private func sentimentRingSection(colors: ThemeColors) -> some View {
+    private func sentimentRingSection(colors _: ThemeColors) -> some View {
+        let categoryData = buildCategoryData()
+        let totalEntries = monthEntries.count
         let pos = sentimentRatio.positive
-        let neg = sentimentRatio.negative
 
-        return VStack(spacing: 12) {
-            Text(String(localized: "ポジティブ / ネガティブ"))
-                .font(.system(.caption, design: .rounded))
-                .foregroundStyle(.secondary)
+        return VStack(spacing: 16) {
+            Text(String(localized: "感情のスペクトラム"))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
 
-            ZStack {
-                // Background ring
-                Circle()
-                    .stroke(Color(.systemGray5), lineWidth: 12)
-                    .frame(width: 120, height: 120)
-
-                // Positive arc
-                Circle()
-                    .trim(from: 0, to: pos)
-                    .stroke(colors.highScoreColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    .frame(width: 120, height: 120)
-                    .rotationEffect(.degrees(-90))
-
-                // Negative arc
-                Circle()
-                    .trim(from: pos, to: 1.0)
-                    .stroke(colors.lowScoreColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    .frame(width: 120, height: 120)
-                    .rotationEffect(.degrees(-90))
-
-                // Center label
-                VStack(spacing: 2) {
-                    Text("\(Int(pos * 100))%")
-                        .font(.system(.title3, design: .rounded, weight: .bold))
-                    Text(String(localized: "ポジティブ"))
-                        .font(.system(.caption2, design: .rounded))
+            if pos == 1.0 {
+                // All positive achievement
+                VStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.yellow)
+                    Text(String(localized: "オールポジティブ!"))
+                        .font(.system(.headline, design: .rounded, weight: .bold))
+                    Text(String(localized: "今月はネガティブタグが0でした"))
+                        .font(.system(.caption, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
-            }
+                .padding(.vertical, 12)
+            } else if !categoryData.isEmpty {
+                // Donut chart
+                ZStack {
+                    Chart(categoryData, id: \.name) { cat in
+                        SectorMark(
+                            angle: .value("Count", cat.count),
+                            innerRadius: .ratio(0.6),
+                            angularInset: 1.5
+                        )
+                        .foregroundStyle(cat.color)
+                        .cornerRadius(4)
+                    }
+                    .frame(height: 180)
 
-            // Legend
-            HStack(spacing: 20) {
-                HStack(spacing: 6) {
-                    Circle().fill(colors.highScoreColor).frame(width: 8, height: 8)
-                    Text(String(localized: "ポジティブ \(Int(pos * 100))%"))
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.secondary)
+                    // Center label
+                    VStack(spacing: 2) {
+                        Text("\(totalEntries)")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                        Text(String(localized: "エントリ"))
+                            .font(.system(.caption2, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                HStack(spacing: 6) {
-                    Circle().fill(colors.lowScoreColor).frame(width: 8, height: 8)
-                    Text(String(localized: "ネガティブ \(Int(neg * 100))%"))
-                        .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.secondary)
+
+                // Legend (top categories)
+                FlowLayout(spacing: 8) {
+                    ForEach(categoryData.prefix(6), id: \.name) { cat in
+                        HStack(spacing: 4) {
+                            Circle().fill(cat.color).frame(width: 6, height: 6)
+                            Text("\(cat.emoji) \(cat.percentage)%")
+                                .font(.system(size: 10, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }
         .padding()
         .background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial))
+    }
+
+    /// Build category distribution data for donut chart
+    private func buildCategoryData() -> [(name: String, emoji: String, count: Int, percentage: Int, color: Color)] {
+        let catMap: [String: (name: String, emoji: String, color: Color)] = [
+            "positive": (String(localized: "ポジティブ"), "😊", .green),
+            "negative": (String(localized: "ネガティブ"), "😢", .red),
+            "factor": (String(localized: "要因"), "💪", .blue),
+            "diet": (String(localized: "食事"), "🍽", .orange),
+            "exercise": (String(localized: "運動"), "🏃", .cyan),
+            "location": (String(localized: "場所"), "📍", .purple),
+            "activity": (String(localized: "活動"), "🎯", .indigo),
+            "social": (String(localized: "人"), "👥", .pink),
+            "communication": (String(localized: "会話"), "💬", .teal),
+            "mind": (String(localized: "頭"), "🧠", .brown),
+            "morning": (String(localized: "朝"), "🌅", .yellow),
+            "custom": (String(localized: "カスタム"), "✨", .gray),
+        ]
+
+        // Count tags by category
+        var categoryCounts: [String: Int] = [:]
+        for entry in monthEntries {
+            for tag in entry.tags {
+                // Determine category from EmotionTagCategory
+                let catKey: String
+                if tag.hasPrefix("tag_happy") || tag.hasPrefix("tag_fun") || tag.hasPrefix("tag_calm") || tag.hasPrefix("tag_grateful") || tag.hasPrefix("tag_energetic") || tag.hasPrefix("tag_refreshed") {
+                    catKey = "positive"
+                } else if tag.hasPrefix("tag_sad") || tag.hasPrefix("tag_anxious") || tag.hasPrefix("tag_stressed") || tag.hasPrefix("tag_tired") || tag.hasPrefix("tag_irritated") {
+                    catKey = "negative"
+                } else if tag.hasPrefix("tag_running") || tag.hasPrefix("tag_yoga") || tag.hasPrefix("tag_gym") || tag.hasPrefix("tag_walk") {
+                    catKey = "exercise"
+                } else if tag.hasPrefix("tag_friends") || tag.hasPrefix("tag_family") || tag.hasPrefix("tag_lover") || tag.hasPrefix("tag_colleagues") {
+                    catKey = "social"
+                } else if tag.hasPrefix("tag_caffeine") || tag.hasPrefix("tag_cooking") || tag.hasPrefix("tag_alcohol") {
+                    catKey = "diet"
+                } else if tag.hasPrefix("tag_home") || tag.hasPrefix("tag_work") || tag.hasPrefix("tag_outside") {
+                    catKey = "location"
+                } else if tag.hasPrefix("tag_meditation") || tag.hasPrefix("tag_reading") || tag.hasPrefix("tag_clear_mind") || tag.hasPrefix("tag_focused") {
+                    catKey = "mind"
+                } else if tag.hasPrefix("tag_fresh_wakeup") || tag.hasPrefix("tag_heavy_wakeup") {
+                    catKey = "morning"
+                } else {
+                    catKey = "custom"
+                }
+                categoryCounts[catKey, default: 0] += 1
+            }
+        }
+
+        let totalTags = categoryCounts.values.reduce(0, +)
+        guard totalTags > 0 else { return [] }
+
+        return categoryCounts
+            .sorted { $0.value > $1.value }
+            .compactMap { key, count in
+                guard let info = catMap[key] else { return nil }
+                let pct = Int(Double(count) / Double(totalTags) * 100)
+                return (name: info.name, emoji: info.emoji, count: count, percentage: pct, color: info.color)
+            }
     }
 
     // MARK: - Heatmap
@@ -814,60 +876,133 @@ struct MonthlyReportView: View {
 
     // MARK: - Top Tags with Impact
 
+    @State private var tagSortByImpact = true
+
     private func topTagsWithImpactSection(colors: ThemeColors) -> some View {
         let impacts = statsVM.habitImpactScores(entries: monthEntries, targetMax: currentMaxScore, targetMin: currentMinScore)
         let impactMap = Dictionary(uniqueKeysWithValues: impacts.map { ($0.tagName, $0.impact) })
+        let maxImpact = impacts.map { abs($0.impact) }.max() ?? 1.0
 
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "tag.fill")
-                    .foregroundStyle(colors.accent)
-                Text(String(localized: "よく使ったタグ"))
-                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+        // Sort tags by impact or frequency
+        let sortedTags: [(tag: String, count: Int, impact: Double)] = {
+            let tagged = tagRanking.map { item in
+                (tag: item.tag, count: item.count, impact: impactMap[item.tag] ?? 0)
             }
+            if tagSortByImpact {
+                return tagged.sorted { $0.impact > $1.impact }
+            }
+            return tagged
+        }()
 
-            ForEach(tagRanking.prefix(10), id: \.tag) { item in
-                let displayName = TagDisplayHelper.displayName(for: item.tag)
-                let impact = impactMap[item.tag]
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "tag.fill")
+                        .foregroundStyle(colors.accent)
+                    Text(String(localized: "よく使ったタグ"))
+                        .font(.system(.subheadline, design: .rounded, weight: .bold))
+                }
 
-                HStack(spacing: 8) {
-                    Text(displayName)
-                        .font(.system(.caption, design: .rounded, weight: .medium))
-                        .frame(width: 80, alignment: .leading)
-                        .lineLimit(1)
+                Spacer()
 
-                    // Bar
-                    GeometryReader { geo in
-                        let maxCount = tagRanking.first?.count ?? 1
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(colors.accent.opacity(0.7))
-                            .frame(width: geo.size.width * CGFloat(item.count) / CGFloat(maxCount))
+                // Sort toggle
+                if !impacts.isEmpty {
+                    HStack(spacing: 2) {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { tagSortByImpact = true }
+                        } label: {
+                            Text(String(localized: "インパクト順"))
+                                .font(.system(.caption2, design: .rounded, weight: tagSortByImpact ? .bold : .medium))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(tagSortByImpact ? colors.accent : .clear)
+                                )
+                                .foregroundStyle(tagSortByImpact ? .white : .secondary)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { tagSortByImpact = false }
+                        } label: {
+                            Text(String(localized: "頻度順"))
+                                .font(.system(.caption2, design: .rounded, weight: !tagSortByImpact ? .bold : .medium))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(!tagSortByImpact ? colors.accent : .clear)
+                                )
+                                .foregroundStyle(!tagSortByImpact ? .white : .secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .frame(height: 8)
-
-                    Text("\(item.count)")
-                        .font(.system(.caption2, design: .rounded, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 24, alignment: .trailing)
-
-                    // Impact badge
-                    if let impact {
-                        Text(String(format: "%+.1f", impact))
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(impact >= 0 ? .green : .orange)
-                            .frame(width: 36, alignment: .trailing)
-                    }
+                    .padding(2)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(.systemGray5).opacity(0.6)))
                 }
             }
 
-            if !impacts.isEmpty {
-                Text(String(localized: "右端の数値はスコアへの影響度"))
-                    .font(.system(size: 9, design: .rounded))
+            // Center-axis impact bars
+            ForEach(sortedTags.prefix(10), id: \.tag) { item in
+                let displayName = TagDisplayHelper.displayName(for: item.tag)
+
+                HStack(spacing: 4) {
+                    // Tag name
+                    Text(displayName)
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .frame(width: 76, alignment: .trailing)
+                        .lineLimit(1)
+
+                    // Center-axis bar
+                    GeometryReader { geo in
+                        let center = geo.size.width / 2
+                        let barWidth = maxImpact > 0 ? abs(item.impact) / maxImpact * center * 0.85 : 0
+
+                        ZStack {
+                            // Center line
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.2))
+                                .frame(width: 1)
+                                .position(x: center, y: geo.size.height / 2)
+
+                            // Impact bar
+                            if barWidth > 2 {
+                                RoundedRectangle(cornerRadius: 3)
+                                    .fill(item.impact >= 0 ? Color.green.opacity(0.6) : Color.red.opacity(0.5))
+                                    .frame(width: barWidth, height: 16)
+                                    .position(
+                                        x: item.impact >= 0 ? center + barWidth / 2 + 1 : center - barWidth / 2 - 1,
+                                        y: geo.size.height / 2
+                                    )
+                            }
+                        }
+                    }
+                    .frame(height: 22)
+
+                    // Count
+                    Text("\(item.count)")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, alignment: .trailing)
+                }
+            }
+
+            // Axis labels
+            HStack {
+                Spacer()
+                Text(String(localized: "◀ マイナス"))
+                    .font(.system(size: 8, design: .rounded))
                     .foregroundStyle(.tertiary)
+                Spacer()
+                Text(String(localized: "プラス ▶"))
+                    .font(.system(size: 8, design: .rounded))
+                    .foregroundStyle(.tertiary)
+                Spacer()
             }
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial))
+        .background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial))
     }
 
     private func shareButton(colors: ThemeColors) -> some View {
