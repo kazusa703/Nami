@@ -227,6 +227,21 @@ struct MonthlyReportView: View {
                             )
                         }
 
+                        // Pro advanced sections
+                        if premiumManager.isPremium {
+                            // Momentum gauge
+                            momentumGaugeSection(colors: colors)
+
+                            // Personal best updates
+                            personalBestSection(colors: colors)
+                        } else if monthEntries.count >= 7 {
+                            proGateCard(
+                                title: String(localized: "モメンタム・ベスト記録"),
+                                description: String(localized: "気分のトレンド分析とあなたの記録更新"),
+                                colors: colors
+                            )
+                        }
+
                         // Top tags with impact — free (impact hidden for non-Pro handled inside)
                         if !tagRanking.isEmpty {
                             topTagsWithImpactSection(colors: colors)
@@ -1232,6 +1247,172 @@ struct MonthlyReportView: View {
         .padding(.top, 8)
         .sheet(isPresented: $showProView) {
             NavigationStack { ProView() }
+        }
+    }
+
+    // MARK: - Momentum Gauge Section (Pro)
+
+    @ViewBuilder
+    private func momentumGaugeSection(colors: ThemeColors) -> some View {
+        let momentum = statsVM.scoreMomentum(entries: monthEntries, targetMax: currentMaxScore, targetMin: currentMinScore)
+
+        if let m = momentum {
+            VStack(spacing: 12) {
+                momentumHeader(colors: colors)
+                momentumGaugeCanvas(momentum: m.momentum)
+                momentumCenterLabel(m: m)
+                momentumMALabels(m: m)
+                momentumScaleLabels
+            }
+            .padding(20)
+            .background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial))
+        }
+    }
+
+    private func momentumHeader(colors: ThemeColors) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "gauge.with.needle.fill")
+                .foregroundStyle(colors.accent)
+            Text(String(localized: "月末のモメンタム"))
+                .font(.system(.subheadline, design: .rounded, weight: .bold))
+        }
+    }
+
+    private func momentumGaugeCanvas(momentum: Double) -> some View {
+        Canvas { context, size in
+            let center = CGPoint(x: size.width / 2, y: size.height * 0.85)
+            let radius = min(size.width, size.height) * 0.65
+
+            let bgPath = Path { p in
+                p.addArc(center: center, radius: radius,
+                         startAngle: .degrees(180), endAngle: .degrees(0),
+                         clockwise: false)
+            }
+            context.stroke(bgPath, with: .linearGradient(
+                Gradient(colors: [.red.opacity(0.3), .yellow.opacity(0.3), .green.opacity(0.3)]),
+                startPoint: CGPoint(x: 0, y: center.y),
+                endPoint: CGPoint(x: size.width, y: center.y)
+            ), lineWidth: 14)
+
+            let normalized = min(max((momentum + 3.0) / 6.0, 0), 1)
+            let needleAngle = Angle.degrees(180 - normalized * 180)
+            let cosVal = CGFloat(cos(needleAngle.radians))
+            let sinVal = CGFloat(sin(needleAngle.radians))
+            let needleEnd = CGPoint(
+                x: center.x + cosVal * (radius - 16),
+                y: center.y - sinVal * (radius - 16)
+            )
+            var needlePath = Path()
+            needlePath.move(to: center)
+            needlePath.addLine(to: needleEnd)
+            context.stroke(needlePath, with: .color(.primary), lineWidth: 2.5)
+
+            context.fill(
+                Circle().path(in: CGRect(x: center.x - 5, y: center.y - 5, width: 10, height: 10)),
+                with: .color(.primary)
+            )
+        }
+        .frame(height: 120)
+    }
+
+    private func momentumCenterLabel(m: StatsViewModel.ScoreMomentum) -> some View {
+        VStack(spacing: 2) {
+            Text(String(format: "%+.1f", m.momentum))
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundStyle(m.trend.color)
+            Text(m.trend.label)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(m.trend.color)
+        }
+    }
+
+    private func momentumMALabels(m: StatsViewModel.ScoreMomentum) -> some View {
+        HStack(spacing: 20) {
+            VStack(spacing: 2) {
+                Text(String(localized: "7日平均"))
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Text(String(format: "%.1f", m.ma7))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+            }
+            VStack(spacing: 2) {
+                Text(String(localized: "30日平均"))
+                    .font(.system(.caption2, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Text(String(format: "%.1f", m.ma30))
+                    .font(.system(.subheadline, design: .rounded, weight: .bold))
+            }
+        }
+    }
+
+    private var momentumScaleLabels: some View {
+        HStack {
+            Text(String(localized: "下降"))
+                .font(.system(size: 9, design: .rounded))
+                .foregroundStyle(.tertiary)
+            Spacer()
+            Text(String(localized: "安定"))
+                .font(.system(size: 9, design: .rounded))
+                .foregroundStyle(.tertiary)
+            Spacer()
+            Text(String(localized: "上昇"))
+                .font(.system(size: 9, design: .rounded))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 20)
+    }
+
+    // MARK: - Personal Best Section (Pro)
+
+    private func personalBestSection(colors: ThemeColors) -> some View {
+        let bests = statsVM.personalBests(entries: monthEntries, targetMax: currentMaxScore, targetMin: currentMinScore)
+
+        return Group {
+            if !bests.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trophy.fill")
+                            .foregroundStyle(.yellow)
+                        Text(String(localized: "今月の記録"))
+                            .font(.system(.subheadline, design: .rounded, weight: .bold))
+                    }
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(bests) { best in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: best.icon)
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(colors.accent)
+                                    Text(best.title)
+                                        .font(.system(.caption2, design: .rounded, weight: .bold))
+                                }
+
+                                Text(best.value)
+                                    .font(.system(.title3, design: .rounded, weight: .bold))
+                                    .foregroundStyle(colors.accent)
+
+                                Text(best.details)
+                                    .font(.system(size: 9, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(.ultraThinMaterial))
+                        }
+                    }
+                }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(.yellow.opacity(0.15), lineWidth: 1)
+                        )
+                )
+            }
         }
     }
 
